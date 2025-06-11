@@ -1,0 +1,19 @@
+2025-06-04 20:39:27,172 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-04 20:39:27,172 - INFO - [33mPress CTRL+C to quit[0m
+2025-06-04 20:39:27,174 - INFO -  * Restarting with stat
+2025-06-04 20:39:27,523 - WARNING -  * Debugger is active!
+2025-06-04 20:39:27,527 - INFO -  * Debugger PIN: 311-705-211
+2025-06-04 20:39:30,734 - INFO - 127.0.0.1 - - [04/Jun/2025 20:39:30] "GET / HTTP/1.1" 200 -
+2025-06-04 20:39:46,903 - INFO - 127.0.0.1 - - [04/Jun/2025 20:39:46] "[35m[1mPOST /scrape HTTP/1.1[0m" 500 -
+2025-06-04 20:39:48,792 - INFO - 127.0.0.1 - - [04/Jun/2025 20:39:48] "[35m[1mPOST /scrape HTTP/1.1[0m" 500 -
+2025-06-04 20:39:49,578 - INFO - 127.0.0.1 - - [04/Jun/2025 20:39:49] "[35m[1mPOST /scrape HTTP/1.1[0m" 500 -
+2025-06-04 20:39:49,745 - INFO - 127.0.0.1 - - [04/Jun/2025 20:39:49] "[35m[1mPOST /scrape HTTP/1.1[0m" 500 -
+2025-06-04 20:39:49,837 - INFO - 127.0.0.1 - - [04/Jun/2025 20:39:49] "[35m[1mPOST /scrape HTTP/1.1[0m" 500 -
+2025-06-04 20:40:30,873 - INFO -  * Detected change in 'C:\\Users\\rushi\\Documents\\personal\\stealthscraper\\app.py', reloading
+2025-06-04 20:40:30,968 - INFO -  * Restarting with stat
+2025-06-04 20:40:31,724 - WARNING -  * Debugger is active!
+2025-06-04 20:40:31,742 - INFO -  * Debugger PIN: 311-705-211
+2025-06-04 20:40:33,357 - INFO - 127.0.0.1 - - [04/Jun/2025 20:40:33] "[35m[1mPOST /scrape HTTP/1.1[0m" 500 -
+2025-06-04 20:40:53,286 - INFO -  * Detected change in 'C:\\Users\\rushi\\Documents\\personal\\stealthscraper\\scraper\\core.py', reloading
+2025-06-04 20:40:53,376 - INFO -  * Restarting with stat

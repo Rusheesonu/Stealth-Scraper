@@ -1,0 +1,1478 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEALTH WEB SCRAPER</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- Core Variables & Base Styles (Optimized for Long-Term Use) --- */
+        :root {
+            --color-background-soft-dark: #121212; /* Softer, deep charcoal */
+            --color-background-panel: #1A1A1A; /* Slightly lighter for panel backgrounds */
+            --color-foreground: #F0F0F0; /* Slightly off-white for text */
+            --color-border-subtle: #333333; /* Slightly lighter border */
+            --color-accent-dim: #A0A0A0; /* Muted gray for secondary elements */
+            --color-accent-gold: #D4AF37; /* A richer, less muted gold */
+
+            --font-display: 'Cormorant Garamond', serif;
+            --font-body: 'IBM Plex Sans', sans-serif;
+
+            --spacing-large: 4rem;
+            --spacing-medium: 2.5rem;
+            --spacing-small: 1.5rem;
+
+            --transition-speed-normal: 0.3s;
+            --transition-ease: ease-out;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            /* New: Radial gradient for background */
+            background: radial-gradient(circle at top left, #1c1c1c 0%, var(--color-background-soft-dark) 70%);
+            color: var(--color-foreground);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: var(--spacing-medium);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--spacing-large);
+            padding: var(--spacing-large);
+            background-color: var(--color-background-panel); /* Panel background */
+            border: 1px solid var(--color-border-subtle);
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.4); /* Softer shadow */
+            animation: fadeIn 0.8s var(--transition-ease) forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Header & Title --- */
+        .header {
+            text-align: center;
+            margin-bottom: var(--spacing-large);
+            animation: slideInTop 0.8s var(--transition-ease) forwards;
+            opacity: 0;
+            transform: translateY(-30px);
+            padding-bottom: var(--spacing-medium);
+            border-bottom: 1px solid var(--color-border-subtle);
+        }
+
+        @keyframes slideInTop {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .main-title {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--color-foreground);
+            margin-bottom: 0.75rem;
+            line-height: 1;
+        }
+
+        .subtitle {
+            font-family: var(--font-body);
+            font-size: 1.3rem;
+            font-weight: 300;
+            color: var(--color-accent-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+
+        /* --- Main Content Grid --- */
+        .content-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-large);
+        }
+
+        /* --- Panel Styles --- */
+        .section-panel {
+            background-color: var(--color-background-panel); /* Explicit panel background */
+            border: 1px solid var(--color-border-subtle);
+            padding: var(--spacing-large);
+            animation: slideInLeft 0.8s var(--transition-ease) 0.2s forwards;
+            opacity: 0;
+            transform: translateX(-40px);
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .section-panel.right {
+            animation: slideInRight 0.8s var(--transition-ease) 0.3s forwards;
+            transform: translateX(40px);
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .panel-title {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 400;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--color-foreground);
+            margin-bottom: var(--spacing-small);
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--color-border-subtle);
+            position: relative;
+        }
+        .panel-title::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 40px;
+            height: 1px;
+            background-color: var(--color-accent-gold);
+        }
+
+        /* --- Form Elements --- */
+        .form-group {
+            margin-bottom: var(--spacing-small);
+        }
+
+        .label {
+            display: block;
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: var(--color-accent-dim);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .input,
+        .textarea {
+            width: 100%;
+            padding: 0.9rem 1.2rem;
+            background-color: #242424; /* Slightly lighter input background for contrast */
+            border: 1px solid var(--color-border-subtle);
+            color: var(--color-foreground);
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            transition: border-color var(--transition-speed-normal) var(--transition-ease);
+            appearance: none;
+        }
+
+        .input::placeholder,
+        .textarea::placeholder {
+            color: var(--color-accent-dim);
+            opacity: 0.6;
+        }
+
+        .input:focus,
+        .textarea:focus {
+            outline: none;
+            border-color: var(--color-accent-gold); /* Gold border on focus */
+        }
+
+        .textarea {
+            min-height: 250px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-top: var(--spacing-small);
+            margin-bottom: var(--spacing-small);
+            cursor: pointer;
+        }
+
+        .checkbox {
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border: 1px solid var(--color-border-subtle);
+            background-color: #242424; /* Consistent with input background */
+            margin-right: 0.8rem;
+            position: relative;
+            cursor: pointer;
+            transition: all var(--transition-speed-normal) var(--transition-ease);
+        }
+
+        .checkbox:checked {
+            background-color: var(--color-accent-gold); /* Gold checkmark background */
+            border-color: var(--color-accent-gold);
+        }
+
+        .checkbox:checked::after {
+            content: '\2713';
+            color: var(--color-background-panel); /* Dark checkmark */
+            font-size: 16px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+        }
+
+        .checkbox-label {
+            font-size: 0.9rem;
+            color: var(--color-accent-dim);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        /* --- Buttons --- */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: var(--spacing-medium);
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.9rem 1.8rem;
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1px solid var(--color-accent-gold); /* Gold border */
+            background-color: transparent;
+            color: var(--color-accent-gold); /* Gold text */
+            cursor: pointer;
+            transition: all var(--transition-speed-normal) var(--transition-ease);
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--color-accent-gold);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform var(--transition-speed-normal) var(--transition-ease);
+            z-index: -1;
+        }
+
+        .btn:hover::before {
+            transform: scaleX(1);
+        }
+
+        .btn:hover {
+            color: var(--color-background-panel); /* Text turns dark */
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2); /* Subtle gold glow */
+        }
+
+        .btn-primary {
+            background-color: var(--color-accent-gold); /* Starts with gold background */
+            color: var(--color-background-panel); /* Dark text */
+        }
+        .btn-primary::before {
+            background-color: var(--color-background-panel); /* Fills with dark on hover */
+        }
+        .btn-primary:hover {
+            color: var(--color-accent-gold); /* Text turns gold on hover */
+        }
+
+        .btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            border-color: var(--color-border-subtle);
+            color: var(--color-accent-dim);
+            background-color: transparent;
+        }
+        .btn.disabled::before {
+            transform: scaleX(0);
+        }
+
+
+        /* --- Results Panel --- */
+        .results-box {
+            background-color: var(--color-background-panel);
+            border: 1px solid var(--color-border-subtle);
+            padding: var(--spacing-small);
+            min-height: 380px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .results-content {
+            flex-grow: 1;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: var(--color-foreground);
+            overflow-y: auto;
+            white-space: pre-wrap;
+            padding: 0.5rem;
+            padding-right: 0.8rem;
+        }
+
+        .results-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .results-content::-webkit-scrollbar-track {
+            background: var(--color-border-subtle);
+        }
+        .results-content::-webkit-scrollbar-thumb {
+            background-color: var(--color-accent-gold); /* Gold scrollbar */
+            transition: background-color var(--transition-speed-normal) ease;
+        }
+        .results-content::-webkit-scrollbar-thumb:hover {
+            background-color: var(--color-foreground);
+        }
+
+        /* --- Loading State --- */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); /* Slightly less opaque */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--transition-speed-normal) var(--transition-ease);
+            z-index: 10;
+        }
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .spinner {
+            border: 3px solid var(--color-border-subtle);
+            border-top: 3px solid var(--color-accent-gold); /* Gold spinner */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.9s linear infinite;
+            margin-bottom: 1.2rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--color-accent-dim);
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* --- Notifications --- */
+        .notification {
+            position: fixed;
+            top: var(--spacing-small);
+            right: var(--spacing-small);
+            padding: 0.8rem 1.5rem;
+            background-color: var(--color-background-panel);
+            border: 1px solid var(--color-border-subtle);
+            color: var(--color-foreground);
+            font-size: 0.8rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: translateX(120%);
+            transition: transform var(--transition-speed-normal) var(--transition-ease);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+        .notification.show {
+            transform: translateX(0);
+        }
+        .notification.success {
+            border-color: #4ADE80;
+            color: #4ADE80;
+        }
+        .notification.error {
+            border-color: #F87171;
+            color: #F87171;
+        }
+        .notification.info {
+            border-color: var(--color-accent-gold);
+            color: var(--color-accent-gold);
+        }
+
+        /* --- Responsive Adjustments --- */
+        @media (max-width: 900px) {
+            .content-area {
+                grid-template-columns: 1fr;
+            }
+            .section-panel.right {
+                animation: slideInLeft 0.8s var(--transition-ease) 0.3s forwards;
+                transform: translateX(-40px);
+            }
+            .container {
+                padding: var(--spacing-medium);
+            }
+            .header {
+                margin-bottom: var(--spacing-medium);
+            }
+            .main-title {
+                font-size: 3rem;
+            }
+            .subtitle {
+                font-size: 1rem;
+            }
+            .section-panel {
+                padding: var(--spacing-medium);
+            }
+            .panel-title {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 500px) {
+            body {
+                padding: var(--spacing-small);
+            }
+            .container {
+                padding: var(--spacing-small);
+            }
+            .main-title {
+                font-size: 2.2rem;
+                letter-spacing: 0.1em;
+            }
+            .subtitle {
+                font-size: 0.8rem;
+                letter-spacing: 0.08em;
+            }
+            .button-group {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+            .btn {
+                width: 100%;
+                padding: 0.8rem 1.2rem;
+                font-size: 0.85rem;
+            }
+            .panel-title {
+                font-size: 1.3rem;
+            }
+            .textarea {
+                min-height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="main-title">🕵️‍♂️ Stealth Web Scraper 🕸️💻</h1>
+            <p class="subtitle">Precision Extraction for Curated Information</p>
+        </header>
+
+        <main class="content-area">
+            <section class="section-panel left">
+                <h2 class="panel-title">Extraction Protocol</h2>
+                <div class="form-group">
+                    <label for="urlInput" class="label">Target URL</label>
+                    <input type="url" id="urlInput" class="input" placeholder="https://example.com/data-source">
+                </div>
+
+                <div class="form-group">
+                    <label for="rulesInput" class="label">Extraction Rules (XPath / CSS / REGEX)</label>
+                    <textarea id="rulesInput" class="textarea" placeholder="title: //h1/text()&#10;price: .product-price::text"></textarea>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="playwrightMode" class="checkbox">
+                    <label for="playwrightMode" class="checkbox-label">
+                        Enable Dynamic Content Rendering
+                    </label>
+                </div>
+
+                <div class="button-group">
+                    <button id="scrapeBtn" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Start Extraction
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadTemplate('generic')">
+                        <i class="fas fa-file-alt"></i> Load Generic Template
+                    </button>
+                </div>
+            </section>
+
+            <section class="section-panel right">
+                <h2 class="panel-title">Extracted Data Stream</h2>
+                <div class="results-box">
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="spinner"></div>
+                        <div class="loading-text">Processing data...</div>
+                    </div>
+                    <pre id="resultsContent" class="results-content">Awaiting protocol initiation. Enter a URL and define your extraction rules. Data will appear here.</pre>
+                </div>
+                <div class="button-group">
+                    <button id="copyBtn" class="btn btn-secondary">
+                        <i class="fas fa-copy"></i> Copy Data
+                    </button>
+                    <button id="exportBtn" class="btn btn-secondary">
+                        <i class="fas fa-download"></i> Export JSON
+                    </button>
+                    <button id="clearBtn" class="btn btn-secondary">
+                        <i class="fas fa-eraser"></i> Clear Console
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // DOM Elements
+        const urlInput = document.getElementById('urlInput');
+        const rulesInput = document.getElementById('rulesInput');
+        const playwrightMode = document.getElementById('playwrightMode');
+        const scrapeBtn = document.getElementById('scrapeBtn');
+        const resultsContent = document.getElementById('resultsContent');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const copyBtn = document.getElementById('copyBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // Initial default rules
+        rulesInput.value = `title: //title/text()
+description: //meta[@name='description']/@content
+keywords: //meta[@name='keywords']/@content
+headings: //h1/text() | //h2/text()
+paragraphs: //p[string-length(.) > 50]/text()`;
+
+        // Template function
+        function loadTemplate(type) {
+            if (type === 'generic') {
+                rulesInput.value = `title: //title/text()
+description: //meta[@name='description']/@content
+keywords: //meta[@name='keywords']/@content
+headings: //h1/text() | //h2/text() | //h3/text()
+paragraphs: //p[string-length(.) > 50]/text()
+links: //a/@href`;
+                showNotification('Generic template loaded.', 'info');
+            }
+            // Add more templates as needed for different use cases
+        }
+        window.loadTemplate = loadTemplate; // Make it globally accessible for onclick
+
+        // Utility to display notifications
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            // Trigger reflow to ensure animation starts
+            void notification.offsetWidth;
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                notification.addEventListener('transitionend', () => notification.remove(), { once: true });
+            }, 3000); // Notification disappears after 3 seconds
+        }
+
+        // Set loading state
+        function setLoading(isLoading) {
+            if (isLoading) {
+                loadingOverlay.classList.add('active');
+                scrapeBtn.classList.add('disabled');
+                scrapeBtn.disabled = true;
+                scrapeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                urlInput.disabled = true;
+                rulesInput.disabled = true;
+                playwrightMode.disabled = true;
+                copyBtn.classList.add('disabled');
+                exportBtn.classList.add('disabled');
+            } else {
+                loadingOverlay.classList.remove('active');
+                scrapeBtn.classList.remove('disabled');
+                scrapeBtn.disabled = false;
+                scrapeBtn.innerHTML = '<i class="fas fa-play"></i> Start Extraction';
+                urlInput.disabled = false;
+                rulesInput.disabled = false;
+                playwrightMode.disabled = false;
+                copyBtn.classList.remove('disabled');
+                exportBtn.classList.remove('disabled');
+            }
+        }
+
+        // Main scraping function (simulated)
+        async function performScrape() {
+            const url = urlInput.value.trim();
+            const rules = rulesInput.value.trim();
+            const usePlaywright = playwrightMode.checked;
+
+            if (!url) {
+                showNotification('Error: Target URL cannot be empty.', 'error');
+                urlInput.focus();
+                return;
+            }
+            if (!rules) {
+                showNotification('Error: Extraction rules are required.', 'error');
+                rulesInput.focus();
+                return;
+            }
+
+            setLoading(true);
+            resultsContent.textContent = ''; // Clear previous results
+
+            try {
+                // Simulate network request and processing time
+                await new Promise(resolve => setTimeout(resolve, 2500 + Math.random() * 1500)); // Longer, more variable delay for realism
+
+                // Simulate success or failure
+                if (Math.random() > 0.1) { // 90% chance of success
+                    const simulatedData = {
+                        title: `Content from "${url.substring(0, 45)}${url.length > 45 ? '...' : ''}"`,
+                        description: "This console performs precise data extraction based on your defined protocols. The extracted data is curated and formatted for easy analysis. Expect highly relevant and structured information.",
+                        extracted_headings: [
+                            "Understanding Modern Data Flows",
+                            "The Art of Information Retrieval",
+                            "Aurora's Core Principles: Precision & Speed"
+                        ],
+                        extracted_links: [
+                            "https://aurora-console.com/docs/protocol-guide",
+                            "https://aurora-console.com/support/xpath-css",
+                            "https://aurora-console.com/community"
+                        ],
+                        timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                    };
+                    resultsContent.textContent = JSON.stringify(simulatedData, null, 2);
+                    showNotification('Extraction successful.', 'success');
+                } else {
+                    throw new Error("Simulated network issue or parsing error encountered.");
+                }
+
+            } catch (error) {
+                resultsContent.textContent = `ERROR: ${error.message}\n\nPlease verify your URL and extraction rules.`;
+                showNotification(`Extraction failed: ${error.message}`, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // Event Listeners
+        scrapeBtn.addEventListener('click', performScrape);
+
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !scrapeBtn.disabled) {
+                performScrape();
+            }
+        });
+
+        copyBtn.addEventListener('click', () => {
+            if (!resultsContent.textContent.trim() || resultsContent.textContent.includes('Awaiting protocol')) {
+                showNotification('No data to copy.', 'info');
+                return;
+            }
+            navigator.clipboard.writeText(resultsContent.textContent)
+                .then(() => showNotification('Data copied to clipboard.', 'success'))
+                .catch(err => showNotification('Failed to copy data.', 'error'));
+        });
+
+        exportBtn.addEventListener('click', () => {
+            if (!resultsContent.textContent.trim() || resultsContent.textContent.includes('Awaiting protocol')) {
+                showNotification('No data to export.', 'info');
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(resultsContent.textContent);
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `aurora_data_${new Date().toISOString().slice(0, 10)}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showNotification('Data exported as JSON.', 'success');
+        });
+
+        clearBtn.addEventListener('click', () => {
+            resultsContent.textContent = 'Awaiting protocol initiation. Enter a URL and define your extraction rules. Data will appear here.';
+            showNotification('Console cleared.', 'info');
+        });
+
+        // Initial state on load
+        setLoading(false);
+    </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEALTH WEB SCRAPER</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- Core Variables & Base Styles (Optimized for Long-Term Use) --- */
+        :root {
+            --color-background-soft-dark: #121212; /* Softer, deep charcoal */
+            --color-background-panel: #1A1A1A; /* Slightly lighter for panel backgrounds */
+            --color-foreground: #F0F0F0; /* Slightly off-white for text */
+            --color-border-subtle: #333333; /* Slightly lighter border */
+            --color-accent-dim: #A0A0A0; /* Muted gray for secondary elements */
+            --color-accent-gold: #D4AF37; /* A richer, less muted gold */
+
+            --font-display: 'Cormorant Garamond', serif;
+            --font-body: 'IBM Plex Sans', sans-serif;
+
+            --spacing-large: 4rem;
+            --spacing-medium: 2.5rem;
+            --spacing-small: 1.5rem;
+
+            --transition-speed-normal: 0.3s;
+            --transition-ease: ease-out;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            /* New: Radial gradient for background */
+            background: radial-gradient(circle at top left, #1c1c1c 0%, var(--color-background-soft-dark) 70%);
+            color: var(--color-foreground);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: var(--spacing-medium);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--spacing-large);
+            padding: var(--spacing-large);
+            background-color: var(--color-background-panel); /* Panel background */
+            border: 1px solid var(--color-border-subtle);
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.4); /* Softer shadow */
+            animation: fadeIn 0.8s var(--transition-ease) forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Header & Title --- */
+        .header {
+            text-align: center;
+            margin-bottom: var(--spacing-large);
+            animation: slideInTop 0.8s var(--transition-ease) forwards;
+            opacity: 0;
+            transform: translateY(-30px);
+            padding-bottom: var(--spacing-medium);
+            border-bottom: 1px solid var(--color-border-subtle);
+        }
+
+        @keyframes slideInTop {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .main-title {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--color-foreground);
+            margin-bottom: 0.75rem;
+            line-height: 1;
+        }
+
+        .subtitle {
+            font-family: var(--font-body);
+            font-size: 1.3rem;
+            font-weight: 300;
+            color: var(--color-accent-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+
+        /* --- Main Content Grid --- */
+        .content-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-large);
+        }
+
+        /* --- Panel Styles --- */
+        .section-panel {
+            background-color: var(--color-background-panel); /* Explicit panel background */
+            border: 1px solid var(--color-border-subtle);
+            padding: var(--spacing-large);
+            animation: slideInLeft 0.8s var(--transition-ease) 0.2s forwards;
+            opacity: 0;
+            transform: translateX(-40px);
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .section-panel.right {
+            animation: slideInRight 0.8s var(--transition-ease) 0.3s forwards;
+            transform: translateX(40px);
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .panel-title {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 400;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--color-foreground);
+            margin-bottom: var(--spacing-small);
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--color-border-subtle);
+            position: relative;
+        }
+        .panel-title::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 40px;
+            height: 1px;
+            background-color: var(--color-accent-gold);
+        }
+
+        /* --- Form Elements --- */
+        .form-group {
+            margin-bottom: var(--spacing-small);
+        }
+
+        .label {
+            display: block;
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: var(--color-accent-dim);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .input,
+        .textarea {
+            width: 100%;
+            padding: 0.9rem 1.2rem;
+            background-color: #242424; /* Slightly lighter input background for contrast */
+            border: 1px solid var(--color-border-subtle);
+            color: var(--color-foreground);
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            transition: border-color var(--transition-speed-normal) var(--transition-ease);
+            appearance: none;
+        }
+
+        .input::placeholder,
+        .textarea::placeholder {
+            color: var(--color-accent-dim);
+            opacity: 0.6;
+        }
+
+        .input:focus,
+        .textarea:focus {
+            outline: none;
+            border-color: var(--color-accent-gold); /* Gold border on focus */
+        }
+
+        .textarea {
+            min-height: 250px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-top: var(--spacing-small);
+            margin-bottom: var(--spacing-small);
+            cursor: pointer;
+        }
+
+        .checkbox {
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border: 1px solid var(--color-border-subtle);
+            background-color: #242424; /* Consistent with input background */
+            margin-right: 0.8rem;
+            position: relative;
+            cursor: pointer;
+            transition: all var(--transition-speed-normal) var(--transition-ease);
+        }
+
+        .checkbox:checked {
+            background-color: var(--color-accent-gold); /* Gold checkmark background */
+            border-color: var(--color-accent-gold);
+        }
+
+        .checkbox:checked::after {
+            content: '\2713';
+            color: var(--color-background-panel); /* Dark checkmark */
+            font-size: 16px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+        }
+
+        .checkbox-label {
+            font-size: 0.9rem;
+            color: var(--color-accent-dim);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        /* --- Buttons --- */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: var(--spacing-medium);
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.9rem 1.8rem;
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1px solid var(--color-accent-gold); /* Gold border */
+            background-color: transparent;
+            color: var(--color-accent-gold); /* Gold text */
+            cursor: pointer;
+            transition: all var(--transition-speed-normal) var(--transition-ease);
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--color-accent-gold);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform var(--transition-speed-normal) var(--transition-ease);
+            z-index: -1;
+        }
+
+        .btn:hover::before {
+            transform: scaleX(1);
+        }
+
+        .btn:hover {
+            color: var(--color-background-panel); /* Text turns dark */
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2); /* Subtle gold glow */
+        }
+
+        .btn-primary {
+            background-color: var(--color-accent-gold); /* Starts with gold background */
+            color: var(--color-background-panel); /* Dark text */
+        }
+        .btn-primary::before {
+            background-color: var(--color-background-panel); /* Fills with dark on hover */
+        }
+        .btn-primary:hover {
+            color: var(--color-accent-gold); /* Text turns gold on hover */
+        }
+
+        .btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            border-color: var(--color-border-subtle);
+            color: var(--color-accent-dim);
+            background-color: transparent;
+        }
+        .btn.disabled::before {
+            transform: scaleX(0);
+        }
+
+
+        /* --- Results Panel --- */
+        .results-box {
+            background-color: var(--color-background-panel);
+            border: 1px solid var(--color-border-subtle);
+            padding: var(--spacing-small);
+            min-height: 380px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .results-content {
+            flex-grow: 1;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: var(--color-foreground);
+            overflow-y: auto;
+            white-space: pre-wrap;
+            padding: 0.5rem;
+            padding-right: 0.8rem;
+        }
+
+        .results-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .results-content::-webkit-scrollbar-track {
+            background: var(--color-border-subtle);
+        }
+        .results-content::-webkit-scrollbar-thumb {
+            background-color: var(--color-accent-gold); /* Gold scrollbar */
+            transition: background-color var(--transition-speed-normal) ease;
+        }
+        .results-content::-webkit-scrollbar-thumb:hover {
+            background-color: var(--color-foreground);
+        }
+
+        /* --- Loading State --- */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); /* Slightly less opaque */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--transition-speed-normal) var(--transition-ease);
+            z-index: 10;
+        }
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .spinner {
+            border: 3px solid var(--color-border-subtle);
+            border-top: 3px solid var(--color-accent-gold); /* Gold spinner */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.9s linear infinite;
+            margin-bottom: 1.2rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--color-accent-dim);
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* --- Notifications --- */
+        .notification {
+            position: fixed;
+            top: var(--spacing-small);
+            right: var(--spacing-small);
+            padding: 0.8rem 1.5rem;
+            background-color: var(--color-background-panel);
+            border: 1px solid var(--color-border-subtle);
+            color: var(--color-foreground);
+            font-size: 0.8rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: translateX(120%);
+            transition: transform var(--transition-speed-normal) var(--transition-ease);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+        .notification.show {
+            transform: translateX(0);
+        }
+        .notification.success {
+            border-color: #4ADE80;
+            color: #4ADE80;
+        }
+        .notification.error {
+            border-color: #F87171;
+            color: #F87171;
+        }
+        .notification.info {
+            border-color: var(--color-accent-gold);
+            color: var(--color-accent-gold);
+        }
+
+        /* --- Responsive Adjustments --- */
+        @media (max-width: 900px) {
+            .content-area {
+                grid-template-columns: 1fr;
+            }
+            .section-panel.right {
+                animation: slideInLeft 0.8s var(--transition-ease) 0.3s forwards;
+                transform: translateX(-40px);
+            }
+            .container {
+                padding: var(--spacing-medium);
+            }
+            .header {
+                margin-bottom: var(--spacing-medium);
+            }
+            .main-title {
+                font-size: 3rem;
+            }
+            .subtitle {
+                font-size: 1rem;
+            }
+            .section-panel {
+                padding: var(--spacing-medium);
+            }
+            .panel-title {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 500px) {
+            body {
+                padding: var(--spacing-small);
+            }
+            .container {
+                padding: var(--spacing-small);
+            }
+            .main-title {
+                font-size: 2.2rem;
+                letter-spacing: 0.1em;
+            }
+            .subtitle {
+                font-size: 0.8rem;
+                letter-spacing: 0.08em;
+            }
+            .button-group {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+            .btn {
+                width: 100%;
+                padding: 0.8rem 1.2rem;
+                font-size: 0.85rem;
+            }
+            .panel-title {
+                font-size: 1.3rem;
+            }
+            .textarea {
+                min-height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="main-title">🕵️‍♂️ Stealth Web Scraper 🕸️💻</h1>
+            <p class="subtitle">Precision Extraction for Curated Information</p>
+        </header>
+
+        <main class="content-area">
+            <section class="section-panel left">
+                <h2 class="panel-title">Extraction Protocol</h2>
+                <div class="form-group">
+                    <label for="urlInput" class="label">Target URL</label>
+                    <input type="url" id="urlInput" class="input" placeholder="https://example.com/data-source">
+                </div>
+
+                <div class="form-group">
+                    <label for="rulesInput" class="label">Extraction Rules (XPath / CSS / REGEX)</label>
+                    <textarea id="rulesInput" class="textarea" placeholder="title: //h1/text()&#10;price: .product-price::text"></textarea>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="playwrightMode" class="checkbox">
+                    <label for="playwrightMode" class="checkbox-label">
+                        Enable Dynamic Content Rendering
+                    </label>
+                </div>
+
+                <div class="button-group">
+                    <button id="scrapeBtn" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Start Extraction
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadTemplate('generic')">
+                        <i class="fas fa-file-alt"></i> Load Generic Template
+                    </button>
+                </div>
+            </section>
+
+            <section class="section-panel right">
+                <h2 class="panel-title">Extracted Data Stream</h2>
+                <div class="results-box">
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="spinner"></div>
+                        <div class="loading-text">Processing data...</div>
+                    </div>
+                    <pre id="resultsContent" class="results-content">Awaiting protocol initiation. Enter a URL and define your extraction rules. Data will appear here.</pre>
+                </div>
+                <div class="button-group">
+                    <button id="copyBtn" class="btn btn-secondary">
+                        <i class="fas fa-copy"></i> Copy Data
+                    </button>
+                    <button id="exportBtn" class="btn btn-secondary">
+                        <i class="fas fa-download"></i> Export JSON
+                    </button>
+                    <button id="clearBtn" class="btn btn-secondary">
+                        <i class="fas fa-eraser"></i> Clear Console
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script>
+        // DOM Elements
+        const urlInput = document.getElementById('urlInput');
+        const rulesInput = document.getElementById('rulesInput');
+        const playwrightMode = document.getElementById('playwrightMode');
+        const scrapeBtn = document.getElementById('scrapeBtn');
+        const resultsContent = document.getElementById('resultsContent');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const copyBtn = document.getElementById('copyBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // Default extraction rules
+        rulesInput.value = `title: //title/text()
+description: //meta[@name='description']/@content
+keywords: //meta[@name='keywords']/@content
+headings: //h1/text() | //h2/text()
+paragraphs: //p[string-length(.) > 50]/text()`;
+
+        function loadTemplate(type) {
+            if (type === 'generic') {
+                rulesInput.value = `title: //title/text()
+description: //meta[@name='description']/@content
+keywords: //meta[@name='keywords']/@content
+headings: //h1/text() | //h2/text() | //h3/text()
+paragraphs: //p[string-length(.) > 50]/text()
+links: //a/@href`;
+                showNotification('Generic template loaded.', 'info');
+            }
+        }
+        window.loadTemplate = loadTemplate;
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            void notification.offsetWidth;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+                notification.addEventListener('transitionend', () => notification.remove(), { once: true });
+            }, 3000);
+        }
+
+        function setLoading(isLoading) {
+            if (isLoading) {
+                loadingOverlay.classList.add('active');
+                scrapeBtn.classList.add('disabled');
+                scrapeBtn.disabled = true;
+                scrapeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                urlInput.disabled = true;
+                rulesInput.disabled = true;
+                playwrightMode.disabled = true;
+                copyBtn.classList.add('disabled');
+                exportBtn.classList.add('disabled');
+            } else {
+                loadingOverlay.classList.remove('active');
+                scrapeBtn.classList.remove('disabled');
+                scrapeBtn.disabled = false;
+                scrapeBtn.innerHTML = '<i class="fas fa-play"></i> Start Extraction';
+                urlInput.disabled = false;
+                rulesInput.disabled = false;
+                playwrightMode.disabled = false;
+                copyBtn.classList.remove('disabled');
+                exportBtn.classList.remove('disabled');
+            }
+        }
+
+        async function performScrape() {
+            const url = urlInput.value.trim();
+            const rules = rulesInput.value.trim();
+            const usePlaywright = playwrightMode.checked;
+
+            if (!url) {
+                showNotification('Error: Target URL cannot be empty.', 'error');
+                urlInput.focus();
+                return;
+            }
+            if (!rules) {
+                showNotification('Error: Extraction rules are required.', 'error');
+                rulesInput.focus();
+                return;
+            }
+
+            setLoading(true);
+            resultsContent.textContent = '';
+
+            try {
+                const response = await fetch('/scrape', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url,
+                        rules,
+                        mode: usePlaywright ? 'playwright' : 'requests'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                let output = '';
+                for (const [key, value] of Object.entries(data)) {
+                    output += `[${key.toUpperCase()}]\n`;
+                    if (Array.isArray(value)) {
+                        value.forEach((item, index) => {
+                            output += `  ${index + 1}. ${item}\n`;
+                        });
+                    } else {
+                        output += `  ${value}\n`;
+                    }
+                    output += '\n';
+                }
+
+                resultsContent.textContent = output;
+                showNotification('Extraction successful.', 'success');
+
+            } catch (error) {
+                resultsContent.textContent = `ERROR: ${error.message}\n\nPlease verify your URL and extraction rules.`;
+                showNotification(`Extraction failed: ${error.message}`, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        scrapeBtn.addEventListener('click', performScrape);
+
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !scrapeBtn.disabled) {
+                performScrape();
+            }
+        });
+
+        copyBtn.addEventListener('click', () => {
+            if (!resultsContent.textContent.trim() || resultsContent.textContent.includes('Awaiting protocol')) {
+                showNotification('No data to copy.', 'info');
+                return;
+            }
+            navigator.clipboard.writeText(resultsContent.textContent)
+                .then(() => showNotification('Data copied to clipboard.', 'success'))
+                .catch(err => showNotification('Failed to copy data.', 'error'));
+        });
+
+        exportBtn.addEventListener('click', () => {
+            if (!resultsContent.textContent.trim() || resultsContent.textContent.includes('Awaiting protocol')) {
+                showNotification('No data to export.', 'info');
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(resultsContent.textContent);
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `aurora_data_${new Date().toISOString().slice(0, 10)}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showNotification('Data exported as JSON.', 'success');
+        });
+
+        clearBtn.addEventListener('click', () => {
+            resultsContent.textContent = 'Awaiting protocol initiation. Enter a URL and define your extraction rules. Data will appear here.';
+            showNotification('Console cleared.', 'info');
+        });
+
+        setLoading(false);
+    </script>
+</body>
+</html>

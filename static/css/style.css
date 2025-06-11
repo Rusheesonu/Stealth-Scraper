@@ -1,0 +1,12 @@
+body {
+  background: #121212;
+  color: #eee;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+h1 {
+  text-shadow: 0 0 10px #00ff99;
+}
+#results-box {
+  white-space: pre-wrap;
+  font-family: monospace;
+}
