@@ -1,13 +1,71 @@
-Stealth Scraper License (Custom Non-Commercial)
+Stealth Scraper Custom License (Non-Commercial)
 
-Copyright (c) 2025 Rushi
-Permission is hereby granted to any individual or organization to use and modify this software for personal or academic purposes, provided that the following conditions are met:
+Copyright (c) 2025 Rushi (Rushikeshsonu@gmail.com)
 
-1. The software and any derivative works must not be sold or used for commercial purposes.
-2. Redistribution of the original or modified versions is not permitted without written permission from the author.
-3. Proper attribution must be maintained in all copies or substantial portions of the software.
-4. Any public usage must include a link to the original project or author.
+Permission is hereby granted, free of charge, to any person or organization 
+obtaining a copy of this software and associated documentation files (the 
+"Software"), to use and modify the Software for personal, educational, or 
+academic purposes only, subject to the following conditions:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+PERMITTED USES:
+- Personal use and learning
+- Educational purposes in academic institutions
+- Research and development (non-commercial)
+- Code review and study
+- Creating derivative works for personal use
 
-Contact: [Rushikeshsonu@gmail.com]
+RESTRICTIONS:
+1. COMMERCIAL USE PROHIBITED: The Software and any derivative works may not 
+   be sold, licensed, or used for any commercial purposes, including but not 
+   limited to:
+   - Incorporating into commercial products or services
+   - Using in business operations for profit
+   - Offering as a paid service
+   - Any form of monetization
+
+2. REDISTRIBUTION RESTRICTIONS: Redistribution of the original Software or 
+   modified versions is not permitted without prior written permission from 
+   the copyright holder. This includes:
+   - Public repositories (without permission)
+   - Software packages or distributions
+   - Bundling with other software for distribution
+
+3. ATTRIBUTION REQUIRED: All copies or substantial portions of the Software 
+   must include:
+   - This complete license notice
+   - Copyright notice with author information
+   - Link to the original project: https://github.com/Rusheesonu/Stealth-Scraper
+
+4. PUBLIC USAGE REQUIREMENTS: Any public usage, demonstration, or presentation 
+   of the Software must:
+   - Include clear attribution to the original author
+   - Provide a link to the original project repository
+   - Not imply endorsement by the original author
+
+COMMERCIAL LICENSE:
+For commercial use, please contact the author at Rushikeshsonu@gmail.com to 
+obtain a separate commercial license.
+
+DISCLAIMER:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
+
+LEGAL CONSIDERATIONS:
+- This license is governed by applicable copyright law
+- Users must comply with all applicable laws and regulations when using the Software
+- This license does not grant rights to use the author's name, trademarks, or 
+  service marks except as required for reasonable and customary use in 
+  describing the origin of the Software
+
+CONTACT:
+For questions about this license, commercial licensing, or permission requests:
+Email: Rushikeshsonu@gmail.com
+GitHub: https://github.com/Rusheesonu/Stealth-Scraper
+
+Version: 1.0
+Date: 2025
