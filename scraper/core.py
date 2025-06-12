@@ -1245,31 +1245,31 @@ def scrape_url(url: str, rules: List[str], mode: str = "requests") -> Dict[str, 
                         print("[BEHAVIOR] Simulating human interactions...")
                         
                         # Random scroll to simulate reading
-                        for _ in range(random.randint(1, 3)):
-                            scroll_distance = random.randint(200, 800)
-                            scroll_duration = random.randint(300, 1000)
-                            page.evaluate(f"""
-                                window.scrollBy({{
-                                    top: {scroll_distance},
-                                    left: 0,
-                                    behavior: 'smooth'
-                                }});
-                            """)
-                            time.sleep(delays['scroll_delay'])
+                        # for _ in range(random.randint(1, 3)):
+                        #     scroll_distance = random.randint(200, 800)
+                        #     scroll_duration = random.randint(300, 1000)
+                        #     page.evaluate(f"""
+                        #         window.scrollBy({{
+                        #             top: {scroll_distance},
+                        #             left: 0,
+                        #             behavior: 'smooth'
+                        #         }});
+                        #     """)
+                        #     time.sleep(delays['scroll_delay'])
                         
-                        # Random mouse movement with more human-like patterns
-                        if random.random() < 0.7:
-                            x = random.randint(100, resolution['width'] - 100)
-                            y = random.randint(100, resolution['height'] - 100)
-                            page.mouse.move(x, y, steps=random.randint(5, 15))
-                            time.sleep(delays['interaction_delay'])
+                        # # Random mouse movement with more human-like patterns
+                        # if random.random() < 0.7:
+                        #     x = random.randint(100, resolution['width'] - 100)
+                        #     y = random.randint(100, resolution['height'] - 100)
+                        #     page.mouse.move(x, y, steps=random.randint(5, 15))
+                        #     time.sleep(delays['interaction_delay'])
                         
-                        # Random clicks (25% chance)
-                        if random.random() < 0.25:
-                            click_x = random.randint(100, resolution['width'] - 100)
-                            click_y = random.randint(100, resolution['height'] - 100)
-                            page.mouse.click(click_x, click_y, delay=random.randint(50, 200))
-                            time.sleep(delays['thinking_delay'])
+                        # # Random clicks (25% chance)
+                        # if random.random() < 0.25:
+                        #     click_x = random.randint(100, resolution['width'] - 100)
+                        #     click_y = random.randint(100, resolution['height'] - 100)
+                        #     page.mouse.click(click_x, click_y, delay=random.randint(50, 200))
+                        #     time.sleep(delays['thinking_delay'])
                         
                         # Get page content
                         text = page.content()
