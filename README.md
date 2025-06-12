@@ -19,7 +19,7 @@ Check out the live application: [https://stealth-scraper-urjc.onrender.com/](htt
 
 ## 🛠️ Technology Stack
 
-- **Backend**: Node.js, Express.js
+- **Backend**: python , fast api
 - **Scraping Engine**: Puppeteer with Puppeteer-extra-plugin-stealth
 - **Frontend**: HTML5, CSS3, JavaScript
 - **Deployment**: Render.com
