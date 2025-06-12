@@ -29,8 +29,7 @@ Check out the live application: [https://stealth-scraper-urjc.onrender.com/](htt
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn package manager
+- python
 
 ### Local Development
 
