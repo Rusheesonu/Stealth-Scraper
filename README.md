@@ -1,7 +1,7 @@
 
 # 🕵️♂️ Stealth Web Scraper 🕸️💻
 
-A powerful, user-friendly web scraping tool built with Node.js that allows you to extract data from websites using XPath selectors with stealth capabilities to avoid detection.
+A powerful, user-friendly web scraping tool built with python , playwright and requests that allows you to extract data from websites using XPath selectors with stealth capabilities to avoid detection.
 
 ## 🌟 Features
 
