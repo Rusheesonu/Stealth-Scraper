@@ -94,6 +94,7 @@ Here are some common XPath patterns you can use:
 
 The scraper works with most websites, including:
 - E-commerce sites (Amazon, eBay, etc.)
+- most challenging webisted like (stockx , walamrt , linkedin , ticketmaster) -- You need to setup your own residential proxies tho!
 - News websites
 - Blog posts
 - Product catalogs
