@@ -10,6 +10,8 @@ import socket
 import ssl
 from typing import List, Dict, Union
 from urllib3.util.ssl_ import create_urllib3_context
+from fake_useragent import UserAgent  # Added for better UA generation
+
 
 # Enhanced Playwright imports with error handling
 try:
@@ -21,8 +23,16 @@ except ImportError as e:
     PLAYWRIGHT_AVAILABLE = False
     print(f"[PLAYWRIGHT] Import failed: {e}")
 
+# Import additional stealth plugins
+try:
+    from selenium_stealth import stealth  # Additional stealth layer when needed
+    STEALTH_EXTRA = True
+except ImportError:
+    STEALTH_EXTRA = False
+
 # --- Quantum Stealth Chromium Args ---
-# Organized by category for better maintenance
+# Organized by category with additional stealth parameters
+
 ULTRA_STEALTH_CHROMIUM_ARGS = [
     # Core stealth
     '--no-sandbox',
@@ -35,6 +45,8 @@ ULTRA_STEALTH_CHROMIUM_ARGS = [
     '--disable-background-timer-throttling',
     '--disable-backgrounding-occluded-windows',
     '--disable-renderer-backgrounding',
+    '--disable-ipc-flooding-protection',
+    '--disable-hang-monitor',
     
     # Networking
     '--disable-sync',
@@ -44,6 +56,8 @@ ULTRA_STEALTH_CHROMIUM_ARGS = [
     '--safebrowsing-disable-auto-update',
     '--no-pings',
     '--no-referrers',
+    '--disable-notifications',
+    '--disable-default-apps',
     
     # Media
     '--mute-audio',
@@ -66,7 +80,6 @@ ULTRA_STEALTH_CHROMIUM_ARGS = [
     
     # UI
     '--disable-infobars',
-    '--disable-notifications',
     '--disable-popup-blocking',
     '--disable-print-preview',
     '--hide-scrollbars',
@@ -75,7 +88,6 @@ ULTRA_STEALTH_CHROMIUM_ARGS = [
     # Extensions
     '--disable-extensions',
     '--disable-component-extensions-with-background-pages',
-    '--disable-default-apps',
     '--disable-component-update',
     
     # Performance
@@ -101,59 +113,66 @@ ULTRA_STEALTH_CHROMIUM_ARGS = [
     '--use-mock-keychain',
     '--metrics-recording-only',
     '--disable-field-trial-config',
-    '--disable-hang-monitor',
-    '--disable-ipc-flooding-protection',
     '--disable-new-content-rendering-timeout',
     '--disable-threaded-animation',
     '--disable-threaded-scrolling',
     '--window-position=0,0',
     '--force-device-scale-factor=1',
     '--high-dpi-support=1',
+    '--disable-logging',
+    '--disable-breakpad',
+    '--disable-crash-reporter',
+    '--disable-device-discovery-notifications',
+    '--disable-component-update',
+    '--disable-background-networking',
+    '--disable-software-rasterizer',
+    '--disable-cloud-import',
+    '--disable-gpu-compositing',
+    '--disable-smooth-scrolling',
+    '--disable-zero-copy',
+    '--disable-prompt-on-repost',
+    '--disable-renderer-accessibility',
+    '--disable-search-geolocation-disclosure',
+    '--disable-sync-preferences',
+    '--disable-web-resources',
+    '--disable-touch-adjustment',
+    '--disable-voice-input',
+    '--disable-winsta',
+    '--enable-aggressive-domstorage-flushing',
+    '--enable-parallel-downloading',
+    '--enable-potentially-annoying-security-features',
+    '--enable-smooth-scrolling',
+    '--enable-strict-mixed-content-checking',
+    '--enable-tcp-fast-open',
+    '--enable-webgl-draft-extensions',
+    '--enable-websocket-over-spdy',
+    '--force-color-profile=srgb',
+    '--ignore-certificate-errors',
+    '--ignore-urlfetcher-cert-requests',
+    '--media-cache-size=1',
+    '--prerender-from-omnibox=disabled',
+    '--process-per-site',
+    '--reduce-security-for-testing',
+    '--remote-debugging-port=0',
+    '--ssl-version-min=tls1',
+    #'--user-data-dir=/tmp/random-chrome-user-data',
+    '--window-size=1366,768'
 ]
 
-# Enhanced user agent pool with version consistency
-USER_AGENTS_POOL = [
-    # Chrome Windows (updated to latest versions)
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-    
-    # Chrome macOS
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-    
-    # Chrome Linux
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    
-    # Safari macOS
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
-    
-    # Firefox Windows
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
-    'Mozilla/5.0 (Windows NT 11.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
-    
-    # Firefox macOS
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:125.0) Gecko/20100101 Firefox/125.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:124.0) Gecko/20100101 Firefox/124.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 14.4; rv:125.0) Gecko/20100101 Firefox/125.0',
-    
-    # Edge Windows
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0',
-    
-    # Mobile User Agents
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
-    'Mozilla/5.0 (iPad; CPU OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
-    'Mozilla/5.0 (Linux; Android 14; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.147 Mobile Safari/537.36',
-]
+# Enhanced user agent generation with fake-useragent
+def get_random_user_agent():
+    try:
+        ua = UserAgent()
+        return ua.random
+    except:
+        # Fallback to static pool if fake-useragent fails
+        return random.choice([
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1'
+        ])
+
 
 # Enhanced timezone list with proper DST support
 TIMEZONES = [
@@ -242,7 +261,7 @@ def generate_audio_fingerprint():
 
 def get_ultra_random_headers():
     """Generate ultra-realistic headers with proper entropy and consistency"""
-    ua = random.choice(USER_AGENTS_POOL)
+    ua = get_random_user_agent()
     
     # Extract browser info from UA for consistency
     is_chrome = 'Chrome' in ua and 'Safari' in ua
@@ -299,12 +318,11 @@ def get_ultra_random_headers():
     return headers
 
 # Enhanced Ultra Stealth JavaScript with more evasion techniques
+
 ULTRA_STEALTH_JS = """
 // ==== QUANTUM STEALTH SCRIPT ====
 (function() {
     'use strict';
-    
-    console.log('[STEALTH] Quantum stealth mode activated');
     
     // 1. WEBDRIVER DETECTION BYPASS (Enhanced)
     Object.defineProperty(navigator, 'webdriver', {
@@ -329,7 +347,6 @@ ULTRA_STEALTH_JS = """
     });
     
     // 2. AUTOMATION DETECTION BYPASS (Enhanced)
-    // Override chrome object with more realistic properties
     const originalChrome = window.chrome;
     Object.defineProperty(window, 'chrome', {
         get: () => ({
@@ -757,7 +774,7 @@ ULTRA_STEALTH_JS = """
     
     // 15. HEADLESS DETECTION BYPASS (Enhanced)
     Object.defineProperty(navigator, 'hardwareConcurrency', {
-        get: () => Math.max(2, Math.floor(Math.random() * 8) + 1,
+        get: () => Math.max(2, Math.floor(Math.random() * 8) + 1),
         configurable: true,
         enumerable: false
     });
@@ -1056,7 +1073,11 @@ def intercept_request(route: Route):
     blocked_resources = [
         'fingerprint2.js', 'fingerprintjs2', 'clientjs', 'evercookie',
         'detect.js', 'modernizr', 'track', 'analytics', 'google-analytics',
-        'googletagmanager', 'facebook.net', 'doubleclick.net'
+        'googletagmanager', 'facebook.net', 'doubleclick.net',
+        'hotjar.com', 'mouseflow.com', 'fullstory.com', 'sessioncam.com',
+        'clicktale.net', 'inspectlet.com', 'luckyorange.com', 'yandex.ru/metrika',
+        'mixpanel.com', 'amplitude.com', 'heap.io', 'piwik.js', 'matomo.js',
+        'crazyegg.com', 'mouseflow.com', 'rollbar.com', 'raygun.io'
     ]
     
     if any(resource in route.request.url for resource in blocked_resources):
@@ -1203,7 +1224,7 @@ def scrape_url(url: str, rules: List[str], mode: str = "requests") -> Dict[str, 
                                     originalGetFloatTimeDomainData.call(this, array);
                                     // Add consistent noise pattern
                                     for (let i = 0; i < array.length; i++) {{
-                                        array[i] += (parseInt('{audio_fp}'.charCodeAt(i % '{audio_fp}'.length).toString(16)) / 100000;
+                                        array[i] += (parseInt('{audio_fp}'.charCodeAt(i % '{audio_fp}'.length).toString(16)) / 100000);
                                     }}
                                 }};
                                 
