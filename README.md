@@ -15,7 +15,7 @@ A powerful, user-friendly web scraping tool built with python , playwright and r
 
 ## 🚀 Live Demo
 
-Check out the live application: [https://stealth-scraper-urjc.onrender.com/](https://stealth-scraper-urjc.onrender.com/)
+Check out the live application: [https://stealth-scraper-urjc.onrender.com/](https://stealth-scraper-urjc.onrender.com/)  -- The first-time load may take 3–5 minutes, as it uses a free-tier instance. After the initial load, performance is smooth. The instance remains active as long as it is being used and will automatically shut down if idle for an hour.
 
 ## 🛠️ Technology Stack
 
