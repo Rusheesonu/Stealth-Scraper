@@ -80,6 +80,15 @@ export const api = {
       body: JSON.stringify({ url, template }),
     }),
 
+  extractBatch: (urls: string[], template: TemplateField[]) =>
+    call<{ count: number; results: { url: string; data: ExtractResponse }[] }>(
+      "/extract/batch",
+      {
+        method: "POST",
+        body: JSON.stringify({ urls, template }),
+      }
+    ),
+
   listTemplates: () => call<SavedTemplate[]>("/templates"),
 
   getTemplate: (id: number) => call<SavedTemplate>(`/templates/${id}`),

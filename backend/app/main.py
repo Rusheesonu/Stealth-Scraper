@@ -72,6 +72,11 @@ class ExtractRequest(BaseModel):
     template: list[TemplateField]
 
 
+class BatchExtractRequest(BaseModel):
+    urls: list[HttpUrl] = Field(min_length=1, max_length=100)
+    template: list[TemplateField]
+
+
 class TemplateCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     source_url: str
@@ -131,6 +136,31 @@ async def extract_endpoint(req: ExtractRequest) -> dict[str, Any]:
         return await extract_fields(str(req.url), template)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"extract failed: {e}") from e
+
+
+@app.post("/extract/batch")
+async def extract_batch(req: BatchExtractRequest) -> dict[str, Any]:
+    """Run one template across many URLs. Serialized on the server side
+    (nodriver lock + shared browser) — parallel clients would just queue
+    against each other. Per-URL errors are captured and returned alongside
+    successes so one bad URL doesn't kill the whole run."""
+    template = [f.model_dump() for f in req.template]
+    results = []
+    for url in req.urls:
+        try:
+            data = await extract_fields(str(url), template)
+            results.append({"url": str(url), "data": data})
+        except Exception as e:
+            results.append({
+                "url": str(url),
+                "data": {
+                    "url": str(url),
+                    "fields": {},
+                    "errors": {"_error": str(e)},
+                    "title": "",
+                },
+            })
+    return {"count": len(results), "results": results}
 
 
 # Templates CRUD ---------------------------------------------------------------
