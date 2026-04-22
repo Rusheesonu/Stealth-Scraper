@@ -46,9 +46,18 @@ never types one.
 | Layer | What |
 |-------|------|
 | Frontend | Next.js 16 App Router · React 19 · Tailwind v4 · lucide-react · framer-motion |
-| Backend | FastAPI · Playwright (async) · lxml · aiosqlite |
+| Backend | FastAPI · **nodriver** (stealth-patched Chromium via CDP) · lxml · aiosqlite |
 | Storage | SQLite (zero config, no external DB) |
 | CI | GitHub Actions — pytest on backend, lint + build on frontend |
+
+**Why nodriver instead of Playwright?** nodriver patches Chromium at the
+flag/CDP level to close automation leaks that Playwright+stealth-JS can't
+reach — `navigator.webdriver`, CDP-injected runtime markers, the
+`Runtime.evaluate` leak. Passes soft Cloudflare and Turnstile invisible
+mode out of the box, even without residential proxies. Then
+`app/stealth.py` layers an `addScriptToEvaluateOnNewDocument` init patch
+on top (WebGL vendor, chrome.runtime, plugins, permissions, screen dims,
+hardware spoof) to close the remaining JS-land fingerprint leaks.
 
 ---
 
@@ -57,7 +66,8 @@ never types one.
 ### Requirements
 - **Python 3.11 – 3.14** (3.11 / 3.12 are the best-tested)
 - **Node 20+**
-- First-run: Playwright will fetch a Chromium (~120MB).
+- **Google Chrome** (or Chromium) installed locally — nodriver drives your real
+  Chrome binary for better stealth. macOS: `brew install --cask google-chrome`.
 
 ### Backend (terminal 1)
 
@@ -65,7 +75,6 @@ never types one.
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-python -m playwright install chromium
 python run.py
 ```
 

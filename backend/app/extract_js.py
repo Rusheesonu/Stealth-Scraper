@@ -11,7 +11,7 @@ the bboxes line up pixel-perfect with the screenshot.
 """
 
 COLLECT_ELEMENTS_JS = r"""
-() => {
+(() => {
     // Tags we always collect even if they have no direct text (media/interactive)
     const ALWAYS = new Set(["A", "IMG", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "VIDEO"]);
 
@@ -162,5 +162,5 @@ COLLECT_ELEMENTS_JS = r"""
         title: document.title,
         url: window.location.href,
     };
-}
+})()
 """

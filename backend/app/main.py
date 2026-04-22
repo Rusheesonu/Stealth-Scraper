@@ -99,7 +99,7 @@ async def root() -> dict[str, Any]:
 async def health() -> dict[str, Any]:
     return {
         "status": "ok",
-        "browser": pool._browser is not None,  # noqa: SLF001 — private attr OK here
+        "browser": pool.running,
     }
 
 

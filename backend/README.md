@@ -1,6 +1,7 @@
 # Backend — Stealth-Scraper v2
 
-FastAPI + Playwright. Talks to the Next.js frontend on `:3000`.
+FastAPI + **nodriver** (stealth-patched Chromium via CDP). Talks to the
+Next.js frontend on `:3000`.
 
 ## Quickstart
 
@@ -8,9 +9,11 @@ FastAPI + Playwright. Talks to the Next.js frontend on `:3000`.
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-python -m playwright install chromium
 python run.py
 ```
+
+Requires a local Google Chrome / Chromium install. On macOS:
+`brew install --cask google-chrome`.
 
 Opens on `http://localhost:8000`. Interactive API docs at `/docs`.
 
@@ -33,10 +36,11 @@ Opens on `http://localhost:8000`. Interactive API docs at `/docs`.
 backend/
 ├── app/
 │   ├── main.py        FastAPI app + routes
-│   ├── browser.py     Shared Playwright browser pool
-│   ├── snapshot.py    URL → screenshot + element catalog
-│   ├── extract_js.py  In-page JS for element detection
-│   ├── extract.py     Run a template against a URL
+│   ├── browser.py     nodriver Browser pool (lazy, locked, one tab per request)
+│   ├── stealth.py     ULTRA_STEALTH_CHROMIUM_ARGS + ULTRA_STEALTH_JS
+│   ├── snapshot.py    URL → full-page CDP screenshot + element catalog
+│   ├── extract_js.py  In-page JS for element detection (bbox + selectors)
+│   ├── extract.py     Run a template against a URL (nodriver + lxml)
 │   └── db.py          SQLite template store
 ├── data/              templates.db (gitignored)
 ├── requirements.txt

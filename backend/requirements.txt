@@ -3,8 +3,15 @@
 fastapi>=0.115,<0.200
 uvicorn[standard]>=0.32
 pydantic>=2.11,<3
-playwright>=1.52
+
+# Browser engine — nodriver patches Chromium at the flag/CDP level to
+# close automation leaks that Playwright + stealth-JS can't reach.
+# Passes soft Cloudflare / Turnstile invisible mode out of the box.
+# Needs a real Chrome/Chromium installed locally (brew install --cask google-chrome).
+nodriver>=0.48
+
 lxml>=5.3
+cssselect>=1.2
 beautifulsoup4>=4.12
 python-multipart>=0.0.9
 aiosqlite>=0.20
