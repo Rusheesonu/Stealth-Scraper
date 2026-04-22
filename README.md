@@ -2,9 +2,14 @@
 
 **A visual, point-and-click web scraper. No XPath, no config files.**
 
+### 🔗 Live demo: **[stealth-scraper.vercel.app](https://stealth-scraper.vercel.app)**
+
 Paste a URL. Get a screenshot. Click the fields you want — *title, price,
 image, whatever* — and we generate a reusable scraping recipe you can run on
 any matching page.
+
+> *First load may take 15-20s* — the backend sleeps on idle (free tier) and
+> has to wake Chrome. Subsequent requests are fast.
 
 ```
 ┌──────────────────────────────┐      ┌──────────────────┐
