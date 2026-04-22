@@ -68,14 +68,44 @@ Pipeline:
 6. For each survivor: build a stable CSS selector (id if safe, else
    tag[.class]:nth-of-type chain) and XPath, capture bbox + attrs.
 
-## Why Playwright + stealth init-script
+## Why nodriver (and not Playwright)
 
-For the v1 use-case (OSS scraper, no proxies) we don't need
-nodriver/residential proxies. A standard Chromium with a small stealth
-injection (`navigator.webdriver=undefined`, `chrome.runtime`, `plugins`,
-`languages`) is enough to get past baseline bot checks on most sites.
-Hardened targets (StockX, Cloudflare IUAM, Akamai) would need the full
-stack from the `stealthio` stack — out of scope for a public OSS tool.
+Playwright is great, but it loses on the first fingerprint check that
+looks for `Runtime.evaluate` traces or the specific flag signature
+Playwright uses to launch Chromium. Stealth-JS plugins help but can't
+fix leaks that live below the JS layer.
+
+**nodriver** (the undetected-chromedriver successor) patches Chromium
+at the binary-flag + CDP level:
+
+- Uses a real Chrome install, not a Playwright-bundled Chromium
+- Strips the `--enable-automation` family of flags
+- Avoids the `Runtime.evaluate` leak by routing script execution
+  differently
+- Injects a real extension for proxy auth (unused here — we don't ship
+  proxies in this OSS build)
+
+On top of nodriver we layer `ULTRA_STEALTH_JS` via CDP
+`Page.addScriptToEvaluateOnNewDocument`, which runs before any page JS
+on every navigation. It closes the remaining fingerprint leaks in
+JS-land:
+
+| Leak | Fix |
+|------|-----|
+| `navigator.webdriver` | redefined to `undefined` |
+| `window.chrome.runtime` | real-looking shape stub |
+| `navigator.plugins.length === 0` | return a 5-entry array |
+| `navigator.languages === []` | `["en-US", "en"]` |
+| WebGL vendor = `Google SwiftShader` | spoofed to `Intel Inc.` / `Intel Iris OpenGL Engine` |
+| `Notification.permission` ≠ permissions.query | patched to agree |
+| `hardwareConcurrency`, `deviceMemory`, `maxTouchPoints` | realistic defaults |
+| Screen dims = 800x600 | 1920x1080 |
+
+Result: soft Cloudflare, DataDome, Turnstile "invisible mode", and most
+basic PerimeterX deployments clear without any proxy. Hardened targets
+(StockX, Akamai on hot sites, Kasada) still need residential proxies
+— that piece is out of scope for this OSS repo but trivial to add:
+one `proxies.txt` and a `proxy={...}` arg in `BrowserPool.start()`.
 
 ## Template model
 
