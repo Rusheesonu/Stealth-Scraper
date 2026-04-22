@@ -24,22 +24,42 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
 
   const pageWidth = snapshot.page.width || snapshot.viewport.width || 1440;
 
+  // Measure the rendered image width so we can map viewport-space
+  // clicks back to the full-page coordinate space of the bboxes.
   useLayoutEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+
     function measure() {
       if (!imgRef.current) return;
-      setRenderedWidth(imgRef.current.clientWidth);
+      const w = imgRef.current.clientWidth;
+      if (w > 0) setRenderedWidth(w);
     }
+
     measure();
+    // If the <img>'s cached complete on remount, `complete` is true and
+    // load never fires. Handle both paths.
+    if (img.complete) {
+      // Next frame, after layout has applied the measured width.
+      requestAnimationFrame(measure);
+    } else {
+      img.addEventListener("load", measure);
+    }
+
     const ro = new ResizeObserver(measure);
-    if (imgRef.current) ro.observe(imgRef.current);
+    ro.observe(img);
     window.addEventListener("resize", measure);
     return () => {
       window.removeEventListener("resize", measure);
+      img.removeEventListener("load", measure);
       ro.disconnect();
     };
   }, [snapshot.screenshot]);
 
-  const scale = renderedWidth > 0 ? renderedWidth / pageWidth : 0;
+  // Fallback scale — before measurement kicks in, treat the image as
+  // full-width (so bbox math is at least sensible and clicks register).
+  // The displayed width gets corrected on the first measure tick.
+  const scale = renderedWidth > 0 ? renderedWidth / pageWidth : 1;
 
   // Sort elements by bbox area, smallest first — when two elements overlap
   // under the cursor, the inner (smaller) one should win the hover.
@@ -63,10 +83,12 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
   }
 
   function onMouseMove(e: React.MouseEvent) {
-    if (!imgRef.current || scale === 0) return;
+    if (!imgRef.current) return;
     const rect = imgRef.current.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / scale;
-    const py = (e.clientY - rect.top) / scale;
+    const effectiveScale = renderedWidth > 0 ? renderedWidth / pageWidth : rect.width / pageWidth;
+    if (effectiveScale <= 0) return;
+    const px = (e.clientX - rect.left) / effectiveScale;
+    const py = (e.clientY - rect.top) / effectiveScale;
     setCursorPos({ x: px, y: py });
     const hit = findElementAt(px, py);
     setHoverId(hit?.id ?? null);
