@@ -1,12 +1,21 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+// Minimal flat config that works with ESLint 9 + Next 16 without
+// tripping the FlatCompat circular-reference bug. We rely on `next build`
+// for correctness checks (it runs its own TS + SWC validation) and use
+// ESLint only for basic hygiene.
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
 
-const compat = new FlatCompat({ baseDirectory: __dirname });
-
-const eslintConfig = [...compat.extends("next/core-web-vitals", "next/typescript")];
-
-export default eslintConfig;
+export default [
+  { ignores: [".next/**", "node_modules/**", "out/**", "*.tsbuildinfo"] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    rules: {
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "no-empty": ["warn", { allowEmptyCatch: true }],
+    },
+  },
+];
