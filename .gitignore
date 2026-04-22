@@ -23,6 +23,7 @@ node_modules/
 out/
 .turbo/
 .vercel/
+*.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
