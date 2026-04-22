@@ -7,13 +7,17 @@ Next.js frontend on `:3000`.
 
 ```bash
 cd backend
-python -m venv venv && source venv/bin/activate
+python3.12 -m venv venv && source venv/bin/activate   # 3.12 recommended
 pip install -r requirements.txt
 python run.py
 ```
 
 Requires a local Google Chrome / Chromium install. On macOS:
 `brew install --cask google-chrome`.
+
+> **Python version:** 3.11–3.13 are smooth. Python 3.14 works but some
+> native-dep packages have rough edges there — see the root README
+> troubleshooting section if you hit a `SyntaxError` in `nodriver/cdp/network.py`.
 
 Opens on `http://localhost:8000`. Interactive API docs at `/docs`.
 

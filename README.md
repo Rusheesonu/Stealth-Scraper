@@ -64,7 +64,9 @@ hardware spoof) to close the remaining JS-land fingerprint leaks.
 ## Quickstart
 
 ### Requirements
-- **Python 3.11 – 3.14** (3.11 / 3.12 are the best-tested)
+- **Python 3.11 – 3.13** (3.12 recommended). Python 3.14 is technically supported
+  but some native-dep packages (`nodriver`, `pydantic-core`) need workarounds there —
+  see [troubleshooting](#troubleshooting).
 - **Node 20+**
 - **Google Chrome** (or Chromium) installed locally — nodriver drives your real
   Chrome binary for better stealth. macOS: `brew install --cask google-chrome`.
@@ -197,6 +199,33 @@ curl -s -X POST http://localhost:8000/extract \
   }' | jq '.fields.titles[0:3]'
 # ["Show HN: ...", "Ask HN: ...", "..."]
 ```
+
+---
+
+## Troubleshooting
+
+### `SyntaxError: Non-UTF-8 code ... in nodriver/cdp/network.py`
+Known nodriver packaging bug on Python 3.14 (the file contains a `±` byte
+without a coding declaration, which 3.14 rejects). Patch in place:
+```bash
+sed -i.bak '1i\
+# -*- coding: latin-1 -*-
+' venv/lib/python3.14/site-packages/nodriver/cdp/network.py
+```
+Or switch to Python 3.12: `brew install python@3.12 && /opt/homebrew/bin/python3.12 -m venv venv` then reinstall.
+
+### `pydantic-core` build fails on Python 3.14
+`pydantic < 2.11` ships PyO3 0.22 which caps at 3.13. This repo pins
+`pydantic>=2.11` already; if you still hit it, `pip install --upgrade pip`
+so pip picks up the newer wheel.
+
+### nodriver hangs on first request
+Chrome isn't where nodriver expects. Install the cask: `brew install --cask google-chrome`.
+
+### `Blocked by WAF` or Cloudflare challenge page
+Soft challenges clear automatically. Hard ones (rate limits, datacenter-IP
+blocks) need residential proxies — add a `proxy={...}` arg in
+`backend/app/browser.py:BrowserPool.start()`.
 
 ---
 
