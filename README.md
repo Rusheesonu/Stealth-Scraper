@@ -202,6 +202,14 @@ curl -s -X POST http://localhost:8000/extract \
 
 ---
 
+## Deploy (free, no credit card)
+
+See **[docs/DEPLOY.md](docs/DEPLOY.md)** for a 10-minute click-by-click:
+Hugging Face Spaces for the backend (16GB RAM free, Docker), Vercel for the
+frontend. End-state: a public URL you can drop on your resume.
+
+---
+
 ## Troubleshooting
 
 ### `SyntaxError: Non-UTF-8 code ... in nodriver/cdp/network.py`
