@@ -1,246 +1,217 @@
+# Stealth-Scraper
 
-# 🕵️♂️ Stealth Web Scraper 🕸️💻
+**A visual, point-and-click web scraper. No XPath, no config files.**
 
-A powerful, user-friendly web scraping tool built with python , playwright and requests that allows you to extract data from websites using XPath selectors with stealth capabilities to avoid detection.
+Paste a URL. Get a screenshot. Click the fields you want — *title, price,
+image, whatever* — and we generate a reusable scraping recipe you can run on
+any matching page.
 
-## 🌟 Features
-
-- **Stealth Mode**: Advanced anti-detection mechanisms to bypass bot protection
-- **XPath Support**: Precise data extraction using XPath selectors
-- **Real-time Results**: Instant data extraction and display
-- **User-friendly Interface**: Clean, intuitive web interface
-- **Multiple Data Types**: Extract text, attributes, and complex data structures
-- **Error Handling**: Robust error handling for failed scraping attempts
-- **Responsive Design**: Works seamlessly across desktop and mobile devices
-
-## 🚀 Live Demo
-
-Check out the live application: [https://stealth-scraper-urjc.onrender.com/](https://stealth-scraper-urjc.onrender.com/)  -- The first-time load may take 3–5 minutes, as it uses a free-tier instance. After the initial load, performance is smooth. The instance remains active as long as it is being used and will automatically shut down if idle for an hour.
-
-## 🛠️ Technology Stack
-
-- **Backend**: python , fast api
-- **Scraping Engine**: Puppeteer with Puppeteer-extra-plugin-stealth
-- **Frontend**: HTML5, CSS3, JavaScript
-- **Deployment**: Render.com
-- **Version Control**: Git, GitHub
-
-## 📦 Installation
-
-### Prerequisites
-
-- python
-
-### Local Development
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Rusheesonu/Stealth-Scraper.git
-   cd Stealth-Scraper
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Start the development server**
-   ```bash
-   python app.py
-   ```
-
-4. **Open your browser**
-   Navigate to `http://localhost:3000` (or the port specified in your environment)
-
-## 🎯 Usage
-
-### Basic Usage
-
-1. **Enter Target URL**: Input the website URL you want to scrape
-2. **Define XPath Selectors**: Specify XPath expressions for the data you want to extract
-3. **Execute Scraping**: Click the scrape button to start data extraction
-4. **View Results**: Extracted data appears in real-time in the results panel
-
-### XPath Examples
-
-Here are some common XPath patterns you can use:
-
-```xpath
-# Page Title
-//title/text()
-
-# All headings
-//h1 | //h2 | //h3
-
-# Product information (e-commerce example)
-//div[@class='product-title']/text()          # Product title
-//span[@class='price']/text()                 # Price
-//div[@class='description']/p/text()          # Description
-
-# Links
-//a/@href                                     # All link URLs
-//a[contains(@class, 'button')]/text()       # Button text
-
-# Images
-//img/@src                                    # Image sources
-//img/@alt                                    # Image alt text
-
-# Tables
-//table//tr//td/text()                       # All table cell text
-//table//th/text()                           # Table headers
 ```
-
-### Supported Websites
-
-The scraper works with most websites, including:
-- E-commerce sites (Amazon, eBay, etc.)
-- most challenging webisted like (stockx , walamrt , linkedin , ticketmaster) -- You need to setup your own residential proxies tho!
-- News websites
-- Blog posts
-- Product catalogs
-- Social media (public content)
-- Documentation sites
-
-## 🔧 Configuration
-
-The application supports various configuration options:
-
-### Environment Variables
-
-Create a `.env` file in the root directory:
-
-```env
-PORT=3000
-NODE_ENV=development
-PUPPETEER_ARGS=--no-sandbox,--disable-setuid-sandbox
-TIMEOUT=30000
-MAX_CONCURRENT_REQUESTS=5
+┌──────────────────────────────┐      ┌──────────────────┐
+│  URL                         │ ──▶  │  Snapshot + live │
+│  https://news.ycombinator…   │      │  hover overlay   │
+└──────────────────────────────┘      └──────────────────┘
+                                             │  click
+                                             ▼
+                                      ┌──────────────────┐
+                                      │ Label the field  │
+                                      │ (title / price / │
+                                      │  image / …)      │
+                                      └──────────────────┘
+                                             │
+                                             ▼
+                                      ┌──────────────────┐
+                                      │  JSON / CSV out  │
+                                      │  +  Save recipe  │
+                                      │  +  Rerun later  │
+                                      └──────────────────┘
 ```
-
-### Stealth Features
-
-The scraper includes several anti-detection features:
-- User-agent rotation
-- Viewport randomization
-- Request header manipulation
-- JavaScript execution delays
-- Cookie and session management
-
-## 🚨 Usage Guidelines
-
-### Legal and Ethical Considerations
-
-- **Respect robots.txt**: Always check and respect website robots.txt files
-- **Rate Limiting**: Don't overwhelm servers with too many requests
-- **Terms of Service**: Review and comply with website terms of service
-- **Personal Data**: Be mindful of scraping personal or sensitive information
-- **Copyright**: Respect copyright and intellectual property rights
-
-### Best Practices
-
-- Add delays between requests to avoid being blocked
-- Use appropriate user agents
-- Handle errors gracefully
-- Cache results when possible
-- Monitor for website structure changes
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's how you can help:
-
-### Development Setup
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/new-feature`
-3. Make your changes
-4. Add tests if applicable
-5. Commit your changes: `git commit -am 'Add new feature'`
-6. Push to the branch: `git push origin feature/new-feature`
-7. Submit a pull request
-
-### Areas for Contribution
-
-- [ ] Input validation improvements
-- [ ] Additional anti-detection measures
-- [ ] Docker containerization
-- [ ] User authentication system
-- [ ] API rate limiting
-- [ ] Export functionality (JSON, CSV, XML)
-- [ ] Scheduled scraping
-- [ ] Chrome extension
-- [ ] Mobile app version
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Issue**: Scraping fails with timeout error
-**Solution**: Increase timeout value or check if the website is accessible
-
-**Issue**: Empty results returned
-**Solution**: Verify XPath selectors using browser developer tools
-
-**Issue**: Bot detection triggered
-**Solution**: Reduce request frequency and check if additional stealth measures are needed
-
-**Issue**: Memory issues with large datasets
-**Solution**: Implement pagination or reduce the scope of data extraction
-
-### Getting Help
-
-- Open an issue on GitHub
-- Check existing issues for solutions
-- Review the documentation
-- Contact the maintainers
-
-## 📈 Roadmap
-
-### Upcoming Features
-
-- **v2.0**: Enhanced stealth capabilities
-- **v2.1**: Built-in proxy support
-- **v2.2**: Advanced scheduling system
-- **v2.3**: Machine learning-based detection avoidance
-- **v3.0**: Multi-language support
-
-## 📊 Performance
-
-- **Average Response Time**: < 5 seconds for most websites
-- **Success Rate**: 85-95% depending on target website complexity
-- **Concurrent Requests**: Up to 10 simultaneous scraping jobs
-- **Memory Usage**: Optimized for efficiency with automatic cleanup
-
-## 🛡️ Security
-
-- Input sanitization to prevent XSS attacks
-- Rate limiting to prevent abuse
-- Secure error handling to avoid information disclosure
-- Regular security updates and dependency patches
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👨‍💻 Author
-
-**Rusheesonu**
-- GitHub: [@Rusheesonu](https://github.com/Rusheesonu)
-- Project Link: [https://github.com/Rusheesonu/Stealth-Scraper](https://github.com/Rusheesonu/Stealth-Scraper)
-
-## 🙏 Acknowledgments
-
-- [Puppeteer](https://pptr.dev/) - Headless Chrome Node.js API
-- [Puppeteer Extra](https://github.com/berstend/puppeteer-extra) - Plugin framework
-- [Puppeteer Stealth Plugin](https://github.com/berstend/puppeteer-extra/tree/master/packages/puppeteer-extra-plugin-stealth) - Anti-detection capabilities
-- [Express.js](https://expressjs.com/) - Web framework
-- [Render.com](https://render.com/) - Hosting platform
-
-## ⚠️ Disclaimer
-
-This tool is for educational and legitimate research purposes only. Users are responsible for ensuring their scraping activities comply with website terms of service, applicable laws, and ethical guidelines. The authors are not responsible for any misuse of this software.
 
 ---
 
-**Happy Scraping! 🕷️**
+## Why
 
-*If you find this project useful, please consider giving it a ⭐ on GitHub!*
+Most scraping tools assume you know XPath. That's a wall for anyone who isn't
+a dev. This flips the model: the user sees *exactly* what the page looks like,
+hovers to highlight, clicks to extract. The recipe is saved, so the next URL
+with the same structure is a one-click rerun.
+
+Under the hood it's still Playwright + CSS/XPath selectors — but the user
+never types one.
+
+---
+
+## Stack
+
+| Layer | What |
+|-------|------|
+| Frontend | Next.js 16 App Router · React 19 · Tailwind v4 · lucide-react · framer-motion |
+| Backend | FastAPI · Playwright (async) · lxml · aiosqlite |
+| Storage | SQLite (zero config, no external DB) |
+| CI | GitHub Actions — pytest on backend, lint + build on frontend |
+
+---
+
+## Quickstart
+
+### Requirements
+- Python 3.11+
+- Node 20+
+- First-run: Playwright will fetch a Chromium.
+
+### Backend (terminal 1)
+
+```bash
+cd backend
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python -m playwright install chromium
+python run.py
+```
+
+Backend on `http://localhost:8000`. Interactive API docs at `/docs`.
+
+### Frontend (terminal 2)
+
+```bash
+cd frontend
+cp .env.local.example .env.local     # edit if backend isn't on :8000
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+---
+
+## The core loop
+
+1. **Snapshot** — `POST /snapshot { url }` loads the page in a headless
+   browser with lightweight stealth defaults, scrolls once to trigger lazy
+   images, screenshots the full page, and walks the DOM to collect every
+   visible element: `{ tag, bbox, xpath, css, text, attrs }`.
+2. **Pick** — the frontend renders the PNG and overlays the bounding boxes.
+   Hovering highlights the *innermost* hit (so overlapping containers don't
+   swallow clicks). Clicking opens a label modal: give it a name, choose
+   Text / Attribute (href, src, …) / List (all matches).
+3. **Save** — your picks become a **template**: a JSON array of
+   `{ label, selector, xpath, kind, attr }` rows, stored in SQLite.
+4. **Extract** — `POST /extract { url, template }` runs the template against
+   any URL. Returns `{ fields: {...}, errors: {...} }`. Frontend offers Copy
+   JSON, Download JSON, Download CSV (with a smart all-lists pivot so catalog
+   pages export as rows).
+
+---
+
+## Repo layout
+
+```
+Stealth-Scraper/
+├── backend/
+│   ├── app/
+│   │   ├── main.py          FastAPI app + routes
+│   │   ├── browser.py       Shared Playwright browser pool
+│   │   ├── snapshot.py      URL → screenshot + element catalog
+│   │   ├── extract_js.py    In-page JS to collect elements + selectors
+│   │   ├── extract.py       Run a template against a URL
+│   │   └── db.py            Template SQLite store
+│   ├── tests/               pytest — CRUD + API smoke
+│   ├── requirements.txt
+│   └── run.py
+│
+├── frontend/
+│   ├── app/
+│   │   ├── page.tsx         Landing
+│   │   ├── pick/            Picker (client)
+│   │   └── templates/       Saved recipes
+│   ├── components/
+│   │   ├── picker/          SnapshotCanvas, LabelModal, FieldSidebar, ResultsPanel
+│   │   └── ui/              Button, Input, Badge
+│   └── lib/                 api client, utils
+│
+├── legacy/                  Previous v1 Flask app (preserved; not wired)
+├── .github/workflows/       CI
+└── docs/
+```
+
+---
+
+## API reference (short version)
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| `POST` | `/snapshot` | `{ url, viewport_width?, viewport_height? }` | `{ screenshot (b64 PNG), elements[], viewport, page }` |
+| `POST` | `/extract` | `{ url, template[] }` | `{ fields: {...}, errors: {...} }` |
+| `GET`  | `/templates` | — | `[{ id, name, source_url, fields[] }]` |
+| `POST` | `/templates` | `{ name, source_url, fields[] }` | created template |
+| `GET`  | `/templates/{id}` | — | template |
+| `PUT`  | `/templates/{id}` | partial update | updated template |
+| `DELETE` | `/templates/{id}` | — | 204 |
+| `GET`  | `/health` | — | `{ status, browser }` |
+
+Full OpenAPI at `http://localhost:8000/docs`.
+
+### Template field shape
+
+```ts
+{
+  label: string,
+  selector: string,       // CSS
+  xpath?: string,         // XPath fallback when CSS misses
+  kind: "text" | "attr" | "list" | "html",
+  attr?: string           // required when kind="attr"
+}
+```
+
+---
+
+## Example — scraping HN frontpage
+
+```bash
+# 1. Snapshot the page
+curl -s -X POST http://localhost:8000/snapshot \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://news.ycombinator.com"}' \
+  | jq '.title, .element_count'
+# "Hacker News"
+# 247
+
+# 2. Extract with a hand-rolled template (the UI makes this clickable)
+curl -s -X POST http://localhost:8000/extract \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "url":"https://news.ycombinator.com",
+    "template":[
+      {"label":"titles","selector":".titleline > a","kind":"list"},
+      {"label":"points","selector":".score","kind":"list"}
+    ]
+  }' | jq '.fields.titles[0:3]'
+# ["Show HN: ...", "Ask HN: ...", "..."]
+```
+
+---
+
+## Roadmap
+
+- [x] Visual picker
+- [x] Template save/load
+- [x] JSON + CSV export
+- [ ] Selector generalization for lists (click 2 similar items → auto-find siblings)
+- [ ] Batch URL processing against a saved template
+- [ ] Scheduled reruns (cron)
+- [ ] Pagination detection + auto-follow
+- [ ] Auth + cloud template storage
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## v1 (legacy)
+
+The original Flask + XPath-based app is preserved under [`legacy/`](legacy/)
+with its own README. It still runs if you want to see where this started —
+but the v2 picker replaces it entirely.
