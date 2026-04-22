@@ -7,3 +7,7 @@ beautifulsoup4==4.12.2
 python-multipart==0.0.9
 aiosqlite==0.20.0
 httpx==0.28.1
+
+# Dev / test
+pytest==8.3.3
+pytest-asyncio==0.24.0
