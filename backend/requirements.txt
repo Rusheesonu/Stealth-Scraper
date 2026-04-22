@@ -1,13 +1,15 @@
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-pydantic==2.9.2
-playwright==1.52.0
-lxml==5.4.0
-beautifulsoup4==4.12.2
-python-multipart==0.0.9
-aiosqlite==0.20.0
-httpx==0.28.1
+# Version floors chosen so Python 3.11 through 3.14 all install cleanly.
+# pydantic < 2.11 ships PyO3 0.22 which can't build on 3.14.
+fastapi>=0.115,<0.200
+uvicorn[standard]>=0.32
+pydantic>=2.11,<3
+playwright>=1.52
+lxml>=5.3
+beautifulsoup4>=4.12
+python-multipart>=0.0.9
+aiosqlite>=0.20
+httpx>=0.28
 
 # Dev / test
-pytest==8.3.3
-pytest-asyncio==0.24.0
+pytest>=8.3
+pytest-asyncio>=0.24
