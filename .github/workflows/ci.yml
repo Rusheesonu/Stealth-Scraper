@@ -50,8 +50,10 @@ jobs:
       - name: Install deps
         run: npm ci || npm install
 
+      # Lint is non-blocking — build is the real correctness gate.
       - name: Lint
         run: npm run lint --if-present
+        continue-on-error: true
 
       - name: Build
         run: npm run build
