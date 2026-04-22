@@ -1,0 +1,20 @@
+# Keep the build context small — skip dev cruft + anything regenerated
+# inside the container.
+
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+data/
+*.log
+.env
+.env.*
+.DS_Store
+
+# Tests + CI scaffolding — production image doesn't need them.
+tests/
+pytest.ini

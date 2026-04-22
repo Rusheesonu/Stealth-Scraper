@@ -42,10 +42,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS — in production the Next.js frontend proxies server-to-server
+# via rewrites, so the browser never sees the backend origin and CORS
+# doesn't apply. We still allow all origins here so anyone can hit the
+# API directly (curl, Postman, or embedding from other frontends).
+# Credentials are off because the API is stateless + tokenless.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
