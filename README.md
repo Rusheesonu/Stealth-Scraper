@@ -55,9 +55,9 @@ never types one.
 ## Quickstart
 
 ### Requirements
-- Python 3.11+
-- Node 20+
-- First-run: Playwright will fetch a Chromium.
+- **Python 3.11 – 3.14** (3.11 / 3.12 are the best-tested)
+- **Node 20+**
+- First-run: Playwright will fetch a Chromium (~120MB).
 
 ### Backend (terminal 1)
 
