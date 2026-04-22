@@ -8,7 +8,7 @@ from typing import Any
 
 from nodriver import cdp
 
-from app.browser import pool
+from app.browser import pool, with_transient_retry
 from app.extract_js import COLLECT_ELEMENTS_JS
 
 
@@ -28,6 +28,16 @@ async def take_snapshot(
     viewport_width: int = 1440,
     viewport_height: int = 900,
 ) -> SnapshotResult:
+    """One-shot snapshot with a restart+retry on transient nodriver flakes
+    (StopIteration in CDP cleanup, target crashed, connection closed)."""
+
+    async def _once() -> SnapshotResult:
+        return await _snapshot_inner(url, viewport_width, viewport_height)
+
+    return await with_transient_retry(_once, label="snapshot")
+
+
+async def _snapshot_inner(url: str, viewport_width: int, viewport_height: int) -> SnapshotResult:
     tab = await pool.open_tab("about:blank")
     try:
         # Resize viewport via CDP (nodriver's default window size isn't

@@ -7,7 +7,7 @@ from typing import Any, Literal, TypedDict
 
 from lxml import html as lxml_html
 
-from app.browser import pool
+from app.browser import pool, with_transient_retry
 
 
 class Field(TypedDict, total=False):
@@ -19,9 +19,19 @@ class Field(TypedDict, total=False):
 
 
 async def extract(url: str, template: list[Field]) -> dict[str, Any]:
-    """Run a template against a URL. Uses the same stealth browser as
-    /snapshot, then runs selectors against the rendered HTML via lxml
-    (faster than round-tripping every selector through CDP)."""
+    """Run a template against a URL. Restart+retry once on transient
+    nodriver flakes, same as /snapshot."""
+
+    async def _once() -> dict[str, Any]:
+        return await _extract_inner(url, template)
+
+    return await with_transient_retry(_once, label="extract")
+
+
+async def _extract_inner(url: str, template: list[Field]) -> dict[str, Any]:
+    """Uses the shared stealth browser, then runs selectors against the
+    rendered HTML via lxml — faster than round-tripping every selector
+    through CDP."""
     tab = await pool.open_tab("about:blank")
     result: dict[str, Any] = {"url": url, "fields": {}, "errors": {}, "title": ""}
     try:
