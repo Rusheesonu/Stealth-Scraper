@@ -69,14 +69,11 @@ async def _snapshot_inner(url: str, viewport_width: int, viewport_height: int) -
         ))
         screenshot_b64 = shot if isinstance(shot, str) else str(shot)
 
-        data = await tab.evaluate(COLLECT_ELEMENTS_JS, return_by_value=True)
-
-        # nodriver's evaluate sometimes wraps results in a tuple
-        # (value, meta) depending on the version — normalize.
-        if isinstance(data, tuple):
-            data = data[0]
-        if not isinstance(data, dict):
-            data = {"elements": [], "viewport": {}, "page": {}}
+        data = await _evaluate_json(tab, COLLECT_ELEMENTS_JS)
+        print(
+            f"[snapshot] {url} → {len(data.get('elements', []))} elements "
+            f"(page {data.get('page', {}).get('width')}×{data.get('page', {}).get('height')})"
+        )
 
         return SnapshotResult(
             url=data.get("url", url),
@@ -91,6 +88,43 @@ async def _snapshot_inner(url: str, viewport_width: int, viewport_height: int) -
             await tab.close()
         except Exception:
             pass
+
+
+async def _evaluate_json(tab, expression: str) -> dict:
+    """Run JS via CDP Runtime.evaluate with return_by_value=True so we
+    always get a dict back (not a RemoteObject handle). Logs and
+    returns an empty shape if the eval threw in-page."""
+    try:
+        result = await tab.send(cdp.runtime.evaluate(
+            expression=expression,
+            return_by_value=True,
+            await_promise=False,
+            allow_unsafe_eval_blocked_by_csp=True,
+        ))
+    except TypeError:
+        # Older nodriver builds don't accept allow_unsafe_eval_blocked_by_csp.
+        result = await tab.send(cdp.runtime.evaluate(
+            expression=expression,
+            return_by_value=True,
+            await_promise=False,
+        ))
+
+    # CDP Runtime.evaluate returns a (RemoteObject, ExceptionDetails) tuple.
+    remote, exc = (result if isinstance(result, tuple) else (result, None))
+
+    if exc is not None:
+        text = getattr(exc, "text", None) or getattr(exc, "exception", None)
+        print(f"[snapshot] in-page eval raised: {text!r}")
+        return {"elements": [], "viewport": {}, "page": {}}
+
+    value = getattr(remote, "value", None)
+    if value is None:
+        print("[snapshot] CDP returned no value (type may not be serializable)")
+        return {"elements": [], "viewport": {}, "page": {}}
+    if not isinstance(value, dict):
+        print(f"[snapshot] CDP returned {type(value).__name__} instead of dict")
+        return {"elements": [], "viewport": {}, "page": {}}
+    return value
 
 
 async def _wait_ready(tab, timeout: float) -> None:

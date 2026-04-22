@@ -12,6 +12,10 @@ the bboxes line up pixel-perfect with the screenshot.
 
 COLLECT_ELEMENTS_JS = r"""
 (() => {
+    // Cap output so pages with 10k+ DOM nodes (Amazon, LinkedIn, etc.)
+    // don't blow past CDP's serialization budget. 3000 is enough for the
+    // picker to cover the primary content region + a healthy margin.
+    const MAX_ELEMENTS = 3000;
     // Tags we always collect even if they have no direct text (media/interactive)
     const ALWAYS = new Set(["A", "IMG", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "VIDEO"]);
 
@@ -147,6 +151,7 @@ COLLECT_ELEMENTS_JS = r"""
             text: preview.slice(0, 200),
             attrs: attrs,
         });
+        if (collected.length >= MAX_ELEMENTS) return;
     });
 
     return {
