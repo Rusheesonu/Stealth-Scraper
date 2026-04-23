@@ -55,6 +55,44 @@ export function findSiblings(
 }
 
 /**
+ * Walk "up" the DOM as represented in our flat element list: find the
+ * smallest detected element whose bbox strictly contains `child`'s bbox.
+ * This is the escape hatch when a click lands on a tight inner span
+ * (e.g. just the "$319" half of a split "$319.99" price) and the user
+ * wants the wrapping element that has both halves.
+ *
+ * Returns null when no collected ancestor contains the child — e.g. the
+ * child is already the outermost thing we captured.
+ */
+export function findContainingParent(
+  child: DetectedElement,
+  all: DetectedElement[]
+): DetectedElement | null {
+  const c = child.bbox;
+  const childArea = c.w * c.h;
+  let best: DetectedElement | null = null;
+  let bestArea = Infinity;
+  for (const el of all) {
+    if (el.id === child.id) continue;
+    const b = el.bbox;
+    const area = b.w * b.h;
+    // Must strictly contain (with 2px slop) AND be bigger than the child.
+    if (
+      b.x <= c.x + 2 &&
+      b.y <= c.y + 2 &&
+      b.x + b.w >= c.x + c.w - 2 &&
+      b.y + b.h >= c.y + c.h - 2 &&
+      area > childArea &&
+      area < bestArea
+    ) {
+      best = el;
+      bestArea = area;
+    }
+  }
+  return best;
+}
+
+/**
  * Split a stored selector into its normalized-pattern components. Handles
  * the comma-union format we use for multi-anchor list fields
  * (`"a > b, c > d"` → `["a > b", "c > d"]`).

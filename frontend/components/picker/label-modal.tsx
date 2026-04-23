@@ -1,49 +1,92 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { ArrowUp, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { DetectedElement, TemplateField } from "@/lib/api";
-import { truncate } from "@/lib/utils";
+import { findContainingParent, findSiblings, truncate } from "@/lib/utils";
 
 type Props = {
   element: DetectedElement;
-  siblings: DetectedElement[];
+  allElements: DetectedElement[];
   existingLabels: string[];
   onCancel: () => void;
-  onConfirm: (v: { label: string; kind: TemplateField["kind"]; attr?: string }) => void;
+  onConfirm: (
+    el: DetectedElement,
+    v: { label: string; kind: TemplateField["kind"]; attr?: string }
+  ) => void;
 };
 
 const COMMON_ATTRS = ["href", "src", "alt", "title", "value"];
 
-export function LabelModal({ element, siblings, existingLabels, onCancel, onConfirm }: Props) {
+export function LabelModal({ element, allElements, existingLabels, onCancel, onConfirm }: Props) {
+  // Track which element the user is labeling. Starts as the clicked one,
+  // but the "Select parent" button walks up the collected element tree
+  // so users can rescue an accidental click on a too-small inner span.
+  const [currentEl, setCurrentEl] = useState<DetectedElement>(element);
+
+  const siblings = useMemo(
+    () => findSiblings(currentEl, allElements),
+    [currentEl, allElements]
+  );
+  const siblingCount = siblings.length;
+
+  const parentEl = useMemo(
+    () => findContainingParent(currentEl, allElements),
+    [currentEl, allElements]
+  );
+
   // Default to "list" kind if the clicked element has sibling matches —
   // user almost certainly wants the whole list. Scalar fields (single
   // h1, a unique price) stay as "text".
-  const siblingCount = siblings.length;
-  const [label, setLabel] = useState(() => suggestLabel(element, existingLabels, siblingCount > 1));
-  const [kind, setKind] = useState<TemplateField["kind"]>(siblingCount > 1 ? "list" : "text");
-  const [attr, setAttr] = useState<string>(() => (element.attrs.href ? "href" : element.attrs.src ? "src" : ""));
+  const [label, setLabel] = useState(() =>
+    suggestLabel(currentEl, existingLabels, siblingCount > 1)
+  );
+  const [kind, setKind] = useState<TemplateField["kind"]>(
+    siblingCount > 1 ? "list" : "text"
+  );
+  const [attr, setAttr] = useState<string>(() =>
+    currentEl.attrs.href ? "href" : currentEl.attrs.src ? "src" : ""
+  );
 
   const availableAttrs = useMemo(() => {
-    const keys = Object.keys(element.attrs || {});
+    const keys = Object.keys(currentEl.attrs || {});
     const combined = Array.from(new Set([...keys, ...COMMON_ATTRS]));
     return combined.filter(Boolean);
-  }, [element.attrs]);
+  }, [currentEl.attrs]);
+
+  // When the user walks up to a parent, re-seed sensible defaults based
+  // on the new element's shape — but only touch fields that look like
+  // they were on autopilot (still the auto-suggested name, attr still
+  // auto-picked). A user-typed label is sacred.
+  useEffect(() => {
+    setAttr((prev) =>
+      prev && currentEl.attrs[prev] ? prev : currentEl.attrs.href ? "href" : currentEl.attrs.src ? "src" : ""
+    );
+    // Only auto-switch list/text if the user hadn't overridden it yet.
+    setKind((prev) => (prev === "attr" ? prev : siblingCount > 1 ? "list" : "text"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEl.id]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onCancel();
-      if (e.key === "Enter" && label.trim()) {
+      if (e.key === "Enter" && label.trim() && !e.altKey && !e.metaKey) {
         submit();
+      }
+      // Alt/Option + ↑ walks up to the containing parent. Matches the
+      // "Select parent" button — gives keyboard users the same escape hatch.
+      if (e.key === "ArrowUp" && (e.altKey || e.metaKey)) {
+        e.preventDefault();
+        if (parentEl) setCurrentEl(parentEl);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [label, kind, attr]);
+  }, [label, kind, attr, parentEl]);
 
   function submit() {
     const duplicate = existingLabels.includes(label.trim());
@@ -51,7 +94,7 @@ export function LabelModal({ element, siblings, existingLabels, onCancel, onConf
       alert("You already have a field with that name");
       return;
     }
-    onConfirm({
+    onConfirm(currentEl, {
       label: label.trim(),
       kind,
       attr: kind === "attr" ? attr : undefined,
@@ -82,18 +125,40 @@ export function LabelModal({ element, siblings, existingLabels, onCancel, onConf
           </button>
         </div>
 
-        <div className="mb-4 rounded-md border border-[var(--color-border)] bg-black/40 p-3">
+        <div className="mb-3 rounded-md border border-[var(--color-border)] bg-black/40 p-3">
           <div className="mb-1 flex items-center gap-2">
-            <Badge tone="accent">&lt;{element.tag}&gt;</Badge>
-            {element.attrs.href && <Badge tone="muted">link</Badge>}
-            {element.attrs.src && <Badge tone="muted">media</Badge>}
+            <Badge tone="accent">&lt;{currentEl.tag}&gt;</Badge>
+            {currentEl.attrs.href && <Badge tone="muted">link</Badge>}
+            {currentEl.attrs.src && <Badge tone="muted">media</Badge>}
           </div>
           <div className="truncate font-mono text-xs text-[var(--color-muted)]">
-            {truncate(element.text || element.attrs.href || element.attrs.src || "(no text)", 72)}
+            {truncate(
+              currentEl.text || currentEl.attrs.href || currentEl.attrs.src || "(no text)",
+              72
+            )}
           </div>
           <div className="mt-2 truncate font-mono text-[10px] text-[var(--color-muted)]">
-            {truncate(element.css, 90)}
+            {truncate(currentEl.css, 90)}
           </div>
+        </div>
+
+        {/* Parent-select escape hatch — climbs up to the smallest detected
+            wrapper containing the current element. Critical when a click
+            landed on a too-tight inner span (e.g. the "$319" half of a
+            composite "$319.99" price). */}
+        <div className="mb-4 flex items-center justify-between gap-2 rounded-md border border-dashed border-[var(--color-border)] bg-black/20 px-3 py-1.5 text-xs">
+          <span className="text-[var(--color-muted)]">
+            Wrong element? Walk up the DOM.
+          </span>
+          <button
+            onClick={() => parentEl && setCurrentEl(parentEl)}
+            disabled={!parentEl}
+            className="flex items-center gap-1 rounded border border-[var(--color-border)] bg-black/40 px-2 py-0.5 font-mono text-[10px] text-emerald-300 transition hover:border-emerald-700 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Alt/Option + ↑"
+          >
+            <ArrowUp className="h-3 w-3" />
+            Select parent
+          </button>
         </div>
 
         <label className="mb-1 block text-xs font-medium text-[var(--color-muted)]">

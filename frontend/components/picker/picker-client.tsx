@@ -156,25 +156,27 @@ export function PickerClient() {
     );
   }
 
-  function confirmField(partial: { label: string; kind: TemplateField["kind"]; attr?: string }) {
-    if (!pending) return;
+  function confirmField(
+    chosen: DetectedElement,
+    partial: { label: string; kind: TemplateField["kind"]; attr?: string }
+  ) {
     // For list fields, swap in the normalized selector (drops nth-of-type
     // anchors so querySelectorAll matches every sibling). Scalar fields
     // keep the specific selector so they resolve to exactly one element.
     const isList = partial.kind === "list";
-    const selector = isList ? normalizeListSelector(pending.css) : pending.css;
+    const selector = isList ? normalizeListSelector(chosen.css) : chosen.css;
     const siblings = isList && snapshot
-      ? findSiblings(pending, snapshot.elements)
-      : [pending];
+      ? findSiblings(chosen, snapshot.elements)
+      : [chosen];
 
     const field: PickedField = {
       label: partial.label,
       selector,
-      xpath: pending.xpath,
+      xpath: chosen.xpath,
       kind: partial.kind,
       attr: partial.attr ?? "",
-      element_id: pending.id,
-      bbox: pending.bbox,
+      element_id: chosen.id,
+      bbox: chosen.bbox,
       list_bboxes: isList ? siblings.map((s) => s.bbox) : undefined,
     };
     setFields((prev) => [...prev, field]);
@@ -430,7 +432,7 @@ export function PickerClient() {
       {pending && (
         <LabelModal
           element={pending}
-          siblings={snapshot ? findSiblings(pending, snapshot.elements) : [pending]}
+          allElements={snapshot?.elements ?? [pending]}
           onCancel={() => setPending(null)}
           onConfirm={confirmField}
           existingLabels={fields.map((f) => f.label)}

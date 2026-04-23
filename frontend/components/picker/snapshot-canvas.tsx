@@ -17,6 +17,11 @@ type Props = {
   pickedFields: Picked[];
 };
 
+// Drag-distance threshold (CSS px) above which a mouse gesture is treated as
+// a box-select instead of a click. Below this, tiny mouse wiggles during a
+// click still register as clicks rather than accidentally drawing a box.
+const DRAG_THRESHOLD = 8;
+
 export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -24,6 +29,10 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
   const [hoverId, setHoverId] = useState<number | null>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
   const [shiftHeld, setShiftHeld] = useState(false);
+  // Drag-select state — image-coord space, matching bboxes.
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
+  const [dragShift, setDragShift] = useState(false);
 
   // Track shift key so the hover tooltip can tell the user that shift-
   // click will extend their most recent list field rather than opening
@@ -104,27 +113,132 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
     return null;
   }
 
-  function onMouseMove(e: React.MouseEvent) {
-    if (!imgRef.current) return;
+  /**
+   * Pick the best element for a drag rectangle. This is the escape hatch
+   * for composite values like Amazon's "$319.99" price, where clicking
+   * the dollar amount only grabs the `$319` span and misses the `.99`.
+   *
+   * Strategy: score every element whose bbox has non-zero intersection
+   * with the drag rect by how much of the drag is inside the element AND
+   * how much of the element is inside the drag — basically IoU. The best
+   * match is the smallest element that still covers most of the drag rect.
+   */
+  function findElementForRect(rect: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }): DetectedElement | null {
+    if (rect.w < 2 || rect.h < 2) return null;
+    const dragArea = rect.w * rect.h;
+    let best: DetectedElement | null = null;
+    let bestScore = -1;
+    for (const el of snapshot.elements) {
+      const ex = el.bbox.x;
+      const ey = el.bbox.y;
+      const ew = el.bbox.w;
+      const eh = el.bbox.h;
+      const ix = Math.max(rect.x, ex);
+      const iy = Math.max(rect.y, ey);
+      const iw = Math.min(rect.x + rect.w, ex + ew) - ix;
+      const ih = Math.min(rect.y + rect.h, ey + eh) - iy;
+      if (iw <= 0 || ih <= 0) continue;
+      const inter = iw * ih;
+      const elArea = ew * eh || 1;
+      const coverDrag = inter / dragArea; // how much of the drag the element covers
+      const coverEl = inter / elArea; // how much of the element is inside the drag
+      // Reward elements that COVER the drag rect (so we catch parents of
+      // composite children) but penalize elements that are much larger
+      // than the drag itself (so we don't grab the whole page container).
+      const score = coverDrag * coverDrag * coverEl;
+      if (score > bestScore) {
+        bestScore = score;
+        best = el;
+      }
+    }
+    // If nothing meaningfully overlapped, fall back to whatever sits at
+    // the drag centroid.
+    if (!best || bestScore < 0.15) {
+      const cx = rect.x + rect.w / 2;
+      const cy = rect.y + rect.h / 2;
+      return findElementAt(cx, cy);
+    }
+    return best;
+  }
+
+  function toImgCoords(clientX: number, clientY: number): { x: number; y: number } | null {
+    if (!imgRef.current) return null;
     const rect = imgRef.current.getBoundingClientRect();
     const effectiveScale = renderedWidth > 0 ? renderedWidth / pageWidth : rect.width / pageWidth;
-    if (effectiveScale <= 0) return;
-    const px = (e.clientX - rect.left) / effectiveScale;
-    const py = (e.clientY - rect.top) / effectiveScale;
-    setCursorPos({ x: px, y: py });
-    const hit = findElementAt(px, py);
+    if (effectiveScale <= 0) return null;
+    return {
+      x: (clientX - rect.left) / effectiveScale,
+      y: (clientY - rect.top) / effectiveScale,
+    };
+  }
+
+  function onMouseDown(e: React.MouseEvent) {
+    if (e.button !== 0) return;
+    const p = toImgCoords(e.clientX, e.clientY);
+    if (!p) return;
+    setDragStart(p);
+    setDragEnd(p);
+    setDragShift(e.shiftKey);
+  }
+
+  function onMouseMove(e: React.MouseEvent) {
+    const p = toImgCoords(e.clientX, e.clientY);
+    if (!p) return;
+    setCursorPos(p);
+
+    if (dragStart) {
+      setDragEnd(p);
+      // While dragging, suppress the per-element hover highlight so the
+      // rectangle is the only visible cue.
+      setHoverId(null);
+      return;
+    }
+
+    const hit = findElementAt(p.x, p.y);
     setHoverId(hit?.id ?? null);
   }
 
   function onMouseLeave() {
     setHoverId(null);
     setCursorPos(null);
+    // If a drag was in-progress, cancel it — avoids ghost rectangles
+    // when the mouse leaves the image mid-gesture.
+    setDragStart(null);
+    setDragEnd(null);
   }
 
-  function onClick(e: React.MouseEvent) {
-    if (hoverId == null) return;
-    const el = snapshot.elements.find((e) => e.id === hoverId);
-    if (el) onElementClick(el, { shiftKey: e.shiftKey });
+  function onMouseUp(e: React.MouseEvent) {
+    const start = dragStart;
+    const end = dragEnd;
+    setDragStart(null);
+    setDragEnd(null);
+    if (!start || !end) return;
+
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const dist = Math.hypot(dx * scale, dy * scale);
+
+    if (dist < DRAG_THRESHOLD) {
+      // Not a drag — fall through to click semantics using the element
+      // under the cursor at mouseup time.
+      const hit = findElementAt(end.x, end.y);
+      if (hit) onElementClick(hit, { shiftKey: e.shiftKey });
+      return;
+    }
+
+    const rect = {
+      x: Math.min(start.x, end.x),
+      y: Math.min(start.y, end.y),
+      w: Math.abs(dx),
+      h: Math.abs(dy),
+    };
+    const el = findElementForRect(rect);
+    if (el) onElementClick(el, { shiftKey: dragShift || e.shiftKey });
   }
 
   const hoverEl = hoverId != null ? snapshot.elements.find((e) => e.id === hoverId) : null;
@@ -139,14 +253,31 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
     return sibs.length > 1 ? sibs.filter((s) => s.id !== hoverEl.id) : [];
   }, [hoverEl, snapshot.elements]);
 
+  // Live drag rectangle in image-coord space; null when no drag in flight.
+  const dragRect = useMemo(() => {
+    if (!dragStart || !dragEnd) return null;
+    const dx = dragEnd.x - dragStart.x;
+    const dy = dragEnd.y - dragStart.y;
+    if (Math.hypot(dx * scale, dy * scale) < DRAG_THRESHOLD) return null;
+    return {
+      x: Math.min(dragStart.x, dragEnd.x),
+      y: Math.min(dragStart.y, dragEnd.y),
+      w: Math.abs(dx),
+      h: Math.abs(dy),
+    };
+  }, [dragStart, dragEnd, scale]);
+
+  const isDragging = dragRect != null;
+
   return (
     <div
       ref={containerRef}
       className="relative mx-auto max-w-6xl overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] shadow-[0_0_40px_rgba(0,0,0,0.6)]"
+      onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
-      onClick={onClick}
-      style={{ cursor: hoverId != null ? "crosshair" : "default" }}
+      onMouseUp={onMouseUp}
+      style={{ cursor: isDragging ? "crosshair" : hoverId != null ? "crosshair" : "default" }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -188,7 +319,7 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
         ))}
 
       {/* Hover highlight */}
-      {scale > 0 && hoverEl && (
+      {scale > 0 && hoverEl && !isDragging && (
         <div
           className="pointer-events-none absolute"
           style={{
@@ -205,6 +336,7 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
       {/* Sibling preview — shows every item that would be caught by
           list mode if the user clicks. Lighter than the primary hover. */}
       {scale > 0 &&
+        !isDragging &&
         hoverSiblings.map((s) => (
           <div
             key={s.id}
@@ -220,8 +352,24 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
           />
         ))}
 
+      {/* Live drag-select rectangle. Amber so it reads as "marquee" and
+          doesn't blend with the emerald hover outline. */}
+      {scale > 0 && dragRect && (
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            left: dragRect.x * scale,
+            top: dragRect.y * scale,
+            width: dragRect.w * scale,
+            height: dragRect.h * scale,
+            border: "1.5px dashed #f59e0b",
+            background: "rgba(245,158,11,0.12)",
+          }}
+        />
+      )}
+
       {/* Floating label near cursor */}
-      {hoverEl && cursorPos && scale > 0 && (
+      {hoverEl && cursorPos && scale > 0 && !isDragging && (
         <div
           className="pointer-events-none absolute max-w-[280px] rounded-md border border-emerald-800 bg-black/90 px-2 py-1 font-mono text-[10px] text-emerald-200 shadow-xl"
           style={{
@@ -243,6 +391,22 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
               ⇧-click → add to latest list field
             </div>
           )}
+          <div className="mt-0.5 text-neutral-400/80">
+            drag → box-select (for composite values)
+          </div>
+        </div>
+      )}
+
+      {/* Drag hint — visible only while actively dragging. */}
+      {isDragging && cursorPos && scale > 0 && (
+        <div
+          className="pointer-events-none absolute rounded-md border border-amber-700 bg-black/90 px-2 py-1 font-mono text-[10px] text-amber-200 shadow-xl"
+          style={{
+            left: cursorPos.x * scale + 12,
+            top: cursorPos.y * scale + 12,
+          }}
+        >
+          release to pick the element covering this box
         </div>
       )}
     </div>

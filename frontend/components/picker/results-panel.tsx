@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Copy, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +13,46 @@ type Props = {
   onClose: () => void;
 };
 
+/**
+ * If every list-typed field returned exactly the same number of items,
+ * we can safely zip them into records (row 1: title[0], price[0], …).
+ * Scalar fields are repeated on every row. Returns null when the shape
+ * doesn't line up — the caller should fall back to the per-field view.
+ */
+function zipRecords(fields: Record<string, unknown>): Record<string, unknown>[] | null {
+  const entries = Object.entries(fields);
+  if (entries.length === 0) return null;
+  const listEntries = entries.filter(([, v]) => Array.isArray(v));
+  if (listEntries.length === 0) return null;
+  const lengths = listEntries.map(([, v]) => (v as unknown[]).length);
+  const first = lengths[0];
+  if (first === 0) return null;
+  if (!lengths.every((n) => n === first)) return null;
+  const scalars = entries.filter(([, v]) => !Array.isArray(v));
+  const rows: Record<string, unknown>[] = [];
+  for (let i = 0; i < first; i++) {
+    const row: Record<string, unknown> = {};
+    for (const [k, v] of scalars) row[k] = v;
+    for (const [k, v] of listEntries) row[k] = (v as unknown[])[i] ?? null;
+    rows.push(row);
+  }
+  return rows;
+}
+
 export function ResultsPanel({ results, url, onClose }: Props) {
-  const jsonStr = useMemo(() => JSON.stringify(results.fields, null, 2), [results]);
+  const records = useMemo(() => zipRecords(results.fields), [results]);
+  const hasMultipleLists =
+    records != null &&
+    Object.values(results.fields).filter((v) => Array.isArray(v)).length >= 2;
+
+  const [view, setView] = useState<"fields" | "records">(() =>
+    hasMultipleLists ? "records" : "fields"
+  );
+
+  const jsonStr = useMemo(
+    () => JSON.stringify(view === "records" && records ? records : results.fields, null, 2),
+    [results, view, records]
+  );
 
   function copy() {
     navigator.clipboard.writeText(jsonStr).then(
@@ -29,26 +67,9 @@ export function ResultsPanel({ results, url, onClose }: Props) {
   }
 
   function exportCsv() {
-    // If all fields are lists of equal length, emit one row per index.
-    // Otherwise, one row with the scalar/joined values.
-    const values = Object.entries(results.fields);
-    const listKeys = values
-      .filter(([, v]) => Array.isArray(v))
-      .map(([k]) => k);
-    const allLists = values.length > 0 && listKeys.length === values.length;
-    let rows: Record<string, unknown>[] = [];
-    if (allLists) {
-      const maxLen = Math.max(...values.map(([, v]) => (Array.isArray(v) ? v.length : 0)));
-      for (let i = 0; i < maxLen; i++) {
-        const row: Record<string, unknown> = {};
-        for (const [k, v] of values) {
-          row[k] = Array.isArray(v) ? v[i] ?? "" : v;
-        }
-        rows.push(row);
-      }
-    } else {
-      rows = [{ ...results.fields }];
-    }
+    // Prefer zipped records when available — that's the user's actual
+    // spreadsheet shape. Otherwise fall back to a single flat row.
+    const rows = records ?? [flattenFields(results.fields)];
     const csv = toCsv(rows);
     downloadBlob(csv, `${safeSlug(url)}.csv`, "text/csv");
   }
@@ -85,6 +106,30 @@ export function ResultsPanel({ results, url, onClose }: Props) {
         </header>
 
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-5 py-3">
+          {records && (
+            <div className="mr-2 flex rounded-md border border-[var(--color-border)] bg-black/40 p-0.5 text-xs">
+              <button
+                onClick={() => setView("records")}
+                className={`rounded px-2.5 py-1 transition ${
+                  view === "records"
+                    ? "bg-emerald-900/60 text-emerald-100"
+                    : "text-[var(--color-muted)] hover:text-[var(--color-fg)]"
+                }`}
+              >
+                Records ({records.length})
+              </button>
+              <button
+                onClick={() => setView("fields")}
+                className={`rounded px-2.5 py-1 transition ${
+                  view === "fields"
+                    ? "bg-emerald-900/60 text-emerald-100"
+                    : "text-[var(--color-muted)] hover:text-[var(--color-fg)]"
+                }`}
+              >
+                Fields
+              </button>
+            </div>
+          )}
           <Button variant="secondary" size="sm" onClick={copy}>
             <Copy className="h-3.5 w-3.5" />
             Copy JSON
@@ -104,6 +149,8 @@ export function ResultsPanel({ results, url, onClose }: Props) {
             <div className="rounded-md border border-red-900 bg-red-950/30 p-4 text-sm text-red-200">
               No data extracted. Check the console or error list below.
             </div>
+          ) : view === "records" && records ? (
+            <RecordsView rows={records} />
           ) : (
             <div className="space-y-3">
               {Object.entries(results.fields).map(([label, value]) => (
@@ -114,13 +161,72 @@ export function ResultsPanel({ results, url, onClose }: Props) {
 
           <details className="mt-6">
             <summary className="cursor-pointer text-xs text-[var(--color-muted)] hover:text-[var(--color-fg)]">
-              Raw JSON
+              Raw JSON ({view === "records" ? "records" : "fields"})
             </summary>
             <pre className="mt-2 max-h-[400px] overflow-auto rounded-md border border-[var(--color-border)] bg-black/60 p-3 font-mono text-xs text-emerald-200">
               {jsonStr}
             </pre>
           </details>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function RecordsView({ rows }: { rows: Record<string, unknown>[] }) {
+  const cols = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of rows) Object.keys(r).forEach((k) => s.add(k));
+    return Array.from(s);
+  }, [rows]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs text-[var(--color-muted)]">
+        <Badge tone="accent">{rows.length} records</Badge>
+        <span>Lists of equal length are zipped into one row per item.</span>
+      </div>
+      <div className="overflow-auto rounded-md border border-[var(--color-border)] bg-black/30">
+        <table className="w-full text-xs">
+          <thead className="bg-black/50">
+            <tr>
+              <th className="px-2 py-1.5 text-left font-mono text-[10px] font-semibold text-[var(--color-muted)]">
+                #
+              </th>
+              {cols.map((c) => (
+                <th
+                  key={c}
+                  className="px-2 py-1.5 text-left font-mono text-[10px] font-semibold text-emerald-300"
+                >
+                  {c}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-t border-[var(--color-border)]/60">
+                <td className="px-2 py-1.5 align-top font-mono text-[10px] text-[var(--color-muted)]">
+                  {i + 1}
+                </td>
+                {cols.map((c) => (
+                  <td
+                    key={c}
+                    className="max-w-[320px] px-2 py-1.5 align-top font-mono text-xs text-[var(--color-fg)]"
+                  >
+                    <div className="line-clamp-3 break-words">
+                      {r[c] == null ? (
+                        <span className="text-[var(--color-muted)]">null</span>
+                      ) : (
+                        String(r[c])
+                      )}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -155,6 +261,14 @@ function FieldRow({ label, value, error }: { label: string; value: unknown; erro
       {error && <div className="mt-1 font-mono text-[10px] text-red-400">{error}</div>}
     </div>
   );
+}
+
+function flattenFields(fields: Record<string, unknown>): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fields)) {
+    row[k] = Array.isArray(v) ? v.join(" | ") : v;
+  }
+  return row;
 }
 
 function safeSlug(url: string): string {
