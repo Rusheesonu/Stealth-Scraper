@@ -41,8 +41,8 @@ a dev. This flips the model: the user sees *exactly* what the page looks like,
 hovers to highlight, clicks to extract. The recipe is saved, so the next URL
 with the same structure is a one-click rerun.
 
-Under the hood it's still Playwright + CSS/XPath selectors — but the user
-never types one.
+Under the hood it's nodriver (stealth-patched Chromium) + CSS/XPath
+selectors — but the user never types one.
 
 ---
 
@@ -177,7 +177,7 @@ Stealth-Scraper/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py          FastAPI app + routes
-│   │   ├── browser.py       Shared Playwright browser pool
+│   │   ├── browser.py       Shared nodriver browser pool
 │   │   ├── snapshot.py      URL → screenshot + element catalog
 │   │   ├── extract_js.py    In-page JS to collect elements + selectors
 │   │   ├── extract.py       Run a template against a URL
