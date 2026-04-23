@@ -2,11 +2,13 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DetectedElement, SnapshotResponse } from "@/lib/api";
+import { findSiblings } from "@/lib/utils";
 
 type Picked = {
   bbox: { x: number; y: number; w: number; h: number };
   label: string;
   color: string;
+  faded?: boolean;
 };
 
 type Props = {
@@ -107,6 +109,16 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
 
   const hoverEl = hoverId != null ? snapshot.elements.find((e) => e.id === hoverId) : null;
 
+  // When hovering over an element that belongs to a repeating pattern,
+  // also highlight its siblings with a faint outline — tells the user
+  // "click this to grab the whole list" without needing shift-click or
+  // a second action.
+  const hoverSiblings = useMemo(() => {
+    if (!hoverEl) return [];
+    const sibs = findSiblings(hoverEl, snapshot.elements);
+    return sibs.length > 1 ? sibs.filter((s) => s.id !== hoverEl.id) : [];
+  }, [hoverEl, snapshot.elements]);
+
   return (
     <div
       ref={containerRef}
@@ -125,7 +137,8 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
         draggable={false}
       />
 
-      {/* Picked field overlays */}
+      {/* Picked field overlays — list siblings render faded so the
+          primary pick still stands out. */}
       {scale > 0 &&
         pickedFields.map((f, i) => (
           <div
@@ -136,17 +149,21 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
               top: f.bbox.y * scale,
               width: f.bbox.w * scale,
               height: f.bbox.h * scale,
-              border: `2px solid ${f.color}`,
-              boxShadow: `0 0 0 1px ${f.color}33, inset 0 0 0 1px ${f.color}22`,
-              background: `${f.color}14`,
+              border: `${f.faded ? 1 : 2}px ${f.faded ? "dashed" : "solid"} ${f.color}`,
+              boxShadow: f.faded
+                ? "none"
+                : `0 0 0 1px ${f.color}33, inset 0 0 0 1px ${f.color}22`,
+              background: f.faded ? `${f.color}0a` : `${f.color}14`,
             }}
           >
-            <div
-              className="absolute -top-6 left-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold text-black"
-              style={{ background: f.color }}
-            >
-              {f.label}
-            </div>
+            {f.label ? (
+              <div
+                className="absolute -top-6 left-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold text-black"
+                style={{ background: f.color }}
+              >
+                {f.label}
+              </div>
+            ) : null}
           </div>
         ))}
 
@@ -165,6 +182,24 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
         />
       )}
 
+      {/* Sibling preview — shows every item that would be caught by
+          list mode if the user clicks. Lighter than the primary hover. */}
+      {scale > 0 &&
+        hoverSiblings.map((s) => (
+          <div
+            key={s.id}
+            className="pointer-events-none absolute"
+            style={{
+              left: s.bbox.x * scale,
+              top: s.bbox.y * scale,
+              width: s.bbox.w * scale,
+              height: s.bbox.h * scale,
+              border: "1px dashed rgba(16,185,129,0.5)",
+              background: "rgba(16,185,129,0.04)",
+            }}
+          />
+        ))}
+
       {/* Floating label near cursor */}
       {hoverEl && cursorPos && scale > 0 && (
         <div
@@ -178,6 +213,11 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
             <span className="text-emerald-400">&lt;{hoverEl.tag}&gt;</span>{" "}
             {hoverEl.text || hoverEl.attrs.href || hoverEl.attrs.src || ""}
           </div>
+          {hoverSiblings.length > 0 && (
+            <div className="mt-0.5 text-emerald-400/70">
+              +{hoverSiblings.length} similar — click for list mode
+            </div>
+          )}
         </div>
       )}
     </div>
