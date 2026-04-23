@@ -38,10 +38,30 @@ async def take_snapshot(
 
 
 async def _snapshot_inner(url: str, viewport_width: int, viewport_height: int) -> SnapshotResult:
+    """Order matters more than anything in this function.
+
+    The hard lesson: any viewport resize after navigation fires a window
+    `resize` event, which triggers re-layouts + lazy mount of things
+    like Amazon's filter sidebar. That means bboxes and the screenshot
+    end up in different layout states.
+
+    The stable ordering that actually works:
+      1. Set viewport ONCE before navigation.
+      2. Navigate, wait for ready state.
+      3. Force-eager all lazy images (rewrite loading=lazy → eager,
+         hydrate data-src shims).
+      4. Scroll through to trigger intersection-observer based loads.
+      5. Scroll back to (0, 0) and wait for images + layout settle.
+      6. COLLECT ELEMENTS FIRST — freezes the truth-of-DOM at scroll=0.
+      7. THEN screenshot with capture_beyond_viewport=True. Even if
+         this causes a brief layout shift during the capture, the
+         bboxes are already frozen and the pixel-to-bbox mapping stays
+         correct.
+    """
     tab = await pool.open_tab("about:blank")
     try:
-        # Resize viewport via CDP (nodriver's default window size isn't
-        # guaranteed to match a 1440x900 layout the picker expects).
+        # Set the viewport ONCE, before we navigate. We never touch it
+        # again in this function — that's the whole point.
         try:
             await tab.send(cdp.emulation.set_device_metrics_override(
                 width=viewport_width,
@@ -54,22 +74,58 @@ async def _snapshot_inner(url: str, viewport_width: int, viewport_height: int) -
 
         await tab.get(url)
         await _wait_ready(tab, timeout=8.0)
-        await asyncio.sleep(0.6)
+        await asyncio.sleep(0.5)
 
-        # Scroll to trigger lazy images, then back to top.
+        # 3. Force-eager all lazy images BEFORE scrolling. That way when
+        # intersection-observers fire during the scroll pass, the images
+        # they reference are already downloading rather than waiting for
+        # an observer hit. Belt-and-suspenders: also handle data-src,
+        # data-srcset, and data-lazy-src shims common on old scripts.
+        await tab.evaluate(
+            r"""
+            (() => {
+                document.querySelectorAll('img[loading="lazy"]').forEach(img => {
+                    img.loading = 'eager';
+                });
+                document.querySelectorAll('img[data-src]').forEach(img => {
+                    if (!img.src || img.src.startsWith('data:')) img.src = img.dataset.src;
+                });
+                document.querySelectorAll('img[data-srcset]').forEach(img => {
+                    if (!img.srcset) img.srcset = img.dataset.srcset;
+                });
+                document.querySelectorAll('img[data-lazy-src]').forEach(img => {
+                    if (!img.src) img.src = img.dataset.lazySrc;
+                });
+            })()
+            """
+        )
+
+        # 4. Scroll through the full page to hit any observer-based
+        # loaders that skip force-eager. Bounded — no infinite scroll.
         await _scroll_full_height(tab)
-        await tab.evaluate("window.scrollTo(0, 0)")
-        await asyncio.sleep(0.4)
 
-        # Full-page screenshot via CDP. `capture_beyond_viewport=True`
-        # is what gives us the full-height PNG we render the picker over.
+        # 5. Scroll back to origin and wait for the layout to settle.
+        # Image decode is async; we wait for it explicitly here so our
+        # bbox collection sees fully-rendered sizes.
+        await tab.evaluate("window.scrollTo(0, 0)")
+        await _wait_for_images(tab, timeout=4.0)
+        await asyncio.sleep(0.5)
+
+        # 6. COLLECT ELEMENTS FIRST. This is the bit that guarantees
+        # bboxes match the screenshot: at this moment the layout is
+        # stable, scroll=0, viewport unchanged since initial set.
+        data = await _evaluate_json(tab, COLLECT_ELEMENTS_JS)
+
+        # 7. THEN screenshot. capture_beyond_viewport briefly expands
+        # the layout to capture the full page height. Even if that
+        # expansion triggers any transient reflow, our bboxes from
+        # step 6 are already frozen, so overlay and screenshot align.
         shot = await tab.send(cdp.page.capture_screenshot(
             format_="png",
             capture_beyond_viewport=True,
         ))
         screenshot_b64 = shot if isinstance(shot, str) else str(shot)
 
-        data = await _evaluate_json(tab, COLLECT_ELEMENTS_JS)
         print(
             f"[snapshot] {url} → {len(data.get('elements', []))} elements "
             f"(page {data.get('page', {}).get('width')}×{data.get('page', {}).get('height')})"
@@ -88,6 +144,24 @@ async def _snapshot_inner(url: str, viewport_width: int, viewport_height: int) -
             await tab.close()
         except Exception:
             pass
+
+
+async def _wait_for_images(tab, timeout: float) -> None:
+    """Wait until every <img> on the page has either loaded or failed.
+    Bounded — a broken CDN shouldn't hang our snapshot forever."""
+    deadline = asyncio.get_event_loop().time() + timeout
+    while asyncio.get_event_loop().time() < deadline:
+        try:
+            done = await tab.evaluate(
+                "Array.from(document.images).every(img => img.complete)"
+            )
+            if isinstance(done, tuple):
+                done = done[0]
+            if done:
+                return
+        except Exception:
+            pass
+        await asyncio.sleep(0.25)
 
 
 async def _evaluate_json(tab, expression: str) -> dict:
