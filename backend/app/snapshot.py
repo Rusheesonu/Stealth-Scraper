@@ -109,7 +109,15 @@ async def _snapshot_inner(url: str, viewport_width: int, viewport_height: int) -
         # bbox collection sees fully-rendered sizes.
         await tab.evaluate("window.scrollTo(0, 0)")
         await _wait_for_images(tab, timeout=4.0)
-        await asyncio.sleep(0.5)
+        # Poll until two consecutive samples of body scrollHeight agree —
+        # catches the Amazon failure mode where a banner / filter sidebar
+        # lazy-inserts content right around the 500ms mark and shoves
+        # everything below it down ~70px. Without this, bbox collection
+        # happens on the pre-insert layout and the screenshot ends up
+        # capturing the post-insert layout, producing that "coming above
+        # again" vertical offset. Cheap belt-and-suspenders; bounded.
+        await _wait_for_stable_height(tab, timeout=3.0)
+        await asyncio.sleep(0.3)
 
         # 6. COLLECT ELEMENTS FIRST. This is the bit that guarantees
         # bboxes match the screenshot: at this moment the layout is
@@ -162,6 +170,30 @@ async def _wait_for_images(tab, timeout: float) -> None:
         except Exception:
             pass
         await asyncio.sleep(0.25)
+
+
+async def _wait_for_stable_height(tab, timeout: float, samples: int = 3) -> None:
+    """Poll document.body.scrollHeight until it stops changing. Returns
+    as soon as `samples` consecutive polls agree. Bounded."""
+    deadline = asyncio.get_event_loop().time() + timeout
+    last: int | None = None
+    streak = 0
+    while asyncio.get_event_loop().time() < deadline:
+        try:
+            h = await tab.evaluate("document.documentElement.scrollHeight")
+            if isinstance(h, tuple):
+                h = h[0]
+            h = int(h)
+        except Exception:
+            h = None
+        if h is not None and h == last:
+            streak += 1
+            if streak >= samples:
+                return
+        else:
+            streak = 1
+            last = h
+        await asyncio.sleep(0.2)
 
 
 async def _evaluate_json(tab, expression: str) -> dict:
