@@ -32,6 +32,12 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
         <p className="mt-1 text-xs text-[var(--color-muted)]">
           Click elements on the snapshot to add them.
         </p>
+        {fields.some((f) => f.kind === "list") && (
+          <p className="mt-1.5 rounded border border-amber-900/60 bg-amber-950/30 px-2 py-1 text-[10px] text-amber-200">
+            Tip: <kbd className="rounded bg-black/60 px-1 font-mono">⇧</kbd>-click a
+            missing item to add it to your latest list.
+          </p>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto px-2 py-2">

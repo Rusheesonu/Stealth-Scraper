@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DetectedElement, SnapshotResponse } from "@/lib/api";
 import { findSiblings } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ type Picked = {
 
 type Props = {
   snapshot: SnapshotResponse;
-  onElementClick: (el: DetectedElement) => void;
+  onElementClick: (el: DetectedElement, modifiers: { shiftKey: boolean }) => void;
   pickedFields: Picked[];
 };
 
@@ -23,6 +23,26 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
   const [renderedWidth, setRenderedWidth] = useState(0);
   const [hoverId, setHoverId] = useState<number | null>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [shiftHeld, setShiftHeld] = useState(false);
+
+  // Track shift key so the hover tooltip can tell the user that shift-
+  // click will extend their most recent list field rather than opening
+  // the label modal. Pure UI affordance — the actual extension logic
+  // lives in picker-client.
+  useEffect(() => {
+    function down(e: KeyboardEvent) {
+      if (e.key === "Shift") setShiftHeld(true);
+    }
+    function up(e: KeyboardEvent) {
+      if (e.key === "Shift") setShiftHeld(false);
+    }
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, []);
 
   const pageWidth = snapshot.page.width || snapshot.viewport.width || 1440;
 
@@ -101,10 +121,10 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
     setCursorPos(null);
   }
 
-  function onClick() {
+  function onClick(e: React.MouseEvent) {
     if (hoverId == null) return;
     const el = snapshot.elements.find((e) => e.id === hoverId);
-    if (el) onElementClick(el);
+    if (el) onElementClick(el, { shiftKey: e.shiftKey });
   }
 
   const hoverEl = hoverId != null ? snapshot.elements.find((e) => e.id === hoverId) : null;
@@ -213,9 +233,14 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
             <span className="text-emerald-400">&lt;{hoverEl.tag}&gt;</span>{" "}
             {hoverEl.text || hoverEl.attrs.href || hoverEl.attrs.src || ""}
           </div>
-          {hoverSiblings.length > 0 && (
+          {hoverSiblings.length > 0 && !shiftHeld && (
             <div className="mt-0.5 text-emerald-400/70">
               +{hoverSiblings.length} similar — click for list mode
+            </div>
+          )}
+          {shiftHeld && (
+            <div className="mt-0.5 text-amber-300">
+              ⇧-click → add to latest list field
             </div>
           )}
         </div>

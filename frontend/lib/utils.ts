@@ -34,6 +34,31 @@ export function findSiblings(
   return all.filter((el) => normalizeListSelector(el.css) === pattern);
 }
 
+/**
+ * Split a stored selector into its normalized-pattern components. Handles
+ * the comma-union format we use for multi-anchor list fields
+ * (`"a > b, c > d"` → `["a > b", "c > d"]`).
+ */
+export function selectorPatterns(selector: string): string[] {
+  return selector
+    .split(/,\s*/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Find every element matching ANY of the given patterns. Used when a
+ * list field has been extended via shift-click to catch sibling items
+ * that auto-detection missed (Amazon product variants, badged items, etc.).
+ */
+export function findByPatterns(
+  patterns: string[],
+  all: DetectedElement[]
+): DetectedElement[] {
+  const set = new Set(patterns);
+  return all.filter((el) => set.has(normalizeListSelector(el.css)));
+}
+
 export function downloadBlob(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
