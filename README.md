@@ -102,20 +102,71 @@ Open `http://localhost:3000`.
 
 ## The core loop
 
-1. **Snapshot** — `POST /snapshot { url }` loads the page in a headless
-   browser with lightweight stealth defaults, scrolls once to trigger lazy
-   images, screenshots the full page, and walks the DOM to collect every
-   visible element: `{ tag, bbox, xpath, css, text, attrs }`.
+1. **Snapshot** — `POST /snapshot { url }` loads the page in a stealth
+   Chromium, force-eagers lazy images, scrolls through to trigger
+   intersection-observer loaders, waits for `scrollHeight` to stabilise,
+   then walks the DOM to collect every visible element
+   (`{ tag, bbox, xpath, css, text, attrs }`) and takes a full-page
+   screenshot. The stability poll matters — Amazon-style pages
+   lazy-insert banners and without it the overlay boxes drift ~70px off
+   the real content.
 2. **Pick** — the frontend renders the PNG and overlays the bounding boxes.
-   Hovering highlights the *innermost* hit (so overlapping containers don't
-   swallow clicks). Clicking opens a label modal: give it a name, choose
-   Text / Attribute (href, src, …) / List (all matches).
+   Hovering highlights the *innermost* hit. Clicking opens a label modal:
+   name it, choose Text / Attribute (href, src, …) / List (all matches).
+   The picker is smarter than a plain click — see
+   [picker tricks](#picker-tricks) below.
 3. **Save** — your picks become a **template**: a JSON array of
    `{ label, selector, xpath, kind, attr }` rows, stored in SQLite.
-4. **Extract** — `POST /extract { url, template }` runs the template against
-   any URL. Returns `{ fields: {...}, errors: {...} }`. Frontend offers Copy
-   JSON, Download JSON, Download CSV (with a smart all-lists pivot so catalog
-   pages export as rows).
+4. **Extract** — `POST /extract { url, template }` runs the template
+   against any URL. When two or more list fields share a CSS ancestor,
+   the backend iterates that ancestor row-by-row and extracts each
+   field relative to the row, emitting `null` for rows that are
+   missing a particular field. Lists stay the same length even if one
+   product omits a spec, so the Records view zips them cleanly.
+   Frontend offers Copy JSON, Download JSON, Download CSV.
+
+---
+
+## Picker tricks
+
+These are the things that make the picker actually work on messy real-
+world sites instead of just toy demos.
+
+**Drag-to-select for composite values.** Mouse-down and drag a rectangle
+over something like `$319.99` — the picker scores every element by how
+much of the drag area it covers (IoU-flavoured) and picks the smallest
+one that fully contains the box. Solves the "Amazon splits the price
+into two spans so a click on `$319` drops the `.99`" problem.
+
+**Auto-sibling detection via visual column.** Clicking one product title
+on a 16-product page fills in a list of 16. The heuristic is "same
+structural selector *and* same bbox x-coordinate" — so a click on a
+Display Size cell returns the 16 Display Size values, not all 64 cells
+of the 4-column spec table.
+
+**Shift-click to extend.** Auto-detection misses a sponsored variant?
+Hold shift, click the missing item — it's added to your latest list
+field using the same column-aware logic. The toast confirms the new
+match count.
+
+**Select parent button (Alt + ↑).** Accidentally clicked a too-tight
+inner span? The label modal climbs to the smallest collected wrapper
+containing your pick. Keyboard works too.
+
+**Records view.** When every list field in the extraction has the same
+length, the results panel opens as a table with one row per item —
+real spreadsheet shape, not "here are three parallel arrays". CSV
+export follows whichever view is active.
+
+**Extract from a different URL than you picked on.** The header has an
+editable *Extract from* field pre-seeded with the snapshot URL. Useful
+when you pick fields on `example.com/products/1` and want to run the
+same template against `/products/2`, `/3`, … without saving and
+reloading the template.
+
+**Batch mode.** The Batch button takes a newline-separated URL list and
+runs the current template against all of them. Results arrive as each
+page finishes; export as a single JSON/CSV bundle.
 
 ---
 
@@ -141,9 +192,12 @@ Stealth-Scraper/
 │   │   ├── pick/            Picker (client)
 │   │   └── templates/       Saved recipes
 │   ├── components/
-│   │   ├── picker/          SnapshotCanvas, LabelModal, FieldSidebar, ResultsPanel
+│   │   ├── picker/          SnapshotCanvas (drag-select, hover, overlays),
+│   │   │                    LabelModal (parent-select escape hatch),
+│   │   │                    FieldSidebar, ResultsPanel (Records view),
+│   │   │                    BatchModal
 │   │   └── ui/              Button, Input, Badge
-│   └── lib/                 api client, utils
+│   └── lib/                 api client, utils (sibling detection, list normalization)
 │
 ├── legacy/                  Previous v1 Flask app (preserved; not wired)
 ├── .github/workflows/       CI
@@ -157,7 +211,8 @@ Stealth-Scraper/
 | Method | Path | Body | Returns |
 |---|---|---|---|
 | `POST` | `/snapshot` | `{ url, viewport_width?, viewport_height? }` | `{ screenshot (b64 PNG), elements[], viewport, page }` |
-| `POST` | `/extract` | `{ url, template[] }` | `{ fields: {...}, errors: {...} }` |
+| `POST` | `/extract` | `{ url, template[] }` | `{ fields: {...}, errors: {...} }` (row-aligned when multiple list fields share an ancestor) |
+| `POST` | `/extract/batch` | `{ urls[], template[] }` | `{ count, results: [{ url, data }] }` |
 | `GET`  | `/templates` | — | `[{ id, name, source_url, fields[] }]` |
 | `POST` | `/templates` | `{ name, source_url, fields[] }` | created template |
 | `GET`  | `/templates/{id}` | — | template |
@@ -247,8 +302,14 @@ blocks) need residential proxies — add a `proxy={...}` arg in
 - [x] Visual picker
 - [x] Template save/load
 - [x] JSON + CSV export
-- [ ] Selector generalization for lists (click 2 similar items → auto-find siblings)
-- [ ] Batch URL processing against a saved template
+- [x] Selector generalisation for lists (one click → all siblings, bbox-column aware)
+- [x] Shift-click to extend a list with missed items
+- [x] Drag-select for composite values (split-price spans etc.)
+- [x] Parent-select escape hatch in the label modal
+- [x] Extract from a different URL than you picked on
+- [x] Batch URL processing against a saved template
+- [x] Row-aligned extraction (missing fields → `null` so lists stay the same length)
+- [x] Records view in the results panel
 - [ ] Scheduled reruns (cron)
 - [ ] Pagination detection + auto-follow
 - [ ] Auth + cloud template storage
