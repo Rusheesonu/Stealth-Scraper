@@ -22,7 +22,12 @@ import {
   type SnapshotResponse,
   type TemplateField,
 } from "@/lib/api";
-import { findSiblings, normalizeListSelector } from "@/lib/utils";
+import {
+  findByPatterns,
+  findSiblings,
+  normalizeListSelector,
+  selectorPatterns,
+} from "@/lib/utils";
 
 export type PickedField = TemplateField & {
   element_id: number;
@@ -60,7 +65,15 @@ export function PickerClient() {
   const [savedId, setSavedId] = useState<number | null>(null);
   const [targetUrl, setTargetUrl] = useState<string>("");
   const [batchOpen, setBatchOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const once = useRef(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function flashToast(msg: string) {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
+  }
 
   const load = useCallback(async () => {
     if (!url) return;
@@ -92,9 +105,56 @@ export function PickerClient() {
 
   const colorForIndex = useCallback((i: number) => COLORS[i % COLORS.length], []);
 
-  const onElementClick = useCallback((el: DetectedElement) => {
-    setPending(el);
-  }, []);
+  const onElementClick = useCallback(
+    (el: DetectedElement, modifiers: { shiftKey: boolean }) => {
+      // Shift-click extends the most-recently-added list field — lets the
+      // user manually "teach" the selector about sibling items that auto-
+      // detection missed (Amazon's sponsored/Best Seller variants with
+      // slightly different DOM paths).
+      if (modifiers.shiftKey && snapshot) {
+        const lastListIdx = findLastListIndex(fields);
+        if (lastListIdx >= 0) {
+          extendListField(lastListIdx, el, snapshot.elements);
+          return;
+        }
+      }
+      setPending(el);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fields, snapshot]
+  );
+
+  function findLastListIndex(fieldList: PickedField[]): number {
+    for (let i = fieldList.length - 1; i >= 0; i--) {
+      if (fieldList[i].kind === "list") return i;
+    }
+    return -1;
+  }
+
+  function extendListField(
+    fieldIdx: number,
+    el: DetectedElement,
+    allElements: DetectedElement[]
+  ) {
+    const field = fields[fieldIdx];
+    const newPattern = normalizeListSelector(el.css);
+    const existing = selectorPatterns(field.selector);
+    if (existing.includes(newPattern)) {
+      flashToast(`"${field.label}" already matches this element`);
+      return;
+    }
+    const merged = [...existing, newPattern];
+    const siblings = findByPatterns(merged, allElements);
+    const updated: PickedField = {
+      ...field,
+      selector: merged.join(", "),
+      list_bboxes: siblings.map((s) => s.bbox),
+    };
+    setFields((prev) => prev.map((f, i) => (i === fieldIdx ? updated : f)));
+    flashToast(
+      `"${field.label}" extended — now matches ${siblings.length} items`
+    );
+  }
 
   function confirmField(partial: { label: string; kind: TemplateField["kind"]; attr?: string }) {
     if (!pending) return;
@@ -402,6 +462,12 @@ export function PickerClient() {
           running={extracting}
           onClose={() => setBatchResults(null)}
         />
+      )}
+
+      {toast && (
+        <div className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-md border border-emerald-800 bg-black/90 px-4 py-2 font-mono text-xs text-emerald-200 shadow-2xl backdrop-blur-md">
+          {toast}
+        </div>
       )}
     </div>
   );
