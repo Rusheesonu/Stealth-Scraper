@@ -23,6 +23,7 @@ import {
   type TemplateField,
 } from "@/lib/api";
 import {
+  computeListSelector,
   findByPatterns,
   findSiblings,
   normalizeListSelector,
@@ -137,13 +138,21 @@ export function PickerClient() {
     allElements: DetectedElement[]
   ) {
     const field = fields[fieldIdx];
-    const newPattern = normalizeListSelector(el.css);
+    // Compute a level-specific pattern for the shift-clicked element so
+    // extension respects the same "same visual column" rule the primary
+    // selector uses. Falls back to the crude pattern when the clicked
+    // element stands alone.
+    const newSiblings = findSiblings(el, allElements);
+    const newSelector = computeListSelector(el, newSiblings);
     const existing = selectorPatterns(field.selector);
-    if (existing.includes(newPattern)) {
+    // Normalize both sides so "already present" works whether existing
+    // patterns are level-specific or crude.
+    const existingCrude = new Set(existing.map((p) => normalizeListSelector(p)));
+    if (existingCrude.has(normalizeListSelector(newSelector))) {
       flashToast(`"${field.label}" already matches this element`);
       return;
     }
-    const merged = [...existing, newPattern];
+    const merged = [...existing, newSelector];
     const siblings = findByPatterns(merged, allElements);
     const updated: PickedField = {
       ...field,
@@ -160,14 +169,18 @@ export function PickerClient() {
     chosen: DetectedElement,
     partial: { label: string; kind: TemplateField["kind"]; attr?: string }
   ) {
-    // For list fields, swap in the normalized selector (drops nth-of-type
-    // anchors so querySelectorAll matches every sibling). Scalar fields
-    // keep the specific selector so they resolve to exactly one element.
+    // List fields need a selector that targets the right visual column
+    // without bleeding into neighbouring columns — computeListSelector
+    // strips :nth-of-type only at levels where the visually-aligned
+    // siblings disagree, so "Display Size" stays column 1 and doesn't
+    // drag in Disk Size / Connectivity / Brand.
     const isList = partial.kind === "list";
-    const selector = isList ? normalizeListSelector(chosen.css) : chosen.css;
     const siblings = isList && snapshot
       ? findSiblings(chosen, snapshot.elements)
       : [chosen];
+    const selector = isList
+      ? computeListSelector(chosen, siblings)
+      : chosen.css;
 
     const field: PickedField = {
       label: partial.label,

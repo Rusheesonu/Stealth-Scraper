@@ -12,32 +12,20 @@ export function truncate(s: string, n = 40) {
 }
 
 /**
- * Drop the "which repetition" anchors from a CSS selector so two sibling
- * list items share the same pattern. UUID-like #id anchors also go,
- * since Amazon stamps a random UUID id on every product wrapper.
- *
- * The subtle one: only strip the FIRST (outermost) `:nth-of-type` —
- * that's the "which product" level. Keeping deeper nth-of-type anchors
- * preserves "which column/row inside the product". Stripping everything
- * was the old behaviour and it collapsed 4-column spec tables into a
- * single pattern (Amazon iPad search: display-size selector matched all
- * 16 × 4 = 64 cells instead of the 16 display-size cells specifically).
- *
- * Runs defensively client-side even though the backend now avoids
- * emitting UUID anchors — if an older snapshot is loaded from a saved
- * template, we still want to catch its siblings.
+ * Crude "structural" selector: drop every :nth-of-type + UUID anchor so
+ * two DOM elements with the same tag/class path compare equal. This is
+ * the FIRST pass of sibling detection — it'll happily return everything
+ * structurally similar (e.g. all 64 cells of a 4-column spec table on
+ * Amazon). findSiblings() then narrows that pool by bbox column, and
+ * computeListSelector() produces a stored selector that keeps only the
+ * nth-of-type anchors the siblings actually agree on.
  */
 const UUID_ANCHOR_RE = /#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const LONG_HEX_ANCHOR_RE = /#[0-9a-f-]{16,}(?=\s|>|\.|:|$)/gi;
 
 export function normalizeListSelector(css: string): string {
-  let stripped = false;
-  const oneStripNth = css.replace(/:nth-of-type\(\d+\)/g, (m) => {
-    if (stripped) return m;
-    stripped = true;
-    return "";
-  });
-  return oneStripNth
+  return css
+    .replace(/:nth-of-type\(\d+\)/g, "")
     .replace(UUID_ANCHOR_RE, "")
     .replace(LONG_HEX_ANCHOR_RE, "")
     // clean up orphaned combinators left behind after stripping anchors
@@ -48,16 +36,86 @@ export function normalizeListSelector(css: string): string {
 }
 
 /**
- * Find every collected element that lives in the same list as `clicked`.
- * Returns all matches including `clicked` itself. If the element has no
- * siblings, returns just `[clicked]`.
+ * Find every collected element that looks like a sibling of `clicked`.
+ *
+ * Two-phase filter:
+ *   1. Structural match — same crude pattern (all nth-of-type stripped).
+ *      On Amazon's iPad search this returns 16 for a title click, 64
+ *      for a "Display Size" click (16 products × 4 spec columns).
+ *   2. Visual-column filter — keep only structural matches whose bbox
+ *      starts at roughly the same x as `clicked`. This collapses the
+ *      64 to 16: only cells actually in the Display Size column survive.
+ *
+ * Falls back to the structural set if column filtering would cut
+ * everything (e.g. when clicked bbox is off-screen or degenerate).
  */
+const COLUMN_X_TOLERANCE_PX = 24;
+
 export function findSiblings(
   clicked: DetectedElement,
   all: DetectedElement[]
 ): DetectedElement[] {
   const pattern = normalizeListSelector(clicked.css);
-  return all.filter((el) => normalizeListSelector(el.css) === pattern);
+  const structural = all.filter((el) => normalizeListSelector(el.css) === pattern);
+  if (structural.length <= 1) return structural;
+  const byColumn = structural.filter(
+    (el) => Math.abs(el.bbox.x - clicked.bbox.x) <= COLUMN_X_TOLERANCE_PX
+  );
+  return byColumn.length >= 1 ? byColumn : structural;
+}
+
+/**
+ * Produce the selector to STORE for a list field. Walks the clicked
+ * element's selector level-by-level: at each `:nth-of-type(N)` anchor,
+ * strip it only if the bbox-filtered siblings disagree on N. Levels
+ * where every sibling has the same N (e.g. "column 1 of the spec
+ * table") keep the anchor so the selector still targets that column.
+ *
+ * Reduces to findSiblings' crude full-strip when siblings <= 1.
+ */
+export function computeListSelector(
+  clicked: DetectedElement,
+  siblings: DetectedElement[]
+): string {
+  if (siblings.length < 2) return normalizeListSelector(clicked.css);
+  const clickedParts = splitSelectorSteps(clicked.css);
+  const siblingParts = siblings.map((s) => splitSelectorSteps(s.css));
+
+  const out: string[] = [];
+  for (let i = 0; i < clickedParts.length; i++) {
+    let step = clickedParts[i];
+    if (/:nth-of-type\(\d+\)/.test(step)) {
+      const values = new Set<string>();
+      for (const sp of siblingParts) {
+        if (i < sp.length) {
+          const m = sp[i].match(/:nth-of-type\((\d+)\)/);
+          values.add(m ? m[1] : "∅");
+        } else {
+          values.add("∅");
+        }
+      }
+      // Siblings disagree at this level → strip the anchor. Agreement
+      // means this level is part of "which column/row inside each row".
+      if (values.size > 1) {
+        step = step.replace(/:nth-of-type\(\d+\)/g, "");
+      }
+    }
+    out.push(step);
+  }
+  return out
+    .join(" > ")
+    .replace(UUID_ANCHOR_RE, "")
+    .replace(LONG_HEX_ANCHOR_RE, "")
+    .replace(/\s*>\s*>\s*/g, " > ")
+    .replace(/\s+>\s+/g, " > ")
+    .trim();
+}
+
+function splitSelectorSteps(css: string): string[] {
+  return css
+    .trim()
+    .split(/\s*>\s*/)
+    .filter(Boolean);
 }
 
 /**
@@ -114,12 +172,16 @@ export function selectorPatterns(selector: string): string[] {
  * Find every element matching ANY of the given patterns. Used when a
  * list field has been extended via shift-click to catch sibling items
  * that auto-detection missed (Amazon product variants, badged items, etc.).
+ *
+ * Patterns may be level-specific (computeListSelector output) or crude
+ * full-strip — we normalize both sides so mixed specificity still
+ * groups equivalently-shaped elements.
  */
 export function findByPatterns(
   patterns: string[],
   all: DetectedElement[]
 ): DetectedElement[] {
-  const set = new Set(patterns);
+  const set = new Set(patterns.map((p) => normalizeListSelector(p)));
   return all.filter((el) => set.has(normalizeListSelector(el.css)));
 }
 
