@@ -22,10 +22,14 @@ import {
   type SnapshotResponse,
   type TemplateField,
 } from "@/lib/api";
+import { findSiblings, normalizeListSelector } from "@/lib/utils";
 
 export type PickedField = TemplateField & {
   element_id: number;
+  // Primary bbox — the element the user actually clicked. For list fields
+  // we also carry every sibling's bbox so the overlay can show them all.
   bbox: { x: number; y: number; w: number; h: number };
+  list_bboxes?: { x: number; y: number; w: number; h: number }[];
 };
 
 const COLORS = [
@@ -94,14 +98,24 @@ export function PickerClient() {
 
   function confirmField(partial: { label: string; kind: TemplateField["kind"]; attr?: string }) {
     if (!pending) return;
+    // For list fields, swap in the normalized selector (drops nth-of-type
+    // anchors so querySelectorAll matches every sibling). Scalar fields
+    // keep the specific selector so they resolve to exactly one element.
+    const isList = partial.kind === "list";
+    const selector = isList ? normalizeListSelector(pending.css) : pending.css;
+    const siblings = isList && snapshot
+      ? findSiblings(pending, snapshot.elements)
+      : [pending];
+
     const field: PickedField = {
       label: partial.label,
-      selector: pending.css,
+      selector,
       xpath: pending.xpath,
       kind: partial.kind,
       attr: partial.attr ?? "",
       element_id: pending.id,
       bbox: pending.bbox,
+      list_bboxes: isList ? siblings.map((s) => s.bbox) : undefined,
     };
     setFields((prev) => [...prev, field]);
     setPending(null);
@@ -214,11 +228,20 @@ export function PickerClient() {
 
   const overlayFields = useMemo(
     () =>
-      fields.map((f, i) => ({
-        bbox: f.bbox,
-        label: f.label,
-        color: colorForIndex(i),
-      })),
+      fields.flatMap((f, i) => {
+        const color = colorForIndex(i);
+        // List fields paint every sibling with a lighter variant so the
+        // user can see at a glance how many items the selector catches.
+        if (f.list_bboxes && f.list_bboxes.length > 1) {
+          return f.list_bboxes.map((b, idx) => ({
+            bbox: b,
+            label: idx === 0 ? `${f.label} (${f.list_bboxes!.length})` : "",
+            color,
+            faded: idx > 0,
+          }));
+        }
+        return [{ bbox: f.bbox, label: f.label, color, faded: false }];
+      }),
     [fields, colorForIndex]
   );
 
@@ -347,6 +370,7 @@ export function PickerClient() {
       {pending && (
         <LabelModal
           element={pending}
+          siblings={snapshot ? findSiblings(pending, snapshot.elements) : [pending]}
           onCancel={() => setPending(null)}
           onConfirm={confirmField}
           existingLabels={fields.map((f) => f.label)}

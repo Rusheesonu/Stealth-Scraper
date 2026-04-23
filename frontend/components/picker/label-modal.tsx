@@ -10,6 +10,7 @@ import { truncate } from "@/lib/utils";
 
 type Props = {
   element: DetectedElement;
+  siblings: DetectedElement[];
   existingLabels: string[];
   onCancel: () => void;
   onConfirm: (v: { label: string; kind: TemplateField["kind"]; attr?: string }) => void;
@@ -17,9 +18,13 @@ type Props = {
 
 const COMMON_ATTRS = ["href", "src", "alt", "title", "value"];
 
-export function LabelModal({ element, existingLabels, onCancel, onConfirm }: Props) {
-  const [label, setLabel] = useState(() => suggestLabel(element, existingLabels));
-  const [kind, setKind] = useState<TemplateField["kind"]>("text");
+export function LabelModal({ element, siblings, existingLabels, onCancel, onConfirm }: Props) {
+  // Default to "list" kind if the clicked element has sibling matches —
+  // user almost certainly wants the whole list. Scalar fields (single
+  // h1, a unique price) stay as "text".
+  const siblingCount = siblings.length;
+  const [label, setLabel] = useState(() => suggestLabel(element, existingLabels, siblingCount > 1));
+  const [kind, setKind] = useState<TemplateField["kind"]>(siblingCount > 1 ? "list" : "text");
   const [attr, setAttr] = useState<string>(() => (element.attrs.href ? "href" : element.attrs.src ? "src" : ""));
 
   const availableAttrs = useMemo(() => {
@@ -148,10 +153,36 @@ export function LabelModal({ element, existingLabels, onCancel, onConfirm }: Pro
         )}
 
         {kind === "list" && (
-          <p className="mt-3 rounded-md border border-amber-900 bg-amber-950/30 p-2 text-xs text-amber-200">
-            List mode returns an array of every element matching this selector — useful
-            for catalog pages, tables, search results.
-          </p>
+          <div className="mt-3 space-y-2">
+            <div className="rounded-md border border-emerald-900 bg-emerald-950/30 p-3">
+              <div className="mb-1 flex items-center gap-2">
+                <span className="text-sm font-semibold text-emerald-300">
+                  {siblingCount > 1
+                    ? `Found ${siblingCount} similar items`
+                    : "No similar items detected"}
+                </span>
+              </div>
+              {siblingCount > 1 ? (
+                <ul className="space-y-0.5 font-mono text-[10px] text-emerald-200/80">
+                  {siblings.slice(0, 4).map((s, i) => (
+                    <li key={i} className="truncate">
+                      <span className="text-emerald-500/60">{i + 1}.</span>{" "}
+                      {truncate(s.text || s.attrs.href || s.attrs.src || "(empty)", 84)}
+                    </li>
+                  ))}
+                  {siblingCount > 4 && (
+                    <li className="text-emerald-500/60">… and {siblingCount - 4} more</li>
+                  )}
+                </ul>
+              ) : (
+                <p className="text-xs text-amber-200">
+                  This element doesn&apos;t match any siblings on the page. List mode will
+                  still return its value in an array, but you may want to pick a different
+                  element — something inside a repeating card (price, title, image).
+                </p>
+              )}
+            </div>
+          </div>
         )}
 
         <div className="mt-6 flex justify-end gap-2">
@@ -167,15 +198,15 @@ export function LabelModal({ element, existingLabels, onCancel, onConfirm }: Pro
   );
 }
 
-function suggestLabel(el: DetectedElement, used: string[]): string {
+function suggestLabel(el: DetectedElement, used: string[], isList: boolean): string {
   const tag = el.tag;
-  if (tag === "h1") return unique("title", used);
-  if (tag === "h2" || tag === "h3") return unique("heading", used);
-  if (tag === "img") return unique("image", used);
-  if (tag === "a") return unique("link", used);
+  if (tag === "h1") return unique(isList ? "titles" : "title", used);
+  if (tag === "h2" || tag === "h3") return unique(isList ? "headings" : "heading", used);
+  if (tag === "img") return unique(isList ? "images" : "image", used);
+  if (tag === "a") return unique(isList ? "links" : "link", used);
   if (tag === "button") return unique("button", used);
-  if (/\$|€|£|₹|¥/.test(el.text)) return unique("price", used);
-  return unique("field", used);
+  if (/\$|€|£|₹|¥/.test(el.text)) return unique(isList ? "prices" : "price", used);
+  return unique(isList ? "items" : "field", used);
 }
 
 function unique(base: string, used: string[]): string {

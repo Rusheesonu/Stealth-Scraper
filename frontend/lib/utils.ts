@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { DetectedElement } from "./api";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -8,6 +9,29 @@ export function cn(...inputs: ClassValue[]) {
 export function truncate(s: string, n = 40) {
   if (!s) return "";
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+/**
+ * Strip :nth-of-type(N) anchors from a CSS selector. Two elements share
+ * the same "list pattern" if their stripped selectors are identical —
+ * that's our heuristic for sibling list items. Works for card grids,
+ * search results, tables, quote blocks, product tiles, etc.
+ */
+export function normalizeListSelector(css: string): string {
+  return css.replace(/:nth-of-type\(\d+\)/g, "");
+}
+
+/**
+ * Find every collected element that lives in the same list as `clicked`.
+ * Returns all matches including `clicked` itself. If the element has no
+ * siblings, returns just `[clicked]`.
+ */
+export function findSiblings(
+  clicked: DetectedElement,
+  all: DetectedElement[]
+): DetectedElement[] {
+  const pattern = normalizeListSelector(clicked.css);
+  return all.filter((el) => normalizeListSelector(el.css) === pattern);
 }
 
 export function downloadBlob(content: string, filename: string, mime: string) {
