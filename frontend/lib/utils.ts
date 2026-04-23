@@ -12,15 +12,16 @@ export function truncate(s: string, n = 40) {
 }
 
 /**
- * Strip :nth-of-type(N) anchors AND UUID-like #id anchors from a CSS
- * selector. Two elements share the same "list pattern" if their stripped
- * selectors are identical — that's our heuristic for sibling list items.
+ * Drop the "which repetition" anchors from a CSS selector so two sibling
+ * list items share the same pattern. UUID-like #id anchors also go,
+ * since Amazon stamps a random UUID id on every product wrapper.
  *
- * UUID stripping is critical for Amazon (and SPAs in general): Amazon
- * puts a fresh UUID id on every product container, so every product's
- * selector is rooted at a different random string. Without stripping,
- * sibling comparison would always return 1 even when 16 near-identical
- * products exist.
+ * The subtle one: only strip the FIRST (outermost) `:nth-of-type` —
+ * that's the "which product" level. Keeping deeper nth-of-type anchors
+ * preserves "which column/row inside the product". Stripping everything
+ * was the old behaviour and it collapsed 4-column spec tables into a
+ * single pattern (Amazon iPad search: display-size selector matched all
+ * 16 × 4 = 64 cells instead of the 16 display-size cells specifically).
  *
  * Runs defensively client-side even though the backend now avoids
  * emitting UUID anchors — if an older snapshot is loaded from a saved
@@ -30,8 +31,13 @@ const UUID_ANCHOR_RE = /#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 const LONG_HEX_ANCHOR_RE = /#[0-9a-f-]{16,}(?=\s|>|\.|:|$)/gi;
 
 export function normalizeListSelector(css: string): string {
-  return css
-    .replace(/:nth-of-type\(\d+\)/g, "")
+  let stripped = false;
+  const oneStripNth = css.replace(/:nth-of-type\(\d+\)/g, (m) => {
+    if (stripped) return m;
+    stripped = true;
+    return "";
+  });
+  return oneStripNth
     .replace(UUID_ANCHOR_RE, "")
     .replace(LONG_HEX_ANCHOR_RE, "")
     // clean up orphaned combinators left behind after stripping anchors
