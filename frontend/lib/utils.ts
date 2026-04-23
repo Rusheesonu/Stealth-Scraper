@@ -12,13 +12,33 @@ export function truncate(s: string, n = 40) {
 }
 
 /**
- * Strip :nth-of-type(N) anchors from a CSS selector. Two elements share
- * the same "list pattern" if their stripped selectors are identical —
- * that's our heuristic for sibling list items. Works for card grids,
- * search results, tables, quote blocks, product tiles, etc.
+ * Strip :nth-of-type(N) anchors AND UUID-like #id anchors from a CSS
+ * selector. Two elements share the same "list pattern" if their stripped
+ * selectors are identical — that's our heuristic for sibling list items.
+ *
+ * UUID stripping is critical for Amazon (and SPAs in general): Amazon
+ * puts a fresh UUID id on every product container, so every product's
+ * selector is rooted at a different random string. Without stripping,
+ * sibling comparison would always return 1 even when 16 near-identical
+ * products exist.
+ *
+ * Runs defensively client-side even though the backend now avoids
+ * emitting UUID anchors — if an older snapshot is loaded from a saved
+ * template, we still want to catch its siblings.
  */
+const UUID_ANCHOR_RE = /#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+const LONG_HEX_ANCHOR_RE = /#[0-9a-f-]{16,}(?=\s|>|\.|:|$)/gi;
+
 export function normalizeListSelector(css: string): string {
-  return css.replace(/:nth-of-type\(\d+\)/g, "");
+  return css
+    .replace(/:nth-of-type\(\d+\)/g, "")
+    .replace(UUID_ANCHOR_RE, "")
+    .replace(LONG_HEX_ANCHOR_RE, "")
+    // clean up orphaned combinators left behind after stripping anchors
+    .replace(/\s*>\s*>\s*/g, " > ")
+    .replace(/\s+>\s+/g, " > ")
+    .replace(/^\s*>\s*/, "")
+    .trim();
 }
 
 /**

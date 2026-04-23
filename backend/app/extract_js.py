@@ -46,16 +46,33 @@ COLLECT_ELEMENTS_JS = r"""
         return String(s).replace(/([^\w-])/g, "\\$1");
     }
 
+    // Detect per-element random IDs (UUIDs, long hex, generated SPA
+    // container IDs). Amazon puts a fresh UUID on every product wrapper,
+    // which poisons sibling detection — two products with the same
+    // structure get different selectors because each is rooted at its
+    // own unique id. We skip these so the selector walks past them and
+    // uses the shared class/tag path instead.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    function isRandomId(id) {
+        if (!id) return false;
+        if (UUID_RE.test(id)) return true;
+        // 16+ char strings of only hex / random-looking chars are usually
+        // generated too. Keep semantic ids like "main-content" (no long
+        // pure-hex run) usable.
+        if (id.length >= 16 && /^[0-9a-f-]+$/i.test(id) && !/-[a-z]{3,}/i.test(id)) return true;
+        return false;
+    }
+
     function buildCssSelector(el) {
-        // Prefer id if CSS-safe and unique
-        if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id) && document.querySelectorAll("#" + el.id).length === 1) {
+        // Prefer id if CSS-safe, unique, AND not a per-element random id.
+        if (el.id && /^[a-zA-Z0-9][\w-]*$/.test(el.id) && !isRandomId(el.id) && document.querySelectorAll("#" + el.id).length === 1) {
             return "#" + el.id;
         }
         const parts = [];
         let cur = el;
         while (cur && cur.nodeType === Node.ELEMENT_NODE && cur.tagName !== "HTML") {
             let part = cur.tagName.toLowerCase();
-            if (cur.id && /^[a-zA-Z][\w-]*$/.test(cur.id)) {
+            if (cur.id && /^[a-zA-Z0-9][\w-]*$/.test(cur.id) && !isRandomId(cur.id)) {
                 parts.unshift("#" + cur.id);
                 break;
             }
@@ -80,7 +97,7 @@ COLLECT_ELEMENTS_JS = r"""
     }
 
     function buildXPath(el) {
-        if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id) && document.querySelectorAll("#" + el.id).length === 1) {
+        if (el.id && /^[a-zA-Z0-9][\w-]*$/.test(el.id) && !isRandomId(el.id) && document.querySelectorAll("#" + el.id).length === 1) {
             return `//*[@id="${el.id}"]`;
         }
         const parts = [];
