@@ -173,6 +173,13 @@ export default function Home() {
           >
             GitHub
           </Link>
+          <Link
+            href="https://github.com/Rusheesonu/stealth-browser"
+            target="_blank"
+            className="hover:text-[var(--color-fg)]"
+          >
+            stealth-browser (OSS)
+          </Link>
         </nav>
       </footer>
     </main>
