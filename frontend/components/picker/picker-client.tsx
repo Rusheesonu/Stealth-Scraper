@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Download, Layers, Loader2, Play, RotateCcw, X } from "lucide-react";
 
 import { Brand } from "@/components/brand";
+import { UrlForm } from "@/components/url-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +68,10 @@ export function PickerClient() {
   const [targetUrl, setTargetUrl] = useState<string>("");
   const [batchOpen, setBatchOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const once = useRef(false);
+  // Track the last URL we kicked a snapshot for. Using a ref instead of a
+  // boolean lets us tell apart "remount with same url" (skip) from "user
+  // navigated to a new url within the same mount" (refetch + reset state).
+  const lastLoadedUrl = useRef<string>("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function flashToast(msg: string) {
@@ -90,19 +94,26 @@ export function PickerClient() {
     }
   }, [url]);
 
+  // Trigger a snapshot whenever the URL changes (including when the user
+  // submits the URL form on the empty state — same component, new query).
+  // Resets all picker state so old fields/results don't bleed into the
+  // new page.
   useEffect(() => {
-    if (once.current) return;
-    once.current = true;
+    if (!url) {
+      lastLoadedUrl.current = "";
+      return;
+    }
+    if (lastLoadedUrl.current === url) return;
+    lastLoadedUrl.current = url;
+    setSnapshot(null);
+    setFields([]);
+    setResults(null);
+    setBatchResults(null);
+    setSavedId(null);
+    setLoadError(null);
+    setTargetUrl(url);
     void load();
-  }, [load]);
-
-  // Seed the extract-target input once the URL is known. User can edit
-  // it without the snapshot reloading — this is what enables "pick on
-  // one Amazon product page, extract from a different one" without
-  // having to save-then-leave.
-  useEffect(() => {
-    if (url && !targetUrl) setTargetUrl(url);
-  }, [url, targetUrl]);
+  }, [url, load]);
 
   const colorForIndex = useCallback((i: number) => COLORS[i % COLORS.length], []);
 
@@ -322,11 +333,50 @@ export function PickerClient() {
 
   if (!url) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-[var(--color-muted)]">
-        No URL provided.{" "}
-        <Link href="/" className="ml-2 text-[var(--color-accent)]">
-          Go back
-        </Link>
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="w-full max-w-xl text-center">
+          <h1 className="mb-3 text-3xl font-semibold tracking-tight">
+            Snapshot a URL to start
+          </h1>
+          <p className="mx-auto mb-8 max-w-md text-sm text-[var(--color-muted)]">
+            Paste any URL. We&apos;ll load it, take a screenshot, then you click
+            on the fields you want to extract.
+          </p>
+          <div className="mb-6">
+            <UrlForm />
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[var(--color-muted)]">
+            <span>Try one:</span>
+            <Link
+              href="/pick?url=https://news.ycombinator.com"
+              className="rounded-full border border-[var(--color-border)] px-3 py-1 font-mono hover:border-emerald-800 hover:text-emerald-300"
+            >
+              news.ycombinator.com
+            </Link>
+            <Link
+              href="/pick?url=https://quotes.toscrape.com"
+              className="rounded-full border border-[var(--color-border)] px-3 py-1 font-mono hover:border-emerald-800 hover:text-emerald-300"
+            >
+              quotes.toscrape.com
+            </Link>
+            <Link
+              href="/pick?url=https://example.com"
+              className="rounded-full border border-[var(--color-border)] px-3 py-1 font-mono hover:border-emerald-800 hover:text-emerald-300"
+            >
+              example.com
+            </Link>
+          </div>
+          <div className="mt-12 text-sm text-[var(--color-muted)]">
+            Or open a{" "}
+            <Link
+              href="/templates"
+              className="text-[var(--color-accent)] hover:underline"
+            >
+              saved template
+            </Link>
+            .
+          </div>
+        </div>
       </div>
     );
   }
