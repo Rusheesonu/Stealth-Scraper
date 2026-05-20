@@ -1,7 +1,13 @@
 /**
  * Backend API client. All calls route through Next.js rewrites
  * (`/api/backend/*` → `FASTAPI_URL/*`) so there's no CORS in the browser.
+ *
+ * Auth: the current Supabase session's access_token is attached as a
+ * Bearer header on every request. Backend verifies the JWT via Supabase's
+ * JWKS endpoint and 401s if it's missing/expired/invalid.
  */
+
+import { createClient } from "@/lib/supabase/client";
 
 export type ElementBbox = { x: number; y: number; w: number; h: number };
 
@@ -50,14 +56,44 @@ export type ExtractResponse = {
 };
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const authHeader: Record<string, string> = session?.access_token
+    ? { Authorization: `Bearer ${session.access_token}` }
+    : {};
+
   const res = await fetch(`/api/backend${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader,
+      ...(init?.headers || {}),
+    },
     cache: "no-store",
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText}: ${body || path}`);
+    let detail = body;
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed?.detail) detail = parsed.detail;
+    } catch {
+      // body wasn't JSON — leave as-is
+    }
+    if (res.status === 401) {
+      // Token missing/expired — bounce to login, preserve next.
+      if (typeof window !== "undefined") {
+        const next = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login?next=${next}`;
+      }
+      throw new Error("Not signed in. Redirecting…");
+    }
+    if (res.status === 403) {
+      throw new Error(`Plan limit: ${detail}`);
+    }
+    throw new Error(`${res.status}: ${detail || path}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json();
@@ -101,4 +137,10 @@ export const api = {
 
   deleteTemplate: (id: number) =>
     call<void>(`/templates/${id}`, { method: "DELETE" }),
+
+  createCheckout: (plan: "hobby" | "pro" | "business") =>
+    call<{ checkout_url: string }>(
+      `/billing/checkout?plan=${encodeURIComponent(plan)}`,
+      { method: "POST" },
+    ),
 };
