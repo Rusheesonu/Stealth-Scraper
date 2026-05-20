@@ -272,7 +272,7 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
   return (
     <div
       ref={containerRef}
-      className="relative mx-auto max-w-6xl overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] shadow-[0_0_40px_rgba(0,0,0,0.6)]"
+      className="relative mx-auto max-w-6xl overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-popover)]"
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
@@ -368,45 +368,54 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
         />
       )}
 
-      {/* Floating label near cursor */}
+      {/* Floating label near cursor — translucent ink-9 (true black-ish) panel
+          so it reads over ANY screenshot background. Apple-style tooltip. */}
       {hoverEl && cursorPos && scale > 0 && !isDragging && (
         <div
-          className="pointer-events-none absolute max-w-[280px] rounded-md border border-emerald-800 bg-black/90 px-2 py-1 font-mono text-[10px] text-emerald-200 shadow-xl"
+          className="pointer-events-none absolute max-w-[320px] rounded-lg px-2.5 py-1.5 font-mono text-[10.5px] leading-[1.5] text-white shadow-[var(--shadow-popover)]"
           style={{
             left: cursorPos.x * scale + 12,
             top: cursorPos.y * scale + 12,
+            background: "color-mix(in srgb, var(--color-ink-9) 92%, transparent)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
           }}
         >
           <div className="truncate">
-            <span className="text-emerald-400">&lt;{hoverEl.tag}&gt;</span>{" "}
-            {hoverEl.text || hoverEl.attrs.href || hoverEl.attrs.src || ""}
+            <span className="text-[color:var(--color-accent)]">&lt;{hoverEl.tag}&gt;</span>{" "}
+            <span className="text-white/85">
+              {hoverEl.text || hoverEl.attrs.href || hoverEl.attrs.src || ""}
+            </span>
           </div>
           {hoverSiblings.length > 0 && !shiftHeld && (
-            <div className="mt-0.5 text-emerald-400/70">
+            <div className="mt-0.5 text-[color:var(--color-accent)]/85">
               +{hoverSiblings.length} similar — click for list mode
             </div>
           )}
           {shiftHeld && (
-            <div className="mt-0.5 text-amber-300">
+            <div className="mt-0.5 text-[#fbbf24]">
               ⇧-click → add to latest list field
             </div>
           )}
-          <div className="mt-0.5 text-neutral-400/80">
-            drag → box-select (for composite values)
+          <div className="mt-0.5 text-white/55">
+            drag → box-select for composite values
           </div>
         </div>
       )}
 
-      {/* Drag hint — visible only while actively dragging. */}
+      {/* Drag hint */}
       {isDragging && cursorPos && scale > 0 && (
         <div
-          className="pointer-events-none absolute rounded-md border border-amber-700 bg-black/90 px-2 py-1 font-mono text-[10px] text-amber-200 shadow-xl"
+          className="pointer-events-none absolute rounded-lg px-2.5 py-1.5 font-mono text-[10.5px] text-white shadow-[var(--shadow-popover)]"
           style={{
             left: cursorPos.x * scale + 12,
             top: cursorPos.y * scale + 12,
+            background: "color-mix(in srgb, var(--color-ink-9) 92%, transparent)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
           }}
         >
-          release to pick the element covering this box
+          <span className="text-[#fbbf24]">⤴</span> release to pick the element covering this box
         </div>
       )}
     </div>

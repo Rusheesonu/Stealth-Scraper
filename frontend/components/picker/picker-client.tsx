@@ -389,65 +389,72 @@ export function PickerClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-panel)]/80 px-4 py-3 backdrop-blur-md">
+      {/* Picker top bar — translucent blur, same chrome family as the
+          marketing nav. Keeps the picker visually part of the product. */}
+      <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] bg-blur-bar px-4 py-2.5">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push("/")}
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-fg)]"
-            aria-label="Back"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-fg-muted)] transition-[border-color,background,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)]"
+            aria-label="Back to home"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3.5 w-3.5" />
           </button>
           <Brand />
           {snapshot ? (
-            <Badge tone="accent">{snapshot.element_count} elements</Badge>
+            <Badge tone="muted" size="sm">
+              <span className="font-mono">{snapshot.element_count}</span> elements
+            </Badge>
           ) : null}
         </div>
 
-        {/* Extract-target controls — lives between the brand and actions. */}
+        {/* Extract-target controls */}
         <div className="flex flex-1 items-center gap-2 md:max-w-2xl">
-          <div className="hidden text-xs text-[var(--color-muted)] md:block whitespace-nowrap">
-            Extract from:
+          <div className="hidden font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)] md:block whitespace-nowrap">
+            Extract from
           </div>
           <div className="relative flex-1">
             <Input
+              mono
+              size="sm"
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
               placeholder={url}
-              className="h-9 pr-8 font-mono text-xs"
+              className="pr-8"
               spellCheck={false}
             />
             {targetUrl && targetUrl !== url && (
               <button
                 onClick={() => setTargetUrl(url)}
-                className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--color-muted)] hover:bg-black/40 hover:text-[var(--color-fg)]"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
                 title="Reset to snapshot URL"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-3 w-3" />
               </button>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
             onClick={() => setBatchOpen(true)}
             disabled={!fields.length || extracting}
             size="sm"
             variant="secondary"
           >
-            <Layers className="h-4 w-4" />
+            <Layers className="h-3.5 w-3.5" />
             Batch
           </Button>
           <Button
             onClick={runExtract}
             disabled={!fields.length || extracting || !targetUrl.trim()}
             size="sm"
+            variant="primary"
           >
             {extracting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Play className="h-4 w-4" />
+              <Play className="h-3.5 w-3.5" />
             )}
             Run extract
           </Button>
@@ -456,25 +463,36 @@ export function PickerClient() {
 
       {/* Warning strip when running on a different URL than the snapshot */}
       {targetUrl && targetUrl !== url && (
-        <div className="flex items-center justify-center gap-2 border-b border-amber-900/60 bg-amber-950/40 px-4 py-1.5 text-xs text-amber-200">
-          <span className="font-mono">⚠ Extracting from a different URL than the one you picked on.</span>
-          <span className="text-amber-300/70">Selectors should still match if the page structure is the same.</span>
+        <div className="flex items-center justify-center gap-2 border-b border-[color:var(--color-warning)]/25 bg-[var(--color-warning-soft)] px-4 py-1.5">
+          <span className="font-mono text-[11px] text-[var(--color-fg)]">
+            ⚠ Extracting from a different URL than the one you picked on.
+          </span>
+          <span className="text-[11px] text-[var(--color-fg-muted)]">
+            Selectors should still match if the page structure is the same.
+          </span>
         </div>
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto bg-[var(--color-ink-1)] p-6">
           {loading && (
-            <div className="flex h-full items-center justify-center text-[var(--color-muted)]">
-              <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-              Loading snapshot… (first load can take 10–20s)
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-[var(--color-fg-muted)]">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-[14px]">Loading snapshot</span>
+              </div>
+              <div className="font-mono text-[11px] text-[var(--color-fg-subdued)]">
+                first load can take 10–20s (warming the browser)
+              </div>
             </div>
           )}
           {loadError && (
-            <div className="mx-auto max-w-lg rounded-lg border border-red-900 bg-red-950/40 p-6 text-red-200">
-              <div className="mb-2 font-semibold">Snapshot failed</div>
-              <div className="mb-4 font-mono text-xs">{loadError}</div>
-              <Button variant="secondary" onClick={load}>
+            <div className="mx-auto max-w-lg rounded-xl border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-5">
+              <div className="mb-1 text-[14px] font-semibold text-[var(--color-fg-strong)]">
+                Snapshot failed
+              </div>
+              <div className="mb-4 font-mono text-[11px] text-[var(--color-fg-muted)]">{loadError}</div>
+              <Button variant="secondary" size="sm" onClick={load}>
                 Try again
               </Button>
             </div>
@@ -535,8 +553,17 @@ export function PickerClient() {
         />
       )}
 
+      {/* Toast — Apple-style floating pill. Translucent dark surface
+          so it reads against both light page chrome and screenshot bg. */}
       {toast && (
-        <div className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-md border border-emerald-800 bg-black/90 px-4 py-2 font-mono text-xs text-emerald-200 shadow-2xl backdrop-blur-md">
+        <div
+          className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full px-4 py-2 font-mono text-[12px] text-white shadow-[var(--shadow-popover)]"
+          style={{
+            background: "color-mix(in srgb, var(--color-ink-9) 92%, transparent)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+          }}
+        >
           {toast}
         </div>
       )}
@@ -591,72 +618,79 @@ function BatchResultsPanel({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex justify-end bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex justify-end"
       onClick={onClose}
     >
+      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--color-ink-9)_32%,transparent)]" />
       <div
-        className="flex h-full w-full max-w-3xl flex-col border-l border-[var(--color-border)] bg-[var(--color-panel)] shadow-2xl"
+        className="relative flex h-full w-full max-w-3xl flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-modal)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold">
-              Batch extract · {results.length} URL{results.length === 1 ? "" : "s"}
-              {running && (
-                <Loader2 className="ml-2 inline h-4 w-4 animate-spin text-[var(--color-muted)]" />
-              )}
+        <header className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+          <div className="min-w-0">
+            <div className="mb-1 flex items-center gap-2">
+              <Badge tone={running ? "info" : "success"} size="sm">
+                {running ? "Running" : "Complete"}
+              </Badge>
+              <Badge tone="muted" size="sm">
+                {results.length} URL{results.length === 1 ? "" : "s"}
+              </Badge>
+              {running && <Loader2 className="h-3 w-3 animate-spin text-[var(--color-fg-muted)]" />}
+            </div>
+            <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+              Batch extract
             </h2>
-            <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-              {running ? "Running… results land as each page finishes." : "Complete."}
+            <p className="mt-0.5 text-[12px] text-[var(--color-fg-muted)]">
+              {running ? "Results land as each page finishes." : "All URLs processed."}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button variant="secondary" size="sm" onClick={exportJson}>
-              <Download className="h-3.5 w-3.5" />
-              JSON
+              <Download className="h-3 w-3" /> JSON
             </Button>
-            <Button variant="secondary" size="sm" onClick={exportCsv}>
-              <Download className="h-3.5 w-3.5" />
-              CSV
+            <Button variant="ghost" size="sm" onClick={exportCsv}>
+              <Download className="h-3 w-3" /> CSV
             </Button>
             <button
               onClick={onClose}
-              className="rounded-md p-1.5 text-[var(--color-muted)] hover:bg-black/40 hover:text-[var(--color-fg)]"
+              className="rounded-md p-1.5 text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-5">
+        <div className="flex-1 overflow-auto bg-[var(--color-ink-1)] p-5">
           {results.length === 0 ? (
-            <div className="text-sm text-[var(--color-muted)]">
+            <div className="flex items-center gap-2 text-[13px] text-[var(--color-fg-muted)]">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Waiting for the first result…
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {results.map(({ url, data }, i) => {
                 const errCount = Object.keys(data.errors || {}).length;
                 return (
                   <div
                     key={i}
-                    className="rounded-md border border-[var(--color-border)] bg-black/30 p-3"
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <div className="truncate font-mono text-xs text-[var(--color-muted)]">
+                      <div className="truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
                         {url}
                       </div>
-                      <Badge tone={errCount ? "danger" : "accent"}>
+                      <Badge tone={errCount ? "danger" : "success"} size="xs">
                         {errCount ? `${errCount} errors` : "ok"}
                       </Badge>
                     </div>
                     <div className="space-y-1">
                       {Object.entries(data.fields).map(([k, v]) => (
-                        <div key={k} className="flex gap-2 text-sm">
-                          <span className="shrink-0 font-mono text-xs font-semibold text-emerald-300">
+                        <div key={k} className="flex gap-2 text-[12.5px]">
+                          <span className="shrink-0 font-mono text-[11px] font-semibold text-[var(--color-accent)]">
                             {k}
                           </span>
-                          <span className="truncate font-mono text-xs text-[var(--color-fg)]">
+                          <span className="truncate font-mono text-[11px] text-[var(--color-fg)]">
                             {Array.isArray(v)
                               ? `[${(v as unknown[]).length}] ${(v as unknown[]).slice(0, 3).map(String).join(" · ")}${
                                   (v as unknown[]).length > 3 ? " …" : ""

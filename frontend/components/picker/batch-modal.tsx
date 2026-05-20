@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X, Layers } from "lucide-react";
+import { X, Layers, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/motion-primitives";
 
 type Props = {
   defaultUrl: string;
@@ -10,6 +13,13 @@ type Props = {
   onRun: (urls: string[]) => void | Promise<void>;
 };
 
+/**
+ * Batch-extract modal. Paste one URL per line, run the picked template
+ * against each in order.
+ *
+ * Light Apple system. Uses the Modal primitive for chrome + animation.
+ * Stats row at the bottom previews how many URLs will run + dedup count.
+ */
 export function BatchModal({ defaultUrl, onCancel, onRun }: Props) {
   const [text, setText] = useState<string>(defaultUrl);
 
@@ -24,6 +34,7 @@ export function BatchModal({ defaultUrl, onCancel, onRun }: Props) {
   );
 
   const deduped = useMemo(() => Array.from(new Set(urls)), [urls]);
+  const dupes = urls.length - deduped.length;
 
   function submit() {
     if (!deduped.length) return;
@@ -31,62 +42,67 @@ export function BatchModal({ defaultUrl, onCancel, onRun }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <Layers className="h-5 w-5 text-emerald-400" />
+    <Modal open={true} onClose={onCancel} className="max-w-xl">
+      <div className="px-5 pt-5 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="flex items-center gap-2 text-[17px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+              <Layers className="h-4 w-4 text-[var(--color-accent)]" />
               Batch extract
             </h2>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">
-              Paste one URL per line. We&apos;ll run the fields you picked against
-              each page, in order.
+            <p className="mt-1 text-[12.5px] text-[var(--color-fg-muted)]">
+              Paste one URL per line. We&apos;ll run the picked fields against each
+              page, in order.
             </p>
           </div>
           <button
             onClick={onCancel}
-            className="rounded-md p-1 text-[var(--color-muted)] hover:bg-black/40 hover:text-[var(--color-fg)]"
+            className="rounded-md p-1 text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+            aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
+      </div>
 
-        <textarea
+      <div className="px-5 pb-3">
+        <Textarea
           autoFocus
+          mono
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={10}
           placeholder={`https://www.amazon.com/dp/B0ABCDEFGH\nhttps://www.amazon.com/dp/B0IJKLMNOP\n…`}
-          className="block w-full resize-y rounded-md border border-[var(--color-border)] bg-black/40 p-3 font-mono text-xs text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
           spellCheck={false}
+          className="block w-full text-[12px] leading-[1.6]"
         />
 
-        <div className="mt-2 flex items-center justify-between text-xs text-[var(--color-muted)]">
-          <span>
-            {deduped.length} URL{deduped.length === 1 ? "" : "s"} ·{" "}
-            {urls.length - deduped.length > 0
-              ? `${urls.length - deduped.length} dupes removed`
-              : "no dupes"}
-          </span>
-          <span>~{Math.round(deduped.length * 4)}s estimated</span>
-        </div>
-
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button onClick={submit} disabled={!deduped.length}>
-            Run {deduped.length > 1 ? `${deduped.length} URLs` : "1 URL"}
-          </Button>
+        {/* Stats row */}
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Badge tone={deduped.length > 0 ? "accent" : "muted"} size="sm">
+              {deduped.length} URL{deduped.length === 1 ? "" : "s"}
+            </Badge>
+            {dupes > 0 && (
+              <Badge tone="warning" size="sm">{dupes} dupe{dupes === 1 ? "" : "s"} removed</Badge>
+            )}
+          </div>
+          <div className="font-mono text-[11px] text-[var(--color-fg-subdued)]">
+            ~{Math.round(deduped.length * 4)}s estimated
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-2 border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-3">
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button variant="primary" size="sm" onClick={submit} disabled={!deduped.length}>
+          <Play className="h-3 w-3" />
+          Run {deduped.length > 1 ? `${deduped.length} URLs` : "1 URL"}
+        </Button>
+      </div>
+    </Modal>
   );
 }

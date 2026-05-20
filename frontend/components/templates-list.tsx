@@ -55,11 +55,11 @@ export function TemplatesList() {
 
   if (error) {
     return (
-      <div className="rounded-md border border-red-900 bg-red-950/30 p-4 text-sm text-red-200">
-        <div className="font-semibold">Couldn&apos;t load templates</div>
-        <div className="mt-1 font-mono text-xs">{error}</div>
-        <div className="mt-2 text-xs text-red-300">
-          Is the backend running on port 8000?
+      <div className="rounded-lg border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-4 text-[13px]">
+        <div className="font-semibold text-[var(--color-fg-strong)]">Couldn&apos;t load templates</div>
+        <div className="mt-1 font-mono text-[11px] text-[var(--color-fg-muted)]">{error}</div>
+        <div className="mt-2 text-[11.5px] text-[var(--color-fg-muted)]">
+          Is the backend reachable?
         </div>
       </div>
     );
@@ -67,7 +67,7 @@ export function TemplatesList() {
 
   if (templates === null) {
     return (
-      <div className="flex items-center gap-2 text-[var(--color-muted)]">
+      <div className="flex items-center gap-2 text-[13px] text-[var(--color-fg-muted)]">
         <Loader2 className="h-4 w-4 animate-spin" /> Loading…
       </div>
     );
@@ -75,8 +75,11 @@ export function TemplatesList() {
 
   if (templates.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-[var(--color-border)] p-10 text-center text-[var(--color-muted)]">
-        No templates yet. Snapshot a URL, pick some fields, and save it.
+      <div className="rounded-xl border border-dashed border-[var(--color-border)] p-12 text-center">
+        <div className="text-[14px] font-medium text-[var(--color-fg)]">No templates yet</div>
+        <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+          Snapshot a URL, pick some fields, save the recipe.
+        </p>
       </div>
     );
   }
@@ -87,7 +90,7 @@ export function TemplatesList() {
         {templates.map((t) => (
           <li
             key={t.id}
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)]/60 p-5"
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-[border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)]"
           >
             <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
@@ -99,7 +102,7 @@ export function TemplatesList() {
                   href={t.source_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-1 inline-flex items-center gap-1 truncate font-mono text-xs text-[var(--color-muted)] hover:text-emerald-300"
+                  className="mt-1 inline-flex items-center gap-1 truncate font-mono text-[11px] text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:text-[var(--color-accent)]"
                 >
                   {t.source_url}
                   <ExternalLink className="h-3 w-3" />
