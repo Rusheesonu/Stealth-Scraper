@@ -19,7 +19,7 @@ const APPLE_EASE = [0.32, 0.72, 0, 1] as const;
  */
 
 const FOUNDER = {
-  name: "Rushi Koochana",
+  name: "Rushi",
   role: "Founder, Stealth-Scraper",
   photoUrl: undefined as string | undefined, // → e.g. "/founder.jpg" once you have one
   pull: "I spent five years writing scrapers other people couldn't. This is the tool I wish I'd had on day one.",
@@ -29,7 +29,7 @@ const FOUNDER = {
     "Stealth-Scraper is what that experience looks like as a product. Visual where AI tools are opaque. Stateless-killing where API tools forget. Cloudflare-first where Playwright dies. Built so my old self could ship in 15 minutes instead of 15 hours.",
   ],
   twitter: "https://x.com/stealthscraper",
-  email: "rushikeshsonu@gmail.com",
+  email: "rushikesh.koochana@gmail.com",
 };
 
 export function FounderNote() {

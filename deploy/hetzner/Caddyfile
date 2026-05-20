@@ -10,7 +10,7 @@
 # Global options
 {
   # Operator email for Let's Encrypt account + renewal reminders.
-  email rushikeshsonu@gmail.com
+  email rushikesh.koochana@gmail.com
   # Sane defaults; Caddy 2 already does HSTS, OCSP stapling, HTTP/2 etc.
 }
 

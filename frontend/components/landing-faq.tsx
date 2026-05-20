@@ -217,10 +217,10 @@ export function LandingFaq() {
       <p className="mt-6 text-center text-[12px] text-[var(--color-fg-subdued)]">
         Question not answered here? Email{" "}
         <a
-          href="mailto:rushikeshsonu@gmail.com"
+          href="mailto:rushikesh.koochana@gmail.com"
           className="text-[var(--color-accent)] hover:underline"
         >
-          rushikeshsonu@gmail.com
+          rushikesh.koochana@gmail.com
         </a>{" "}
         — I read every one.
       </p>
