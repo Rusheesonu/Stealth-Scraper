@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft } from "lucide-react";
 import { api, type TemplateField, type ExtractResponse } from "@/lib/api";
 
 type Stage = "idle" | "generating" | "extracting" | "done" | "error";
@@ -86,17 +88,31 @@ export default function AiExtractPage() {
 
   return (
     <PageShell maxWidth="max-w-3xl">
-      <div className="py-12">
-        <div className="mb-10 text-center">
+      <div>
+        <div className="mb-6">
+          <Link
+            href="/"
+            className="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5 text-[12px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+          >
+            <ArrowLeft className="h-3 w-3 transition-transform duration-[var(--dur-fast)] group-hover:-translate-x-0.5" />
+            Home
+          </Link>
+        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+          className="mb-10 text-center"
+        >
           <Badge tone="accent" className="mb-5"><Sparkles className="h-3 w-3" /> AI extract · alpha</Badge>
-          <h1 className="text-[36px] font-semibold tracking-[-0.02em] text-[var(--color-fg-strong)]">
+          <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.028em] text-[var(--color-fg-strong)]">
             Describe it.<br />Get a scraper.
           </h1>
           <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
             Paste a URL, describe what you want in plain English. An LLM
             reads the page and builds the extraction schema in under a second.
           </p>
-        </div>
+        </motion.div>
 
         <form onSubmit={generate} className="space-y-2.5">
           <Input
@@ -155,15 +171,28 @@ export default function AiExtractPage() {
         )}
 
         {/* Error */}
-        {error && (
-          <div className="mt-6 flex items-start gap-2 rounded-md border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-dim)] p-3 text-[12px] text-[color:var(--color-danger)]">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-            <span className="text-[var(--color-fg)]">{error}</span>
-          </div>
-        )}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+              className="mt-6 flex items-start gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-3 text-[12px] text-[color:var(--color-danger)]"
+            >
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+              <span className="text-[var(--color-fg)]">{error}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Generated template */}
         {template && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+          >
           <Card density="comfortable" className="mt-8">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -190,18 +219,30 @@ export default function AiExtractPage() {
             </div>
             <div className="space-y-1">
               {template.map((f, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-sm border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5">
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.22, delay: i * 0.03, ease: [0.32, 0.72, 0, 1] }}
+                  className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5"
+                >
                   <Badge tone="accent" size="xs">{f.label}</Badge>
                   <Badge tone="muted" size="xs">{f.kind || "text"}</Badge>
                   <code className="flex-1 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">{f.selector}</code>
-                </div>
+                </motion.div>
               ))}
             </div>
           </Card>
+          </motion.div>
         )}
 
         {/* Results */}
         {results && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+          >
           <Card density="comfortable" className="mt-3 border-[color:var(--color-accent)]/30">
             <div className="mb-3 flex items-center justify-between">
               <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Extracted JSON</div>
@@ -215,12 +256,13 @@ export default function AiExtractPage() {
                 <summary className="cursor-pointer text-[12px] text-[var(--color-warning)]">
                   {Object.keys(results.errors).length} field error(s)
                 </summary>
-                <pre className="mt-2 rounded-md border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-dim)] p-3 font-mono text-[11px] text-[var(--color-warning)]">
+                <pre className="mt-2 rounded-md border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-3 font-mono text-[11px] text-[var(--color-warning)]">
                   {JSON.stringify(results.errors, null, 2)}
                 </pre>
               </details>
             )}
           </Card>
+          </motion.div>
         )}
 
         <div className="mt-16 border-t border-[var(--color-border)] pt-6 text-center text-[11px] text-[var(--color-fg-subdued)]">
