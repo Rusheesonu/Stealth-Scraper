@@ -35,18 +35,18 @@ type Step = 0 | 1 | 2;
 export function ClickFlowDemo() {
   const [step, setStep] = useState<Step>(0);
 
-  // Auto-advance loop. User clicks pause the auto-advance by setting
-  // step to a value; we reset the interval each render based on the
-  // current step.
+  // Auto-advance loop. 2.5s per step — fast enough to keep attention,
+  // slow enough to read the caption. Manual tab clicks restart the
+  // timer so users can pause + study any step.
   useEffect(() => {
     const t = setTimeout(() => {
       setStep(((step + 1) % 3) as Step);
-    }, 3500);
+    }, 2500);
     return () => clearTimeout(t);
   }, [step]);
 
   return (
-    <section className="relative mx-auto max-w-5xl py-16 md:py-20">
+    <section className="relative mx-auto max-w-5xl py-10 md:py-14">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -155,23 +155,47 @@ export function ClickFlowDemo() {
               })}
             </ul>
 
-            {/* Cursor — moves between steps */}
+            {/* Cursor — moves between steps. Faster motion (0.35s) +
+                punchier click feedback. */}
             <motion.div
               initial={false}
               animate={{
                 left: step === 0 ? "60%" : step === 1 ? "32%" : "65%",
                 top: step === 0 ? "55%" : step === 1 ? "22%" : "30%",
-                scale: step === 1 ? [1, 0.85, 1] : 1,
+                scale: step === 1 ? [1, 0.7, 1.05, 1] : 1,
               }}
               transition={{
-                left: { duration: 0.5, ease: APPLE_EASE },
-                top: { duration: 0.5, ease: APPLE_EASE },
-                scale: { duration: 0.3, ease: APPLE_EASE, delay: 0.5 },
+                left: { duration: 0.35, ease: APPLE_EASE },
+                top: { duration: 0.35, ease: APPLE_EASE },
+                scale: { duration: 0.4, ease: APPLE_EASE, delay: 0.38, times: [0, 0.3, 0.6, 1] },
               }}
-              className="pointer-events-none absolute"
+              className="pointer-events-none absolute z-10"
             >
-              <MousePointer2 className="h-4 w-4 fill-[var(--color-fg-strong)] text-[var(--color-fg-strong)]" />
+              <MousePointer2 className="h-4 w-4 fill-[var(--color-fg-strong)] text-[var(--color-fg-strong)] drop-shadow-sm" />
             </motion.div>
+
+            {/* Click ripple — expanding ring that fires when the cursor
+                lands on the click target. macOS-style click visualization.
+                Triggers only at step 1 (the click moment). */}
+            <AnimatePresence>
+              {step === 1 && (
+                <motion.div
+                  key="ripple"
+                  initial={{ left: "32%", top: "22%", opacity: 0, scale: 0.3 }}
+                  animate={{ opacity: [0, 0.75, 0], scale: [0.3, 2.4, 3.2] }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    duration: 0.7,
+                    delay: 0.42,
+                    ease: APPLE_EASE,
+                    times: [0, 0.3, 1],
+                  }}
+                  className="pointer-events-none absolute"
+                >
+                  <span className="block h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--color-accent)]" />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Sidebar area — shows fields appearing */}
@@ -213,8 +237,8 @@ export function ClickFlowDemo() {
                   transition={{ duration: 0.22, ease: APPLE_EASE }}
                   className="space-y-1.5"
                 >
-                  <FieldRow color="var(--color-accent)" label="title" kind="list" delay={0} />
-                  <FieldRow color="var(--color-info)" label="points" kind="list" delay={0.15} />
+                  <FieldRow color="var(--color-accent)" label="title" kind="list" delay={0.6} />
+                  <FieldRow color="var(--color-info)" label="points" kind="list" delay={0.85} />
 
                   {step === 2 && (
                     <motion.div

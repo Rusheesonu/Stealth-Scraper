@@ -137,7 +137,7 @@ export function FeaturedTemplates() {
   }, []);
 
   return (
-    <section className="relative mx-auto max-w-6xl py-16 md:py-20">
+    <section className="relative mx-auto max-w-6xl py-10 md:py-14">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         whileInView={{ opacity: 1, y: 0 }}

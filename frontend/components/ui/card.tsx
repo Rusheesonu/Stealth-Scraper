@@ -82,7 +82,7 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section className={cn("py-12 first:pt-0", className)}>
+    <section className={cn("py-10 first:pt-0", className)}>
       <div className="mb-6">
         {eyebrow && (
           <div className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">

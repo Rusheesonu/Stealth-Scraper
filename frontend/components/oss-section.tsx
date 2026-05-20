@@ -25,7 +25,7 @@ const STATS = [
 
 export function OssSection() {
   return (
-    <section className="relative mx-auto max-w-5xl py-16 md:py-20">
+    <section className="relative mx-auto max-w-5xl py-10 md:py-14">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}

@@ -47,7 +47,7 @@ export function LandingHero() {
   const [mode, setMode] = useState<Mode>("url");
 
   return (
-    <section className="relative -mx-6 overflow-hidden px-6 pb-12 pt-10 md:pb-16 md:pt-14">
+    <section className="relative -mx-6 overflow-hidden px-6 pb-10 pt-8 md:pb-12 md:pt-10">
       {/* Dotted background grid */}
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-[560px] opacity-[0.55] [mask-image:linear-gradient(to_bottom,black_0%,black_60%,transparent_100%)]"
@@ -106,7 +106,7 @@ export function LandingHero() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.18, ease: APPLE_EASE }}
-          className="mx-auto mt-9 max-w-xl"
+          className="mx-auto mt-7 max-w-xl"
         >
           <ModeToggle mode={mode} onChange={setMode} />
 
@@ -138,12 +138,14 @@ export function LandingHero() {
         </motion.div>
       </div>
 
-      {/* Static demo strip — proves it works without a click */}
+      {/* Static demo strip — proves it works without a click. Tighter gap
+          (mt-8 → was mt-14) so the demo lands inside the first viewport
+          on most laptops instead of being pushed below the fold. */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.4, ease: APPLE_EASE }}
-        className="relative mx-auto mt-14 max-w-5xl"
+        className="relative mx-auto mt-8 max-w-5xl md:mt-10"
       >
         <DemoStrip />
       </motion.div>
