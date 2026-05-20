@@ -25,8 +25,8 @@ python-dotenv>=1.0
 # HTML → Markdown for RAG ingestion output mode + markdown field kind.
 markdownify>=0.13
 
-# AI-assisted schema generation (LLM-powered).
-anthropic>=0.40
+# AI-assisted schema generation uses any OpenAI-compatible endpoint via
+# raw httpx (Groq is the default — free tier). No SDK lock-in.
 
 # Background scheduler for cron'd scrapes + webhook delivery retries.
 apscheduler>=3.10

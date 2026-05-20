@@ -1,16 +1,16 @@
-"""AI-assisted schema generation.
+"""AI-assisted schema generation via any OpenAI-compatible LLM endpoint.
 
-User provides a URL + plain-English description ("get product info", "extract
-job listings", etc). We snapshot the page, hand Claude the element catalog
-+ the description, and get back a ready-to-use template array.
+Defaults to Groq + Llama 3.3 70B because:
+  * Free tier covers >>> our launch traffic (30 req/min, 14k req/day)
+  * Sub-second latency makes the live demo feel magical
+  * OpenAI-compatible API means swapping providers later is a one-line change
 
-Killer demo for AI agent buyers: paste URL + sentence → working extractor
-in one tool call. No XPath, no DOM inspection.
+Configure via env (defaults to Groq if unset):
+    LLM_API_KEY   — your provider key (e.g. Groq, OpenAI, OpenRouter)
+    LLM_BASE_URL  — defaults to https://api.groq.com/openai/v1
+    LLM_MODEL     — defaults to llama-3.3-70b-versatile
 
-Rate-limit policy: 10 calls/day for free tier, 100/day for paid. Tracked
-in `assist_usage_counts` (separate from scrape usage — assist calls don't
-count toward scrape quota).
-"""
+Future: users will BYOK via /settings/llm — see Task #41."""
 
 from __future__ import annotations
 
@@ -21,40 +21,64 @@ from typing import Any
 import httpx
 
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-ASSIST_MODEL = os.getenv("ASSIST_MODEL", "claude-sonnet-4-5-20250929")
-ASSIST_BASE_URL = "https://api.anthropic.com/v1"
+# ── Provider config ──────────────────────────────────────────────────────
+
+LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
+LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "30"))
 
 
 def is_configured() -> bool:
-    return bool(ANTHROPIC_API_KEY)
+    return bool(LLM_API_KEY)
 
+
+def provider_label() -> str:
+    """Friendly name for /status display."""
+    if "groq.com" in LLM_BASE_URL:
+        return "Groq"
+    if "openai.com" in LLM_BASE_URL:
+        return "OpenAI"
+    if "anthropic.com" in LLM_BASE_URL:
+        return "Anthropic"
+    if "openrouter.ai" in LLM_BASE_URL:
+        return "OpenRouter"
+    if "127.0.0.1" in LLM_BASE_URL or "localhost" in LLM_BASE_URL:
+        return "local (Ollama?)"
+    return LLM_BASE_URL
+
+
+# ── Prompt ───────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
 You are a web-scraping assistant. The user gives you:
-  1. A list of detected elements from a webpage (each with tag, text, CSS selector, XPath, bbox).
-  2. A plain-English description of what data they want to extract.
+  1. A list of detected elements from a webpage (each with tag, text, CSS selector).
+  2. A plain-English description of what data they want.
 
-You return a JSON array of "template fields" — one per piece of data the user wants. Each field is:
+Return a JSON object with a single "template" key containing an array of field objects:
 
 {
-  "label":    "<short snake_case key for the output>",
-  "selector": "<the CSS selector for the matching element(s) — copy from the element catalog>",
-  "kind":     "text" | "attr" | "list" | "markdown",
-  "attr":     "<attribute name, ONLY when kind='attr'>"
+  "template": [
+    {
+      "label":    "snake_case_key",
+      "selector": "<copy CSS selector from the catalog>",
+      "kind":     "text" | "attr" | "list" | "markdown",
+      "attr":     "<attribute name, ONLY when kind='attr'>"
+    }
+  ]
 }
 
 Rules:
-- Pick selectors directly from the catalog's `css` field. Don't invent ones not in the catalog.
-- Use `"list"` when there are multiple matching items (e.g. all product cards, all news headlines).
-- Use `"text"` for single text values (title, price on a product page).
-- Use `"attr"` for hrefs, image sources, etc. Set `attr` to the attribute name.
-- Use `"markdown"` when the user wants a rich block (article body, product description) as markdown.
-- Use short snake_case labels — they become JSON keys.
-- Return ONLY the JSON array. No prose, no markdown fences, no explanation.
+- Pick selectors directly from the catalog's `css` field. Never invent selectors.
+- Use "list" when there are multiple matching items (all product cards, all news headlines).
+- Use "text" for single text values (single title, single price on a product page).
+- Use "attr" for hrefs, image sources, etc. Set `attr` to the attribute name (e.g. "href").
+- Use "markdown" only when the user asks for a rich block (article body, product description).
+- Labels are short snake_case keys.
+- Return ONLY the JSON object. No prose, no markdown fences, no explanation."""
 
-If the description is ambiguous, pick the most likely interpretation based on the page content."""
 
+# ── Generation ───────────────────────────────────────────────────────────
 
 async def generate_template(
     *,
@@ -63,16 +87,13 @@ async def generate_template(
     url: str,
     title: str = "",
 ) -> list[dict[str, Any]]:
-    """Call Claude with the page's element catalog + the user's description,
-    return a parsed template array. Raises on API errors or invalid JSON
-    output."""
+    """Call the configured LLM, return a parsed template array."""
     if not is_configured():
         raise RuntimeError(
-            "AI schema generation is not configured — set ANTHROPIC_API_KEY"
+            "AI schema generation is not configured — set LLM_API_KEY "
+            "(default provider is Groq — free tier at console.groq.com)"
         )
 
-    # Trim the catalog — Claude doesn't need invisibles. Limit to the
-    # first ~300 elements with text content to keep the prompt small.
     trimmed = _trim_catalog(elements, max_elements=300)
 
     user_msg = (
@@ -81,56 +102,75 @@ async def generate_template(
         f"Detected elements ({len(trimmed)} of {len(elements)} shown):\n"
         f"```json\n{json.dumps(trimmed, indent=2)}\n```\n\n"
         f"What I want to extract: {description}\n\n"
-        f"Return the template JSON array now."
+        f"Return the JSON object now."
     )
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    payload = {
+        "model": LLM_MODEL,
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": user_msg},
+        ],
+        "temperature": 0.1,  # we want determinism, not creativity
+        "response_format": {"type": "json_object"},  # forces valid JSON output
+        "max_tokens": 2000,
+    }
+
+    async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
         res = await client.post(
-            f"{ASSIST_BASE_URL}/messages",
+            f"{LLM_BASE_URL}/chat/completions",
             headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
+                "Authorization": f"Bearer {LLM_API_KEY}",
+                "Content-Type": "application/json",
             },
-            json={
-                "model": ASSIST_MODEL,
-                "max_tokens": 2000,
-                "system": _SYSTEM_PROMPT,
-                "messages": [{"role": "user", "content": user_msg}],
-            },
+            json=payload,
         )
+
     if res.status_code >= 400:
-        raise RuntimeError(f"Claude API {res.status_code}: {res.text[:300]}")
+        raise RuntimeError(f"LLM API {res.status_code}: {res.text[:300]}")
 
     body = res.json()
-    content = body.get("content", [])
-    if not content:
-        raise RuntimeError("Claude returned no content")
-    text = content[0].get("text", "").strip()
-    if not text:
-        raise RuntimeError("Claude returned empty text")
+    choices = body.get("choices", [])
+    if not choices:
+        raise RuntimeError("LLM returned no choices")
 
-    # Strip accidental markdown fences in case the model added them despite
-    # instructions.
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-        if text.endswith("```"):
-            text = text.rsplit("```", 1)[0]
-        text = text.strip()
-        if text.startswith("json"):
-            text = text[4:].strip()
+    content = choices[0].get("message", {}).get("content", "").strip()
+    if not content:
+        raise RuntimeError("LLM returned empty content")
+
+    # Strip accidental fences in case response_format isn't honored.
+    if content.startswith("```"):
+        content = content.split("\n", 1)[1] if "\n" in content else content[3:]
+        if content.endswith("```"):
+            content = content.rsplit("```", 1)[0]
+        content = content.strip()
+        if content.startswith("json"):
+            content = content[4:].strip()
 
     try:
-        parsed = json.loads(text)
+        parsed = json.loads(content)
     except json.JSONDecodeError as e:
-        raise RuntimeError(f"Claude returned invalid JSON: {e} — raw: {text[:300]}") from e
+        raise RuntimeError(f"LLM returned invalid JSON: {e} — raw: {content[:300]}") from e
 
-    if not isinstance(parsed, list):
-        raise RuntimeError(f"Claude returned {type(parsed).__name__}, expected list")
+    # Some models honor response_format and return {"template": [...]},
+    # others return the array directly. Handle both.
+    if isinstance(parsed, dict) and "template" in parsed:
+        items = parsed["template"]
+    elif isinstance(parsed, list):
+        items = parsed
+    elif isinstance(parsed, dict):
+        # Last-ditch: any list value inside.
+        items = next((v for v in parsed.values() if isinstance(v, list)), None)
+        if items is None:
+            raise RuntimeError(f"LLM returned unexpected shape: {list(parsed.keys())}")
+    else:
+        raise RuntimeError(f"LLM returned unexpected type: {type(parsed).__name__}")
 
-    # Lightly validate each field has the required keys.
+    if not isinstance(items, list):
+        raise RuntimeError(f"Expected a list of fields, got {type(items).__name__}")
+
     valid: list[dict[str, Any]] = []
-    for f in parsed:
+    for f in items:
         if not isinstance(f, dict):
             continue
         if not f.get("label") or not f.get("selector"):
@@ -144,24 +184,23 @@ async def generate_template(
 
 
 def _trim_catalog(elements: list[dict[str, Any]], *, max_elements: int) -> list[dict[str, Any]]:
-    """Keep elements with non-empty text + interactive elements (a, button, input),
-    drop pure structure tags (div with no direct text). Smaller prompt = lower cost,
-    less noise for the model."""
+    """Keep elements likely to be extraction targets — interactive tags or
+    elements with visible text. Drop pure layout divs. Smaller prompt =
+    lower latency + less noise for the model."""
     INTERESTING_TAGS = {"a", "button", "input", "h1", "h2", "h3", "h4", "h5", "h6",
                          "p", "li", "span", "td", "th", "img", "label", "article"}
-    interesting: list[dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for el in elements:
         tag = (el.get("tag") or "").lower()
         text = (el.get("text") or "").strip()
         attrs = el.get("attrs") or {}
-        # Keep if: has text, is an interactive/content tag, or has an href / src.
         if text or tag in INTERESTING_TAGS or "href" in attrs or "src" in attrs:
-            interesting.append({
+            out.append({
                 "tag": tag,
                 "text": text[:200] if text else "",
                 "css": el.get("css") or "",
                 "attrs": {k: v for k, v in attrs.items() if k in ("href", "src", "class", "id", "alt", "title")},
             })
-        if len(interesting) >= max_elements:
+        if len(out) >= max_elements:
             break
-    return interesting
+    return out
