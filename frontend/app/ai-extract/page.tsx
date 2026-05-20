@@ -150,13 +150,18 @@ function AiExtractForm() {
             autoFocus
           />
           <Textarea
-            placeholder="What do you want to extract? e.g. 'Get product title, price, and rating from each item.'"
+            placeholder="What do you want to extract? e.g. 'Get the title, price, and rating from each product card.'"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             disabled={isBusy}
             rows={3}
             maxLength={500}
           />
+          <p className="text-[11.5px] leading-[1.5] text-[var(--color-fg-subdued)]">
+            Tip: describe the <strong className="text-[var(--color-fg-muted)]">structure</strong>, not a sorted/filtered answer.
+            &quot;Get all products with title, price, discount&quot; works — &quot;the product with the highest discount&quot; doesn&apos;t
+            (we extract data, you sort it in code).
+          </p>
           <Button
             type="submit"
             variant="accent"

@@ -148,12 +148,28 @@ CRITICAL RULES — violations cause silent extraction failures:
    and thinks the product is broken. Returning fewer fields with real
    selectors is ALWAYS better than more fields with invented selectors.
 
-3. WHAT THE USER ASKED FOR IS A HINT, NOT A CONTRACT.
+3. EXTRACT STRUCTURE, NOT COMPUTED ANSWERS.
+   You can't sort, filter, count, or compute — you only select DOM nodes.
+   If the user asks "the product with the highest discount", you CANNOT
+   answer that directly. Instead extract the WHOLE LIST so they can
+   sort/filter in code:
+     ✓ products = list, prices = list, discounts = list
+     ✗ highest_discount_product = text (you can't know which is highest)
+   Same for "the cheapest", "the best rated", "the top 5" — all become
+   list extractions, never scalars.
+
+4. PREFER LIST FIELDS WHEN THE USER MENTIONS PLURAL ITEMS.
+   Words like "products", "items", "stories", "results", "rows",
+   "every", "all", "each" → use `list`. The selector should be the
+   shape that matches the repeating pattern (strip nth-of-type from
+   the catalog selectors to make it cover all matches).
+
+5. WHAT THE USER ASKED FOR IS A HINT, NOT A CONTRACT.
    If the user says "get everything a user might check while buying"
    and only 3 of those things are present in the catalog, return
    exactly 3 fields. Do NOT pad with invented selectors to look helpful.
 
-4. KIND RULES:
+6. KIND RULES:
    - `list` for repeating items (e.g. every story on a feed). Pick ONE
      representative element from the repeating pattern — its selector
      shape works for the whole list.
@@ -162,7 +178,7 @@ CRITICAL RULES — violations cause silent extraction failures:
      Set `attr` to the attribute name.
    - `markdown` for rich content blocks (article body, comment thread).
 
-5. LABELS: short snake_case, descriptive, no spaces, no punctuation."""
+7. LABELS: short snake_case, descriptive, no spaces, no punctuation."""
 
 
 # ── Generation ───────────────────────────────────────────────────────────
