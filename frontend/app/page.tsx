@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle, Section } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LandingHero } from "@/components/landing-hero";
+import { FeaturedTemplates } from "@/components/featured-templates";
 
 /**
  * Landing. Hero IS the URL paste input + a static demo strip showing
@@ -19,6 +20,7 @@ export default function Home() {
   return (
     <PageShell maxWidth="max-w-6xl" vPadding="flush">
       <LandingHero />
+      <FeaturedTemplates />
       <ProblemSection />
       <FeaturesSection />
       <AiExtractCta />

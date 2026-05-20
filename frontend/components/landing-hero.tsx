@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -210,6 +210,19 @@ function UrlMode() {
   const [preview, setPreview] = useState<PublicSnapshotResponse | null>(null);
   const [submittedUrl, setSubmittedUrl] = useState<string>("");
   const [error, setError] = useState<string>("");
+
+  // Listen for prefill events from the featured-templates strip below.
+  // When a user clicks a template card, that card scrolls to top and
+  // dispatches ss:prefill-url with the source URL — we populate the
+  // field so the user can hit Try free in one motion.
+  useEffect(() => {
+    function onPrefill(e: Event) {
+      const detail = (e as CustomEvent<string>).detail;
+      if (typeof detail === "string") setUrl(detail);
+    }
+    window.addEventListener("ss:prefill-url", onPrefill);
+    return () => window.removeEventListener("ss:prefill-url", onPrefill);
+  }, []);
 
   const valid = url.trim().length > 0;
   const normalizedUrl = (() => {

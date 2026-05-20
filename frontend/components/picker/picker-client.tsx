@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Download, Layers, Loader2, Play, RefreshCw, RotateCcw, Sparkles, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { Brand } from "@/components/brand";
 import { PageShell } from "@/components/nav";
@@ -534,8 +535,35 @@ export function PickerClient() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-auto bg-[var(--color-ink-1)] p-6">
+          {/* Jobs J3 — when there are no fields yet, the canvas gets the
+              FULL width and a focused floating instruction pill appears
+              over the snapshot. Sidebar slides in only once the user
+              picks their first field. Cleaner first-impression, better
+              demo videos, less cognitive load for first-time users. */}
+          {snapshot && fields.length === 0 && !loading && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.32, delay: 0.5, ease: [0.32, 0.72, 0, 1] }}
+              className="pointer-events-none fixed bottom-8 left-1/2 z-30 -translate-x-1/2"
+            >
+              <div
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12.5px] text-white shadow-[var(--shadow-popover)]"
+                style={{
+                  background: "color-mix(in srgb, var(--color-ink-9) 92%, transparent)",
+                  backdropFilter: "blur(10px)",
+                  WebkitBackdropFilter: "blur(10px)",
+                }}
+              >
+                <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
+                <span className="text-white/90">Click any element on the page to add it as a field</span>
+                <span className="ml-2 text-white/50">·</span>
+                <span className="text-white/55">drag to box-select</span>
+              </div>
+            </motion.div>
+          )}
           {loading && (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-[var(--color-fg-muted)]">
               <div className="flex items-center gap-2">
@@ -567,16 +595,32 @@ export function PickerClient() {
           )}
         </main>
 
-        <FieldSidebar
-          fields={fields}
-          onRemove={removeField}
-          onSave={saveTemplate}
-          saving={saving}
-          savedId={savedId}
-          colorForIndex={colorForIndex}
-          onSelectField={(i) => setDetailIdx(i)}
-          highlightIdxs={aiPrefillIdxs}
-        />
+        {/* Sidebar slides in from the right the moment a first field is
+            added (Jobs J3 simplification). Until then the canvas owns the
+            full width. AnimatePresence handles enter/exit cleanly. */}
+        <AnimatePresence>
+          {fields.length > 0 && (
+            <motion.div
+              key="field-sidebar"
+              initial={{ x: "100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "100%", opacity: 0 }}
+              transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+              className="h-full"
+            >
+              <FieldSidebar
+                fields={fields}
+                onRemove={removeField}
+                onSave={saveTemplate}
+                saving={saving}
+                savedId={savedId}
+                colorForIndex={colorForIndex}
+                onSelectField={(i) => setDetailIdx(i)}
+                highlightIdxs={aiPrefillIdxs}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {pending && (
