@@ -245,17 +245,22 @@ export function PageShell({
   children,
   className,
   maxWidth = "max-w-7xl",
+  /** Vertical padding tier. `default` = py-10 (settings/lists, app pages);
+   *  `flush` = none (landing, marketing — sections handle their own rhythm). */
+  vPadding = "default",
 }: {
   children: React.ReactNode;
   className?: string;
   maxWidth?: string;
+  vPadding?: "default" | "flush";
 }) {
   const pathname = usePathname() || "";
+  const vCls = vPadding === "flush" ? "" : "py-10";
   return (
     <div className="flex min-h-screen flex-col">
       <Nav />
       <main className={cn("flex-1", className)}>
-        <MotionFade key={pathname} className={cn("mx-auto px-6 py-12", maxWidth)}>
+        <MotionFade key={pathname} className={cn("mx-auto px-6", maxWidth, vCls)}>
           {children}
         </MotionFade>
       </main>

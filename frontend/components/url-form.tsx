@@ -54,21 +54,14 @@ export function UrlForm({
         onSubmit={submit}
         animate={{
           borderColor: focused
-            ? "var(--color-border-strong)"
+            ? "var(--color-fg-strong)"
             : "var(--color-border)",
-          backgroundColor: focused
-            ? "var(--color-elevated)"
-            : "var(--color-surface)",
         }}
         transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
         className={cn(
-          "relative flex items-center w-full rounded-xl border",
+          "relative flex items-center w-full rounded-xl border bg-[var(--color-surface)]",
           heightCls,
         )}
-        style={{
-          boxShadow: focused ? "var(--shadow-focus)" : "none",
-          transition: "box-shadow 200ms cubic-bezier(0.32, 0.72, 0, 1)",
-        }}
       >
         <input
           value={url}

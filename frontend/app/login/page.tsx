@@ -15,7 +15,9 @@ type Mode = "signin" | "signup" | "magic";
 
 function LoginForm() {
   const search = useSearchParams();
-  const next = search.get("next") || "/pick";
+  // Default post-login landing is /, NOT /pick. /pick's empty state used
+  // to be a dead-end with no nav — users got dumped there with no context.
+  const next = search.get("next") || "/";
   const initialMode: Mode =
     search.get("mode") === "signup" ? "signup" :
     search.get("mode") === "magic" ? "magic" : "signin";
