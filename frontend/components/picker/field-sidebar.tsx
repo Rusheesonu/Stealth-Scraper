@@ -19,6 +19,12 @@ type Props = {
   saving: boolean;
   savedId: number | null;
   colorForIndex: (i: number) => string;
+  /** Open the field-detail drawer for the field at this index. Lets the
+   *  user inspect what matched, edit the selector, and add transforms. */
+  onSelectField?: (index: number) => void;
+  /** Indices of fields just prefilled from AI extract — get a 6s accent
+   *  ring so the user can see "these came from AI, you should review them". */
+  highlightIdxs?: Set<number>;
 };
 
 /**
@@ -32,7 +38,7 @@ type Props = {
  * Header is two lines: eyebrow + count headline. The "click the snapshot"
  * hint is woven into the empty state, not a separate paragraph at the top.
  */
-export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorForIndex }: Props) {
+export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorForIndex, onSelectField, highlightIdxs }: Props) {
   const [templateName, setTemplateName] = useState("");
   const [showSave, setShowSave] = useState(false);
   const hasListField = fields.some((f) => f.kind === "list");
@@ -107,31 +113,51 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -3 }}
                   transition={{ duration: 0.18, ease: APPLE_EASE }}
-                  className="group relative px-5 py-2.5 transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-1)]"
+                  className={cn(
+                    "group relative transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
+                    highlightIdxs?.has(i)
+                      ? "bg-[var(--color-accent-faint)] ring-1 ring-inset ring-[var(--color-accent-line)]"
+                      : "hover:bg-[var(--color-ink-1)]",
+                  )}
                 >
-                  <div className="flex items-center gap-2.5">
-                    {/* Color swatch — tiny dot, ring for definition */}
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full ring-1 ring-inset ring-black/15"
-                      style={{ background: colorForIndex(i) }}
-                    />
-                    {/* Label + inline kind chip */}
-                    <span className="truncate text-[13px] font-medium text-[var(--color-fg-strong)]">
-                      {f.label}
-                    </span>
-                    <KindChip kind={f.kind} attr={f.attr} />
-                    {/* Trash — opacity 0 until row hover */}
-                    <button
-                      onClick={() => onRemove(i)}
-                      className="ml-auto rounded-md p-1 text-[var(--color-fg-subdued)] opacity-0 transition-[opacity,color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[color:var(--color-danger)]/10 hover:text-[var(--color-danger)] group-hover:opacity-100 focus-visible:opacity-100"
-                      aria-label={`Remove field ${f.label}`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                  <div className="ml-[18px] mt-1 truncate font-mono text-[10px] text-[var(--color-fg-subdued)]">
-                    {truncate(f.selector, 48)}
-                  </div>
+                  <button
+                    onClick={() => onSelectField?.(i)}
+                    className="block w-full px-5 py-2.5 text-left"
+                    aria-label={`Open details for ${f.label}`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {/* Color swatch — tiny dot, ring for definition */}
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full ring-1 ring-inset ring-black/15"
+                        style={{ background: colorForIndex(i) }}
+                      />
+                      {/* Label + inline kind chip */}
+                      <span className="truncate text-[13px] font-medium text-[var(--color-fg-strong)]">
+                        {f.label}
+                      </span>
+                      <KindChip kind={f.kind} attr={f.attr} />
+                      {(f.transforms?.length ?? 0) > 0 && (
+                        <span
+                          className="inline-flex h-[18px] shrink-0 items-center rounded px-1.5 font-mono text-[10px] leading-none ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]"
+                          title={`${f.transforms!.length} cleanup step${f.transforms!.length === 1 ? "" : "s"}`}
+                        >
+                          ƒ {f.transforms!.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="ml-[18px] mt-1 truncate font-mono text-[10px] text-[var(--color-fg-subdued)]">
+                      {truncate(f.selector, 48)}
+                    </div>
+                  </button>
+                  {/* Trash — sits outside the click-target so deleting
+                      doesn't accidentally trigger detail-open. */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemove(i); }}
+                    className="absolute right-3 top-2.5 rounded-md p-1 text-[var(--color-fg-subdued)] opacity-0 transition-[opacity,color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[color:var(--color-danger)]/10 hover:text-[var(--color-danger)] group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label={`Remove field ${f.label}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 </motion.li>
               ))}
             </AnimatePresence>

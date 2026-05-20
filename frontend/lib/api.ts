@@ -31,12 +31,42 @@ export type SnapshotResponse = {
   element_count: number;
 };
 
+/**
+ * A post-extraction cleanup step. Safe ops only — no eval, no code exec.
+ * Server-side dispatch via TRANSFORM_OPS in backend/app/extract.py.
+ * Unknown ops are no-ops so removing an op never breaks saved templates.
+ */
+export type TransformOp =
+  | "strip"
+  | "lower"
+  | "upper"
+  | "strip_prefix"
+  | "strip_suffix"
+  | "regex_replace"
+  | "regex_extract"
+  | "split"
+  | "slice"
+  | "to_int"
+  | "to_float"
+  | "collapse_whitespace";
+
+export type Transform = {
+  op: TransformOp;
+  value?: string;     // strip_prefix / strip_suffix
+  pattern?: string;   // regex_replace / regex_extract
+  repl?: string;      // regex_replace
+  sep?: string;       // split
+  start?: number;     // slice
+  end?: number;       // slice
+};
+
 export type TemplateField = {
   label: string;
   selector: string;
   xpath?: string;
-  kind: "text" | "attr" | "list" | "html";
+  kind: "text" | "attr" | "list" | "html" | "markdown";
   attr?: string;
+  transforms?: Transform[];
 };
 
 export type SavedTemplate = {

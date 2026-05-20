@@ -21,12 +21,32 @@ from app.actions import run_actions, BrowserAction
 from app.browser import pool, with_transient_retry
 
 
+class Transform(TypedDict, total=False):
+    """A single cleanup step applied to a field's extracted value.
+
+    Safe by design — `op` must be one of the names in TRANSFORM_OPS below.
+    No arbitrary code execution. Lets users say "strip the 'Tags: ' prefix"
+    or "convert to int" without us having to ship a Python eval sandbox.
+    """
+    op: str
+    # Op-specific params (string/number depending on op):
+    value: str       # strip_prefix / strip_suffix / split sep / regex pattern
+    repl: str        # regex_replace replacement
+    pattern: str     # regex_replace + regex_extract
+    sep: str         # split sep
+    start: int       # slice start
+    end: int         # slice end
+
+
 class Field(TypedDict, total=False):
     label: str
     selector: str
     xpath: str
     kind: Literal["text", "attr", "list", "html", "markdown"]
     attr: str
+    # Optional cleanup pipeline. Applied in order to each value
+    # (scalar fields once, list fields per-item).
+    transforms: list[Transform]
 
 
 async def extract(
@@ -218,8 +238,168 @@ def _pull(tree, field: Field) -> Any:
         return [] if kind == "list" else None
 
     if kind == "list":
-        return [_read(n, "text", attr) for n in nodes]
-    return _read(nodes[0], kind, attr)
+        raw = [_read(n, "text", attr) for n in nodes]
+    else:
+        raw = _read(nodes[0], kind, attr)
+
+    transforms = field.get("transforms") or []
+    if not transforms:
+        return raw
+    if kind == "list" and isinstance(raw, list):
+        return [_apply_transforms(v, transforms) for v in raw]
+    return _apply_transforms(raw, transforms)
+
+
+# ── Transform pipeline ──────────────────────────────────────────────────────
+#
+# A curated set of safe string/number operations users can chain to clean
+# extracted values. No arbitrary code execution. Each op is a small function
+# that takes the current value (str | None | list | int) + the Transform
+# spec and returns the next value. Unknown ops are no-ops (forward-compat).
+#
+# Why not Python eval? Even with restricted globals, an `eval()` exposed
+# through the REST API is a security loaded gun. The DSL approach gives
+# users 95% of the cleanup power (strip/split/regex/cast) with 0% of the
+# RCE risk, and serializes cleanly into saved templates + the SDK clients.
+#
+# Adding a new op: write a handler, add it to TRANSFORM_OPS. Frontend
+# /pick UI surfaces these by name with field-specific param inputs.
+
+
+def _t_strip(v: Any, _: Transform) -> Any:
+    return v.strip() if isinstance(v, str) else v
+
+
+def _t_lower(v: Any, _: Transform) -> Any:
+    return v.lower() if isinstance(v, str) else v
+
+
+def _t_upper(v: Any, _: Transform) -> Any:
+    return v.upper() if isinstance(v, str) else v
+
+
+def _t_strip_prefix(v: Any, t: Transform) -> Any:
+    if not isinstance(v, str):
+        return v
+    pre = t.get("value", "")
+    return v[len(pre):] if pre and v.startswith(pre) else v
+
+
+def _t_strip_suffix(v: Any, t: Transform) -> Any:
+    if not isinstance(v, str):
+        return v
+    suf = t.get("value", "")
+    return v[:-len(suf)] if suf and v.endswith(suf) else v
+
+
+def _t_regex_replace(v: Any, t: Transform) -> Any:
+    if not isinstance(v, str):
+        return v
+    pattern = t.get("pattern", "")
+    if not pattern:
+        return v
+    try:
+        return re.sub(pattern, t.get("repl", ""), v)
+    except re.error:
+        return v
+
+
+def _t_regex_extract(v: Any, t: Transform) -> Any:
+    """Pull the first regex match (group 1 if grouped, else group 0).
+    Useful for plucking a number out of '$1,299.99 USD' → '1299.99'."""
+    if not isinstance(v, str):
+        return v
+    pattern = t.get("pattern", "")
+    if not pattern:
+        return v
+    try:
+        m = re.search(pattern, v)
+    except re.error:
+        return v
+    if not m:
+        return None
+    return m.group(1) if m.groups() else m.group(0)
+
+
+def _t_split(v: Any, t: Transform) -> Any:
+    if not isinstance(v, str):
+        return v
+    sep = t.get("sep") or t.get("value") or " "
+    return [s for s in v.split(sep) if s != ""]
+
+
+def _t_slice(v: Any, t: Transform) -> Any:
+    """Slice a string OR a list. start/end default to None (full range)."""
+    start = t.get("start")
+    end = t.get("end")
+    if isinstance(v, (str, list)):
+        return v[start:end]
+    return v
+
+
+def _t_to_int(v: Any, _: Transform) -> Any:
+    if v is None or v == "":
+        return None
+    try:
+        # Strip common formatting noise ('$', ',', whitespace)
+        if isinstance(v, str):
+            s = re.sub(r"[^\d\-]", "", v)
+            return int(s) if s and s != "-" else None
+        return int(v)
+    except (ValueError, TypeError):
+        return None
+
+
+def _t_to_float(v: Any, _: Transform) -> Any:
+    if v is None or v == "":
+        return None
+    try:
+        if isinstance(v, str):
+            s = re.sub(r"[^\d\.\-]", "", v)
+            return float(s) if s and s not in ("-", ".") else None
+        return float(v)
+    except (ValueError, TypeError):
+        return None
+
+
+def _t_collapse_whitespace(v: Any, _: Transform) -> Any:
+    """Replace any run of whitespace (incl. newlines) with a single space."""
+    if not isinstance(v, str):
+        return v
+    return re.sub(r"\s+", " ", v).strip()
+
+
+TRANSFORM_OPS = {
+    "strip":              _t_strip,
+    "lower":              _t_lower,
+    "upper":              _t_upper,
+    "strip_prefix":       _t_strip_prefix,
+    "strip_suffix":       _t_strip_suffix,
+    "regex_replace":      _t_regex_replace,
+    "regex_extract":      _t_regex_extract,
+    "split":              _t_split,
+    "slice":              _t_slice,
+    "to_int":             _t_to_int,
+    "to_float":           _t_to_float,
+    "collapse_whitespace": _t_collapse_whitespace,
+}
+
+
+def _apply_transforms(value: Any, transforms: list[Transform]) -> Any:
+    """Run a value through the user's transform pipeline. Unknown ops
+    are no-ops so old saved templates don't break when we remove an op."""
+    for t in transforms:
+        op = t.get("op", "")
+        handler = TRANSFORM_OPS.get(op)
+        if handler is None:
+            continue
+        try:
+            value = handler(value, t)
+        except Exception:
+            # A bad regex shouldn't kill the whole extraction — keep going
+            # with the pre-transform value.
+            pass
+    return value
 
 
 def _read(node, kind: str, attr: str) -> Any:

@@ -233,13 +233,31 @@ function AiExtractForm() {
                   {savedId ? <Check className="h-3 w-3" /> : <Save className="h-3 w-3" />}
                   {savedId ? "Saved" : "Save"}
                 </Button>
-                <Link
-                  href={`/pick?url=${encodeURIComponent(/^https?:\/\//i.test(url) ? url : `https://${url}`)}`}
-                  className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 text-[12px] text-[var(--color-fg-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]"
+                <button
+                  type="button"
+                  onClick={() => {
+                    // AI → Picker handoff. Stash the generated template in
+                    // localStorage (URL params can't carry 8 fields + transforms
+                    // without bloating past 8KB), then navigate. The picker
+                    // reads + clears localStorage on mount.
+                    const norm = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+                    try {
+                      localStorage.setItem(
+                        "picker_ai_prefill",
+                        JSON.stringify({ url: norm, fields: template }),
+                      );
+                    } catch {
+                      // localStorage can throw in private mode — fall through;
+                      // the picker will just open without prefill, no crash.
+                    }
+                    window.location.href = `/pick?url=${encodeURIComponent(norm)}&prefill=ai`;
+                  }}
+                  className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 text-[12px] text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]"
+                  title="Open these fields in the visual picker to verify, edit, or add transforms"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  Picker
-                </Link>
+                  Edit in picker
+                </button>
               </div>
             </div>
             <div className="space-y-1">

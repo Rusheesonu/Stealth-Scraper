@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Download, Layers, Loader2, Play, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, Download, Layers, Loader2, Play, RefreshCw, RotateCcw, Sparkles, X } from "lucide-react";
 
 import { Brand } from "@/components/brand";
 import { PageShell } from "@/components/nav";
@@ -16,6 +16,7 @@ import { SnapshotCanvas } from "@/components/picker/snapshot-canvas";
 import { FieldSidebar } from "@/components/picker/field-sidebar";
 import { ResultsPanel } from "@/components/picker/results-panel";
 import { BatchModal } from "@/components/picker/batch-modal";
+import { FieldDetailDrawer } from "@/components/picker/field-detail";
 import { downloadBlob, toCsv } from "@/lib/utils";
 import {
   api,
@@ -69,6 +70,11 @@ export function PickerClient() {
   const [targetUrl, setTargetUrl] = useState<string>("");
   const [batchOpen, setBatchOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  /** Which field is open in the detail drawer? null = closed. */
+  const [detailIdx, setDetailIdx] = useState<number | null>(null);
+  /** Indices of fields that came from the AI handoff — fade an accent ring
+   *  for the first few seconds so the user can see what was prefilled. */
+  const [aiPrefillIdxs, setAiPrefillIdxs] = useState<Set<number>>(new Set());
   // Track the last URL we kicked a snapshot for. Using a ref instead of a
   // boolean lets us tell apart "remount with same url" (skip) from "user
   // navigated to a new url within the same mount" (refetch + reset state).
@@ -115,6 +121,46 @@ export function PickerClient() {
     setTargetUrl(url);
     void load();
   }, [url, load]);
+
+  /** AI → Picker handoff. When the AI-extract page sends the user here
+   *  with ?prefill=ai, we read the generated template from localStorage,
+   *  drop it in as fields, and clear the storage so a refresh doesn't
+   *  re-add them. localStorage (not URL params) avoids 8KB URL bloat. */
+  useEffect(() => {
+    if (search.get("prefill") !== "ai") return;
+    if (!snapshot) return; // wait for the snapshot so we can compute bboxes
+    try {
+      const raw = localStorage.getItem("picker_ai_prefill");
+      if (!raw) return;
+      const payload: { url: string; fields: TemplateField[] } = JSON.parse(raw);
+      // Cheap guard: don't apply if the URL doesn't match what they came
+      // from (user navigated elsewhere between handoff and arrival).
+      if (payload.url && payload.url !== url) {
+        localStorage.removeItem("picker_ai_prefill");
+        return;
+      }
+      // Map AI template fields onto PickedField shape. AI fields don't
+      // know about specific DOM elements, so element_id/bbox are 0/empty.
+      // The detail drawer + "Run extract" still work — they query the
+      // snapshot by selector at extract time.
+      const prefilled: PickedField[] = payload.fields.map((f) => ({
+        ...f,
+        element_id: -1,
+        bbox: { x: 0, y: 0, w: 0, h: 0 },
+      }));
+      setFields(prefilled);
+      setAiPrefillIdxs(new Set(prefilled.map((_, i) => i)));
+      localStorage.removeItem("picker_ai_prefill");
+      flashToast(`Loaded ${prefilled.length} AI-generated field${prefilled.length === 1 ? "" : "s"} — review, edit, or delete in the sidebar.`);
+      // Fade the prefill accent after 6s
+      setTimeout(() => setAiPrefillIdxs(new Set()), 6000);
+    } catch {
+      // bad payload — just ignore
+      localStorage.removeItem("picker_ai_prefill");
+    }
+    // Intentionally only firing when snapshot becomes ready (or url changes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot, url]);
 
   const colorForIndex = useCallback((i: number) => COLORS[i % COLORS.length], []);
 
@@ -212,13 +258,19 @@ export function PickerClient() {
     setFields((prev) => prev.filter((_, i) => i !== index));
   }
 
+  /** Apply a partial patch to one field — used by the FieldDetailDrawer. */
+  function updateField(index: number, patch: Partial<PickedField>) {
+    setFields((prev) => prev.map((f, i) => (i === index ? { ...f, ...patch } : f)));
+  }
+
   function templatePayload() {
-    return fields.map(({ label, selector, xpath, kind, attr }) => ({
+    return fields.map(({ label, selector, xpath, kind, attr, transforms }) => ({
       label,
       selector,
       xpath,
       kind,
       attr,
+      ...(transforms && transforms.length > 0 ? { transforms } : {}),
     }));
   }
 
@@ -392,13 +444,22 @@ export function PickerClient() {
       {/* Picker top bar — translucent blur, same chrome family as the
           marketing nav. Keeps the picker visually part of the product. */}
       <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] bg-blur-bar px-4 py-2.5">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => router.push("/")}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-fg-muted)] transition-[border-color,background,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)]"
             aria-label="Back to home"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => { lastLoadedUrl.current = ""; setSnapshot(null); void load(); }}
+            disabled={loading || !url}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-fg-muted)] transition-[border-color,background,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Reload snapshot"
+            title="Reload snapshot (same URL — useful when the page didn't fully load)"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
           <Brand />
           {snapshot ? (
@@ -513,6 +574,8 @@ export function PickerClient() {
           saving={saving}
           savedId={savedId}
           colorForIndex={colorForIndex}
+          onSelectField={(i) => setDetailIdx(i)}
+          highlightIdxs={aiPrefillIdxs}
         />
       </div>
 
@@ -523,6 +586,36 @@ export function PickerClient() {
           onCancel={() => setPending(null)}
           onConfirm={confirmField}
           existingLabels={fields.map((f) => f.label)}
+        />
+      )}
+
+      {/* Per-field detail drawer — opens on row click. Shows what matched,
+          lets the user edit selector/xpath/kind, and configure a transform
+          pipeline ("Python one-liner" feel) to clean the raw value. */}
+      {detailIdx !== null && fields[detailIdx] && (
+        <FieldDetailDrawer
+          field={fields[detailIdx]}
+          index={detailIdx}
+          lastResults={results}
+          onClose={() => setDetailIdx(null)}
+          onChange={(patch) => updateField(detailIdx, patch)}
+          onTestSingle={async (draft) => {
+            // Run extraction with just this one field. Cheap way to verify
+            // the selector + transforms before committing changes.
+            try {
+              const res = await api.extract(targetUrl || url, [{
+                label: draft.label,
+                selector: draft.selector,
+                xpath: draft.xpath,
+                kind: draft.kind,
+                attr: draft.attr,
+                transforms: draft.transforms,
+              }]);
+              return res.fields?.[draft.label];
+            } catch {
+              return null;
+            }
+          }}
         />
       )}
 

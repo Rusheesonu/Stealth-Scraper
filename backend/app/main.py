@@ -95,12 +95,27 @@ class SnapshotRequest(BaseModel):
     actions: list[ActionStep] | None = None
 
 
+class TransformStep(BaseModel):
+    """A single cleanup step on an extracted value. See extract.TRANSFORM_OPS
+    for the supported `op` names. Unknown ops are silently dropped at apply
+    time so old saved templates don't break."""
+    op: str
+    value: str = ""
+    pattern: str = ""
+    repl: str = ""
+    sep: str = ""
+    start: int | None = None
+    end: int | None = None
+
+
 class TemplateField(BaseModel):
     label: str
     selector: str = ""
     xpath: str = ""
     kind: str = "text"  # "text" | "attr" | "list" | "html" | "markdown"
     attr: str = ""
+    # Optional post-extraction cleanup pipeline (strip/regex/cast/etc).
+    transforms: list[TransformStep] = []
 
 
 class ExtractRequest(BaseModel):
