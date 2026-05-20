@@ -139,18 +139,63 @@ async def _snapshot_inner(
         await _wait_for_stable_height(tab, timeout=3.0)
         await asyncio.sleep(0.3)
 
-        # 6. COLLECT ELEMENTS FIRST. This is the bit that guarantees
-        # bboxes match the screenshot: at this moment the layout is
-        # stable, scroll=0, viewport unchanged since initial set.
+        # 6. EXPAND THE VIEWPORT to the full document height BEFORE
+        # both bbox collection and screenshot.
+        #
+        # Previous version used capture_beyond_viewport=True at the
+        # screenshot step, but that briefly resizes the viewport during
+        # capture — which triggers layout shifts on pages with `vh`-sized
+        # sections, sticky headers, or intersection-observer reveals
+        # (Target, most modern e-commerce). The bbox data from step 5
+        # then references the pre-shift layout while the screenshot
+        # captures the post-shift layout, producing the visible offset
+        # where hover overlays appear above/below the actual element.
+        #
+        # Fix: do the expansion FIRST, settle the layout, then collect
+        # bboxes + screenshot at the same expanded viewport. Everything
+        # is captured in identical layout state, alignment is exact.
+        #
+        # Clamp to 24000px height — anything taller and we accept the
+        # small alignment risk via capture_beyond_viewport rather than
+        # OOM the renderer.
+        try:
+            raw_height = await tab.evaluate("document.documentElement.scrollHeight")
+            if isinstance(raw_height, tuple):
+                raw_height = raw_height[0]
+            page_height = max(int(raw_height or viewport_height), viewport_height)
+        except Exception:
+            page_height = viewport_height
+        clamped_height = min(page_height, 24000)
+        needs_beyond_viewport = page_height > clamped_height
+
+        try:
+            await tab.send(cdp.emulation.set_device_metrics_override(
+                width=viewport_width,
+                height=clamped_height,
+                device_scale_factor=1,
+                mobile=False,
+            ))
+            # Let the page settle at the new viewport. Intersection
+            # observers that fire newly-visible will run their handlers
+            # in this window; the second _wait_for_stable_height covers
+            # the rare case where they shove content around.
+            await asyncio.sleep(0.4)
+            await _wait_for_stable_height(tab, timeout=1.5)
+        except Exception:
+            # Renderer didn't accept the resize (probably an OOM-style
+            # rejection on huge pages) — fall back to the old strategy:
+            # bbox first then screenshot with capture_beyond_viewport.
+            needs_beyond_viewport = True
+
+        # 7. Collect elements at the expanded viewport.
         data = await _evaluate_json(tab, COLLECT_ELEMENTS_JS)
 
-        # 7. THEN screenshot. capture_beyond_viewport briefly expands
-        # the layout to capture the full page height. Even if that
-        # expansion triggers any transient reflow, our bboxes from
-        # step 6 are already frozen, so overlay and screenshot align.
+        # 8. Screenshot at the SAME expanded viewport. Only fall back to
+        # capture_beyond_viewport when the page was taller than our
+        # height clamp (rare; only mega-scroll pages).
         shot = await tab.send(cdp.page.capture_screenshot(
             format_="png",
-            capture_beyond_viewport=True,
+            capture_beyond_viewport=needs_beyond_viewport,
         ))
         screenshot_b64 = shot if isinstance(shot, str) else str(shot)
 
