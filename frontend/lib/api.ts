@@ -129,7 +129,39 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+/**
+ * Response shape from /public/snapshot-and-suggest — the landing-page
+ * magic preview. No auth required; rate-limited per IP server-side.
+ */
+export type PublicSnapshotResponse = {
+  url: string;
+  title: string;
+  screenshot: string;                                  // base64 PNG
+  page_type: "ecommerce_product" | "ecommerce_listing" | "article" | "social_feed" | "generic";
+  template: TemplateField[];                            // up to 5 auto-suggested fields
+  sample_values: Record<string, unknown>;               // live extracted values
+  element_count: number;
+  rate_limit: {
+    limit: number;
+    used: number;
+    remaining: number;
+    reset_seconds: number;
+  };
+};
+
 export const api = {
+  /**
+   * Public no-signup landing preview. Returns a screenshot + 3-5
+   * auto-discovered fields with their live extracted values. Rate-limited
+   * per IP (default 3/hr). Soft-fails when the LLM is misconfigured —
+   * the visitor still gets the screenshot.
+   */
+  publicSnapshotAndSuggest: (url: string) =>
+    call<PublicSnapshotResponse>("/public/snapshot-and-suggest", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    }),
+
   snapshot: (url: string, viewport?: { width: number; height: number }) =>
     call<SnapshotResponse>("/snapshot", {
       method: "POST",

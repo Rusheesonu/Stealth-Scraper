@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick } from "lucide-react";
+import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { LandingPreview } from "@/components/landing-preview";
+import { api, type PublicSnapshotResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const TRY_LINKS = [
@@ -197,22 +199,67 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
 }
 
 /**
- * URL mode — single mono input, big submit. Same affordance as the v1 hero.
+ * URL mode — single mono input. Magic First Snapshot (Jobs J1):
+ * paste URL → see live preview inline without signup → only the
+ * "save/export/edit" CTAs trigger the signup flow.
  */
 function UrlMode() {
-  const router = useRouter();
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(false);
-  const valid = url.trim().length > 0;
+  const [preview, setPreview] = useState<PublicSnapshotResponse | null>(null);
+  const [submittedUrl, setSubmittedUrl] = useState<string>("");
+  const [error, setError] = useState<string>("");
 
-  function submit(e: React.FormEvent) {
+  const valid = url.trim().length > 0;
+  const normalizedUrl = (() => {
+    const t = url.trim();
+    if (!t) return "";
+    return /^https?:\/\//i.test(t) ? t : "https://" + t;
+  })();
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    let value = url.trim();
-    if (!value) return;
-    if (!/^https?:\/\//i.test(value)) value = "https://" + value;
+    if (!valid) return;
     setBusy(true);
-    router.push(`/pick?url=${encodeURIComponent(value)}`);
+    setError("");
+    setPreview(null);
+    try {
+      const res = await api.publicSnapshotAndSuggest(normalizedUrl);
+      setPreview(res);
+      setSubmittedUrl(normalizedUrl);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Rate-limit copy is friendlier than the raw 429 message.
+      if (msg.includes("429")) {
+        setError("You've used your free previews for this hour. Sign up free for unlimited.");
+      } else if (msg.includes("502") || msg.toLowerCase().includes("snapshot failed")) {
+        setError("Couldn't reach that page. Either the site is blocking bots, or the URL is wrong.");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function reset() {
+    setPreview(null);
+    setError("");
+    setSubmittedUrl("");
+  }
+
+  // If a preview is up, show ONLY the preview — collapsing the form means
+  // the page doesn't feel cluttered. User can hit "try another url" inside
+  // the preview to come back to the form.
+  if (preview) {
+    return (
+      <LandingPreview
+        preview={preview}
+        originalUrl={submittedUrl}
+        onReset={reset}
+      />
+    );
   }
 
   return (
@@ -238,7 +285,8 @@ function UrlMode() {
           autoCorrect="off"
           spellCheck={false}
           autoFocus
-          className="flex-1 bg-transparent pl-5 pr-2 font-mono text-[15px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none"
+          disabled={busy}
+          className="flex-1 bg-transparent pl-5 pr-2 font-mono text-[15px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none disabled:opacity-50"
         />
         <motion.button
           type="submit"
@@ -252,20 +300,55 @@ function UrlMode() {
           className="mr-2 inline-flex h-10 items-center gap-1.5 rounded-md px-4 font-medium text-[13px] text-[var(--color-bg)] disabled:cursor-not-allowed"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-          Snapshot
+          {busy ? "Working…" : "Try free"}
         </motion.button>
       </motion.form>
+
+      {/* Loading hint — first load takes 10-15s warming the browser */}
+      <AnimatePresence>
+        {busy && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22, ease: APPLE_EASE }}
+            className="overflow-hidden"
+          >
+            <div className="mt-3 flex items-center justify-center gap-1.5 text-[11.5px] text-[var(--color-fg-muted)]">
+              <div className="h-1 w-1 animate-pulse rounded-full bg-[var(--color-accent)]" />
+              <span>Warming a real Chromium, taking a snapshot, asking AI to pick fields…</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Error */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: APPLE_EASE }}
+            className="mt-3 flex items-start gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-2.5 text-[12px] text-[var(--color-fg)]"
+          >
+            <AlertTriangle className="mt-0.5 h-3 w-3 flex-shrink-0 text-[color:var(--color-danger)]" />
+            <span>{error}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-[12px] text-[var(--color-fg-subdued)]">
         <span>Try</span>
         {TRY_LINKS.map((t) => (
-          <Link
+          <button
             key={t.url}
-            href={`/pick?url=${encodeURIComponent(t.url)}`}
-            className="rounded-md border border-transparent px-1.5 py-0.5 font-mono text-[var(--color-fg-muted)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            onClick={() => { setUrl(t.url); }}
+            disabled={busy}
+            className="rounded-md border border-transparent px-1.5 py-0.5 font-mono text-[var(--color-fg-muted)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           >
             {t.label}
-          </Link>
+          </button>
         ))}
       </div>
     </div>

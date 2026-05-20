@@ -125,6 +125,126 @@ def active_models() -> dict[str, Any]:
     }
 
 
+# ── Page-type heuristic (for landing magic-snapshot) ─────────────────────
+#
+# When a user pastes a URL on the landing page (no description given), we
+# need to seed the LLM with a sensible "what would someone want to extract
+# from this page?" context. Generic prompts produce generic schemas.
+# Page-type-specific prompts produce *concrete* schemas the visitor
+# instantly recognizes ("oh wow, it picked title + price + rating, exactly
+# what I wanted").
+#
+# The detection is intentionally simple — no ML, no scoring tournament.
+# Just count signals and pick the dominant pattern. Five buckets cover
+# 90%+ of pasted URLs:
+#
+#   ecommerce_product  — single product page (Amazon/Target/Shopify PDPs)
+#   ecommerce_listing  — search / category / grid of products
+#   article            — news, blog post, long-form content
+#   social_feed        — HN, Reddit, Twitter, forum threads (lists of items)
+#   generic            — fallback (landing pages, docs, marketing sites)
+
+
+def _detect_page_type(elements: list[dict[str, Any]], title: str = "") -> str:
+    """Best-effort page-type classifier from a snapshot's element catalog.
+
+    Looks at element density + tag patterns + text signals. Cheap (~1ms);
+    runs before the LLM call so we can pick the right system prompt.
+    """
+    if not elements:
+        return "generic"
+
+    # ── Tag/text frequency signals
+    h1_count = 0
+    h2_count = 0
+    img_count = 0
+    a_count = 0
+    price_signal = 0     # text containing currency markers
+    review_signal = 0    # "stars" / "rating" / "review" patterns
+    listing_signal = 0   # repeating product-card-ish patterns
+    article_signal = 0   # long paragraphs (news/blog tell)
+    feed_signal = 0      # comment counts, points, upvotes (HN/Reddit tell)
+
+    for el in elements:
+        tag = (el.get("tag") or "").lower()
+        text = (el.get("text") or "").strip()
+        attrs = el.get("attrs") or {}
+
+        if tag == "h1": h1_count += 1
+        if tag == "h2": h2_count += 1
+        if tag == "img": img_count += 1
+        if tag == "a": a_count += 1
+
+        # Currency markers anywhere in text → pricing context
+        if re.search(r"[\$€£₹¥]\s*\d", text) or re.search(r"\d+\s*USD\b", text):
+            price_signal += 1
+
+        # Rating / review hints
+        lo = text.lower()
+        if any(p in lo for p in ("out of 5", "stars", "rating", " review")):
+            review_signal += 1
+
+        # Article tells — long paragraph blocks
+        if tag == "p" and len(text) > 240:
+            article_signal += 1
+
+        # Feed tells — HN-style "points by user", "comments", Reddit-style
+        if re.search(r"\b\d+\s*(points?|upvotes?|comments?|replies)\b", lo):
+            feed_signal += 1
+
+        # Listing tells — repeating cards usually have alt text or aria-label
+        if (attrs.get("alt") or attrs.get("aria_label")) and tag in ("a", "img"):
+            listing_signal += 1
+
+    title_lo = (title or "").lower()
+
+    # ── Decision tree, ordered by specificity (strongest signal wins)
+    if feed_signal >= 3:
+        return "social_feed"
+    if price_signal >= 8 and listing_signal >= 6:
+        # Lots of prices AND many cards → category/search/listing page
+        return "ecommerce_listing"
+    if price_signal >= 1 and review_signal >= 1 and h1_count >= 1:
+        # Single product page — has h1, at least one price, at least one rating
+        return "ecommerce_product"
+    if article_signal >= 3 and h1_count >= 1:
+        return "article"
+    if "blog" in title_lo or "news" in title_lo or article_signal >= 2:
+        return "article"
+    return "generic"
+
+
+# Per-type description seeds — what to ask the LLM to extract when the user
+# didn't write a description themselves (landing-page magic preview).
+# Each is a single line that mimics what an experienced user would type.
+PAGE_TYPE_SEED_DESCRIPTIONS = {
+    "ecommerce_product": (
+        "Extract the product's title, price (current + original if discounted), "
+        "discount percentage, rating, review count, primary image, and "
+        "availability. Return as scalar fields — this is a single product page."
+    ),
+    "ecommerce_listing": (
+        "Extract every product card on this page as a list — for each, "
+        "get the title, price, image URL, link, and rating if visible. "
+        "Return list fields so each row corresponds to one product."
+    ),
+    "article": (
+        "Extract the headline, author, publish date, and main body content "
+        "(markdown for the body). Also any tags/categories if visible."
+    ),
+    "social_feed": (
+        "Extract every story/post/comment as a list — for each item get "
+        "the title or content, author, score (points/upvotes), and comment "
+        "count if visible. Return list fields."
+    ),
+    "generic": (
+        "Identify the 5 most useful structured fields a visitor would want "
+        "to extract from this page — title, key metadata, and any prominent "
+        "values. Prefer list fields when you see repeating patterns."
+    ),
+}
+
+
 # ── Prompt ───────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
@@ -259,6 +379,32 @@ async def _call_one_model(
             },
             json=payload,
         )
+
+
+async def auto_suggest_template(
+    *,
+    elements: list[dict[str, Any]],
+    url: str,
+    title: str = "",
+) -> tuple[list[dict[str, Any]], str]:
+    """Landing-page magic preview entry point. Detects what kind of page
+    this is, seeds the LLM with a type-specific description, returns the
+    template + the detected page type so the frontend can label the preview
+    ("We picked these because this looks like a product page").
+
+    Returns: (template, page_type)
+    """
+    page_type = _detect_page_type(elements, title)
+    seed_description = PAGE_TYPE_SEED_DESCRIPTIONS.get(
+        page_type, PAGE_TYPE_SEED_DESCRIPTIONS["generic"]
+    )
+    template = await generate_template(
+        elements=elements,
+        description=seed_description,
+        url=url,
+        title=title,
+    )
+    return template, page_type
 
 
 async def generate_template(

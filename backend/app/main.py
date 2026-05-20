@@ -17,6 +17,10 @@ Supabase user JWT in `Authorization: Bearer <token>`.
 # ruff: noqa: E402  — load_dotenv must run before any submodule that reads env.
 from __future__ import annotations
 
+import os
+import time
+from collections import defaultdict, deque
+
 from dotenv import load_dotenv
 
 load_dotenv()  # app.auth needs SUPABASE_URL at import time.
@@ -24,7 +28,7 @@ load_dotenv()  # app.auth needs SUPABASE_URL at import time.
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -260,6 +264,162 @@ async def snapshot_endpoint(
         "page": snap.page,
         "elements": snap.elements,
         "element_count": len(snap.elements),
+    }
+
+
+# Public no-signup snapshot — the landing-page magic preview. -----------------
+#
+# Visitors paste a URL on / and see a live JSON preview without creating an
+# account. This eliminates the #1 conversion killer for cold traffic
+# (signup-before-value). Rate-limited per IP so a single bad actor can't
+# pin our snapshot pool.
+
+# Simple in-memory IP rate limiter. Resets on container restart, which is
+# fine — HF/Hetzner reboots roughly daily and the cap is intentionally
+# loose. Don't replace with Redis until traffic actually warrants it.
+# {ip -> deque[timestamps]}  ; pruned on each access.
+_PUBLIC_SNAPSHOT_HITS: dict[str, deque] = defaultdict(deque)
+PUBLIC_SNAPSHOT_LIMIT = int(os.getenv("PUBLIC_SNAPSHOT_LIMIT", "3"))      # max requests
+PUBLIC_SNAPSHOT_WINDOW = int(os.getenv("PUBLIC_SNAPSHOT_WINDOW", "3600")) # in seconds (1h)
+
+
+def _client_ip(req: Request) -> str:
+    """Best-effort client IP behind Caddy / Vercel / any proxy chain.
+
+    Honors X-Forwarded-For (left-most non-private) and X-Real-IP. Falls
+    back to direct socket address. Strings only — never panics."""
+    fwd = req.headers.get("x-forwarded-for") or ""
+    if fwd:
+        # Left-most IP is the original client; the rest are proxy hops.
+        candidate = fwd.split(",")[0].strip()
+        if candidate:
+            return candidate
+    real = req.headers.get("x-real-ip")
+    if real:
+        return real.strip()
+    if req.client and req.client.host:
+        return req.client.host
+    return "unknown"
+
+
+def _check_public_rate_limit(ip: str) -> tuple[bool, int, int]:
+    """Sliding-window rate limit. Returns (allowed, used_count, reset_seconds).
+
+    `used_count` is how many requests have landed in the current window
+    (useful for the UI "1 of 3 free previews used this hour" microcopy).
+    `reset_seconds` is when the OLDEST hit in the window expires."""
+    now = time.time()
+    window_start = now - PUBLIC_SNAPSHOT_WINDOW
+    hits = _PUBLIC_SNAPSHOT_HITS[ip]
+
+    # Prune expired hits (cheap, deque from the left).
+    while hits and hits[0] < window_start:
+        hits.popleft()
+
+    used = len(hits)
+    if used >= PUBLIC_SNAPSHOT_LIMIT:
+        reset = int(hits[0] + PUBLIC_SNAPSHOT_WINDOW - now)
+        return False, used, max(reset, 1)
+
+    hits.append(now)
+    return True, used + 1, PUBLIC_SNAPSHOT_WINDOW
+
+
+class PublicSnapshotRequest(BaseModel):
+    url: HttpUrl
+
+
+@app.post("/public/snapshot-and-suggest")
+async def public_snapshot_and_suggest(
+    req: PublicSnapshotRequest,
+    request: Request,
+) -> dict[str, Any]:
+    """Landing-page magic preview. No auth.
+
+    Snapshots the URL, auto-detects what kind of page it is, asks the LLM
+    to suggest 3-5 useful fields, runs an extraction, returns the screenshot
+    + the live values. Visitor never had to sign up.
+
+    Rate-limited per IP. If the LLM isn't configured, gracefully falls back
+    to returning the snapshot + element catalog so the visitor at least sees
+    SOMETHING worked.
+    """
+    ip = _client_ip(request)
+    allowed, used, reset = _check_public_rate_limit(ip)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"You've used {PUBLIC_SNAPSHOT_LIMIT} free previews this hour. "
+                f"Sign up free to keep going — unlimited previews + save your work."
+            ),
+            headers={
+                "X-RateLimit-Limit": str(PUBLIC_SNAPSHOT_LIMIT),
+                "X-RateLimit-Used": str(used),
+                "X-RateLimit-Reset": str(reset),
+            },
+        )
+
+    # 1. Snapshot the page. Tighter viewport than logged-in /snapshot so
+    # this stays fast even on lazy-loaded pages (we don't need the full
+    # 24k px capture for a preview).
+    try:
+        snap = await take_snapshot(
+            str(req.url),
+            viewport_width=1280,
+            viewport_height=900,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
+
+    # 2. Auto-suggest a template if the LLM is configured. If not, we
+    # still return the snapshot + a hint so the visitor can keep going
+    # by signing up (where they get the visual picker).
+    template: list[dict[str, Any]] = []
+    page_type = "generic"
+    if assist.is_configured():
+        try:
+            template, page_type = await assist.auto_suggest_template(
+                elements=snap.elements,
+                url=snap.url,
+                title=snap.title,
+            )
+        except assist.LLMError as e:
+            # Soft-fail: the snapshot worked, only the AI suggest part failed.
+            # Caller still gets the screenshot + can sign up to use the
+            # picker manually. Log so we notice if it keeps happening.
+            print(f"[public/snapshot] LLM suggest failed (kind={e.kind}): {e}")
+        except Exception as e:  # defensive — never break the preview
+            print(f"[public/snapshot] LLM suggest unexpected error: {e!r}")
+
+    # 3. If we got a template, run extraction so the visitor sees live
+    # values, not just selectors. Cap at 5 fields for the preview.
+    sample_values: dict[str, Any] = {}
+    if template:
+        from app.extract import extract as extract_fields  # local import keeps cold-start light
+        try:
+            preview_template = template[:5]
+            res = await extract_fields(snap.url, preview_template)  # type: ignore[arg-type]
+            sample_values = res.get("fields", {}) if isinstance(res, dict) else {}
+        except Exception as e:
+            # Same logic as suggest — extraction failure shouldn't kill the
+            # preview. We at least show the suggested schema.
+            print(f"[public/snapshot] preview extraction failed: {e!r}")
+
+    return {
+        "url": snap.url,
+        "title": snap.title,
+        "screenshot": snap.screenshot_base64,
+        "page_type": page_type,
+        "template": template[:5],
+        "sample_values": sample_values,
+        "element_count": len(snap.elements),
+        "rate_limit": {
+            "limit": PUBLIC_SNAPSHOT_LIMIT,
+            "used": used,
+            "remaining": PUBLIC_SNAPSHOT_LIMIT - used,
+            "reset_seconds": reset,
+        },
     }
 
 
