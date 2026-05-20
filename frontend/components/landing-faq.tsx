@@ -22,12 +22,13 @@ type Q = { q: string; a: React.ReactNode };
 
 const FAQS: Q[] = [
   {
-    q: "How is this different from Firecrawl / ScrapingBee / Apify?",
+    q: "How is this different from prompt-based scraping APIs?",
     a: (
       <>
-        Those tools give you a prompt-based API (or a markdown dump). You
-        describe what you want, you cross fingers, you get JSON. When it&apos;s
-        wrong you have no way to fix it except re-prompting. We&apos;re a different
+        Most modern scraping APIs hand you a prompt-only interface (or a raw
+        markdown dump). You describe what you want, you cross fingers, you
+        get JSON back. When it&apos;s wrong you have no way to fix it except
+        re-prompting and hoping for better output. We&apos;re a different
         shape: a <b>visual picker</b> that lets you SEE the selector before
         extraction, <b>saved recipes</b> that run on 1,000 URLs without
         re-paying for schema generation, and <b>CDP-level Chromium stealth</b>{" "}
@@ -141,9 +142,10 @@ const FAQS: Q[] = [
 ];
 
 export function LandingFaq() {
-  // Default-open the first question — gives the section visual weight
-  // and signals to the visitor "yes there are real answers here."
-  const [open, setOpen] = useState<number | null>(0);
+  // All questions start closed. (Previously defaulted first one open
+  // for visual weight, but it drew too much eye toward whichever
+  // question happened to be at index 0.)
+  const [open, setOpen] = useState<number | null>(null);
 
   return (
     <section className="relative mx-auto max-w-3xl py-10 md:py-14">
