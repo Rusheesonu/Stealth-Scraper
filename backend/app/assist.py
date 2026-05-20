@@ -26,17 +26,17 @@ import httpx
 
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
-# llama-3.1-8b-instant: 30k TPM on Groq free tier (vs 12k for 70b), <1s response,
-# plenty smart for "look at element list → pick selectors". Bump to 3.3-70b
-# via env override if you want higher accuracy on harder pages.
-LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
+# gemma2-9b-it: 15k TPM on Groq free tier — most generous in the free pool.
+# Quality is fine for "pick CSS selectors from a list." Override via LLM_MODEL
+# for harder pages once you're on a paid tier.
+LLM_MODEL = os.getenv("LLM_MODEL", "gemma2-9b-it")
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "30"))
 
-# Aggressively cap prompt size so the free tier's TPM budget covers any
-# real-world page. Target product pages have 1000+ elements — without
-# trim, the request blows past 40k tokens.
-MAX_CATALOG_ELEMENTS = int(os.getenv("LLM_MAX_CATALOG_ELEMENTS", "120"))
-MAX_TEXT_LEN = int(os.getenv("LLM_MAX_TEXT_LEN", "80"))
+# Trim defaults chosen so a noisy 1000-element page (Target product pages,
+# Amazon search results) lands under ~4k input tokens — safely inside the
+# tightest Groq free-tier TPM bucket (6k).
+MAX_CATALOG_ELEMENTS = int(os.getenv("LLM_MAX_CATALOG_ELEMENTS", "70"))
+MAX_TEXT_LEN = int(os.getenv("LLM_MAX_TEXT_LEN", "50"))
 
 
 def is_configured() -> bool:
@@ -121,6 +121,30 @@ async def generate_template(
             },
             json=payload,
         )
+
+    # Auto-retry on 413 (request too large) with progressively smaller trims.
+    # First request uses the configured defaults; if rejected, halve element
+    # count + text length and try again. Most pages succeed on first or second
+    # attempt.
+    if res.status_code == 413:
+        for retry_n, factor in enumerate([0.5, 0.25], start=1):
+            half_trim = _trim_catalog(elements, max_elements=max(20, int(MAX_CATALOG_ELEMENTS * factor)))
+            for el in half_trim:
+                if el.get("x") and len(el["x"]) > int(MAX_TEXT_LEN * factor):
+                    el["x"] = el["x"][:int(MAX_TEXT_LEN * factor)]
+            retry_msg = (
+                f"URL: {url}\nElements ({len(half_trim)} trimmed for size):\n"
+                f"{json.dumps(half_trim, separators=(',', ':'))}\nExtract: {description}"
+            )
+            payload["messages"][1]["content"] = retry_msg
+            async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
+                res = await client.post(
+                    f"{LLM_BASE_URL}/chat/completions",
+                    headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"},
+                    json=payload,
+                )
+            if res.status_code != 413:
+                break
 
     if res.status_code >= 400:
         raise RuntimeError(f"LLM API {res.status_code}: {res.text[:300]}")
