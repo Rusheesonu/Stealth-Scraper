@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Sparkles, Loader2, ArrowRight, Save, Copy, ExternalLink, AlertTriangle, Check } from "lucide-react";
 import { PageShell } from "@/components/nav";
 import { Badge } from "@/components/ui/badge";
@@ -20,9 +21,12 @@ const EXAMPLES = [
   { url: "https://books.toscrape.com",     desc: "Get every book — title, price, rating, in stock yes/no." },
 ];
 
-export default function AiExtractPage() {
-  const [url, setUrl] = useState("");
-  const [description, setDescription] = useState("");
+function AiExtractForm() {
+  const search = useSearchParams();
+  // Pre-fill from query params (hero tab-toggle handoff: ?url=&description=).
+  // We use Suspense around this whole component so useSearchParams works at build.
+  const [url, setUrl] = useState(() => search.get("url") || "");
+  const [description, setDescription] = useState(() => search.get("description") || "");
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState("");
   const [template, setTemplate] = useState<TemplateField[] | null>(null);
@@ -83,6 +87,15 @@ export default function AiExtractPage() {
     setUrl(ex.url); setDescription(ex.desc);
     setStage("idle"); setTemplate(null); setResults(null); setError("");
   }
+
+  // Auto-fire generation when landed here with both URL + description
+  // prefilled from the hero tab-toggle (so it feels like one continuous flow,
+  // not "now click Generate again"). Runs once on mount only.
+  useEffect(() => {
+    const hasPrefill = !!(search.get("url") && search.get("description"));
+    if (hasPrefill) void generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isBusy = stage === "generating" || stage === "extracting";
 
@@ -273,6 +286,28 @@ export default function AiExtractPage() {
         </div>
       </div>
     </PageShell>
+  );
+}
+
+/**
+ * Suspense boundary required by Next.js because the inner component reads
+ * useSearchParams() — without it, the page can't pre-render statically.
+ * Renders a near-identical skeleton so the boundary swap is invisible.
+ */
+export default function AiExtractPage() {
+  return (
+    <Suspense fallback={
+      <PageShell maxWidth="max-w-3xl">
+        <div className="py-12">
+          <div className="mb-6 h-4 w-12 animate-pulse rounded-md bg-[var(--color-ink-2)]" />
+          <div className="mb-3 h-8 w-72 animate-pulse rounded-md bg-[var(--color-ink-2)]" />
+          <div className="mb-10 h-4 w-96 animate-pulse rounded-md bg-[var(--color-ink-2)]" />
+          <div className="h-14 w-full animate-pulse rounded-xl bg-[var(--color-ink-2)]" />
+        </div>
+      </PageShell>
+    }>
+      <AiExtractForm />
+    </Suspense>
   );
 }
 

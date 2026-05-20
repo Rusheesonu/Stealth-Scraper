@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Sparkles, Globe, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { UrlForm } from "@/components/url-form";
+import { cn } from "@/lib/utils";
 
 const TRY_LINKS = [
   { label: "news.ycombinator.com", url: "https://news.ycombinator.com" },
@@ -12,25 +14,41 @@ const TRY_LINKS = [
   { label: "books.toscrape.com",   url: "https://books.toscrape.com" },
 ];
 
+const DESCRIBE_EXAMPLES = [
+  { url: "https://news.ycombinator.com", desc: "Get the top 10 stories — title, points, comment count." },
+  { url: "https://books.toscrape.com",   desc: "Get every book — title, price, rating, in-stock yes/no." },
+  { url: "https://quotes.toscrape.com",  desc: "Get every quote, its author, and the tags on it." },
+];
+
 const APPLE_EASE = [0.32, 0.72, 0, 1] as const;
 
+type Mode = "url" | "describe";
+
 /**
- * Hero — the landing's first viewport. Three jobs:
- *   1. Tell you what this is (badge + headline).
- *   2. Give you the primary affordance (URL field).
- *   3. Show, don't tell: a static demo strip directly below proves the
- *      product works without you having to do anything.
+ * Hero — landing's first viewport. Two equal modes pinned right above the
+ * input area:
+ *   [ Paste URL ]        — visual picker flow → /pick
+ *   [ Describe in plain English ] — AI extract flow → /ai-extract
  *
- * The dotted-grid background gives the hero structural texture so the
- * URL field has something to sit against (no more floating in white space).
- * Motion is intentional: hero elements fade-up in a 60ms cascade.
+ * Most people won't read body copy. They scan for affordances. The toggle
+ * makes BOTH product entry points visible at once, no hunting.
+ *
+ * Visual:
+ *   - Dotted-grid backdrop with fade-to-bottom mask gives the hero a place
+ *     to sit (the URL form was floating in white space).
+ *   - Faint accent radial wash behind the form (Apple-style ambient gradient,
+ *     almost imperceptible, just enough to lift).
+ *   - Static demo strip below shows page → JSON output without a click.
+ *   - Motion: 60ms staggered fade-up on hero elements.
  */
 export function LandingHero() {
+  const [mode, setMode] = useState<Mode>("url");
+
   return (
     <section className="relative -mx-6 overflow-hidden px-6 pb-12 pt-10 md:pb-16 md:pt-14">
-      {/* Subtle dotted background grid — gives the hero a sense of place. */}
+      {/* Dotted background grid */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[520px] opacity-[0.55] [mask-image:linear-gradient(to_bottom,black_0%,black_60%,transparent_100%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[560px] opacity-[0.55] [mask-image:linear-gradient(to_bottom,black_0%,black_60%,transparent_100%)]"
         style={{
           backgroundImage: `radial-gradient(circle, color-mix(in srgb, var(--color-fg-subdued) 35%, transparent) 0.8px, transparent 0.8px)`,
           backgroundSize: "22px 22px",
@@ -38,13 +56,10 @@ export function LandingHero() {
         }}
         aria-hidden
       />
-      {/* Soft accent wash behind the URL form, mimics Apple's hero gradients
-          (very subtle — almost imperceptible, just enough to lift). */}
+      {/* Accent radial wash */}
       <div
-        className="pointer-events-none absolute left-1/2 top-[210px] h-[280px] w-[640px] -translate-x-1/2 opacity-[0.5]"
-        style={{
-          background: `radial-gradient(ellipse at center, var(--color-accent-faint) 0%, transparent 65%)`,
-        }}
+        className="pointer-events-none absolute left-1/2 top-[210px] h-[320px] w-[680px] -translate-x-1/2 opacity-[0.55]"
+        style={{ background: `radial-gradient(ellipse at center, var(--color-accent-faint) 0%, transparent 65%)` }}
         aria-hidden
       />
 
@@ -80,54 +95,47 @@ export function LandingHero() {
         >
           Click the fields you want — or describe them in plain English. We load
           any page in a real browser, get past Cloudflare and Datadome, and
-          return clean JSON. No XPath, no markdown to re-parse.
+          return clean JSON.
         </motion.p>
 
+        {/* TAB TOGGLE — the centerpiece. Two modes, equal weight. */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.18, ease: APPLE_EASE }}
-          className="mx-auto mt-8 max-w-xl"
+          className="mx-auto mt-9 max-w-xl"
         >
-          <UrlForm
-            size="lg"
-            autoFocus
-            placeholder="https://news.ycombinator.com"
-            hint={
-              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5">
-                <span>Try</span>
-                {TRY_LINKS.map((t) => (
-                  <Link
-                    key={t.url}
-                    href={`/pick?url=${encodeURIComponent(t.url)}`}
-                    className="rounded-md border border-transparent px-1.5 py-0.5 font-mono text-[var(--color-fg-muted)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
-                  >
-                    {t.label}
-                  </Link>
-                ))}
-              </div>
-            }
-          />
-        </motion.div>
+          <ModeToggle mode={mode} onChange={setMode} />
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.28, ease: APPLE_EASE }}
-          className="mt-5 flex flex-wrap items-center justify-center gap-1.5 text-[12px] text-[var(--color-fg-subdued)]"
-        >
-          <Sparkles className="h-3 w-3 text-[var(--color-accent)]" />
-          <span>Or</span>
-          <Link href="/ai-extract" className="font-medium text-[var(--color-accent)] hover:underline underline-offset-2">
-            describe what you want in plain English
-          </Link>
-          <span>— faster for one-offs.</span>
+          <div className="mt-3">
+            <AnimatePresence mode="wait" initial={false}>
+              {mode === "url" ? (
+                <motion.div
+                  key="url"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.22, ease: APPLE_EASE }}
+                >
+                  <UrlMode />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="describe"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.22, ease: APPLE_EASE }}
+                >
+                  <DescribeMode />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </motion.div>
       </div>
 
-      {/* Demo strip — proves the product without a click. Renders below the
-          hero on the same panel so the eye flows from "type URL" into "see
-          what comes back". Mock data, but the structure is real. */}
+      {/* Static demo strip — proves it works without a click */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -141,10 +149,240 @@ export function LandingHero() {
 }
 
 /**
- * Static demo strip. Two panes: "what you click" (URL bar mock) and "what
- * you get back" (JSON output). Window chrome makes it feel real, not like
- * an ad. Same primitives as the actual product — same fonts, same radius,
- * same colors — so screenshotting just the demo would still look like the app.
+ * Segmented control. iOS / macOS pattern: pill background, sliding thumb
+ * (via layoutId), active label gets the strong color.
+ */
+function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+  const options: { id: Mode; icon: React.ComponentType<{ className?: string }>; label: string }[] = [
+    { id: "url",      icon: MousePointerClick, label: "Paste URL" },
+    { id: "describe", icon: Sparkles,          label: "Describe in plain English" },
+  ];
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Extraction mode"
+      className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-card)]"
+    >
+      {options.map(({ id, icon: Icon, label }) => {
+        const active = mode === id;
+        return (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(id)}
+            className={cn(
+              "relative inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium",
+              "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
+              active
+                ? "text-[var(--color-fg-strong)]"
+                : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+            )}
+          >
+            {active && (
+              <motion.span
+                layoutId="mode-toggle-thumb"
+                className="absolute inset-0 -z-0 rounded-full bg-[var(--color-ink-2)] ring-1 ring-[var(--color-border)]"
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              />
+            )}
+            <Icon className={cn("relative z-10 h-3.5 w-3.5", active && id === "describe" && "text-[var(--color-accent)]")} />
+            <span className="relative z-10">{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * URL mode — single mono input, big submit. Same affordance as the v1 hero.
+ */
+function UrlMode() {
+  const router = useRouter();
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const valid = url.trim().length > 0;
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    let value = url.trim();
+    if (!value) return;
+    if (!/^https?:\/\//i.test(value)) value = "https://" + value;
+    setBusy(true);
+    router.push(`/pick?url=${encodeURIComponent(value)}`);
+  }
+
+  return (
+    <div>
+      <motion.form
+        onSubmit={submit}
+        animate={{
+          borderColor: focused ? "var(--color-fg)" : "var(--color-border)",
+        }}
+        whileHover={focused ? undefined : { borderColor: "var(--color-border-strong)" }}
+        transition={{ duration: 0.16, ease: APPLE_EASE }}
+        className="relative flex h-14 items-center w-full rounded-xl border bg-[var(--color-surface)]"
+      >
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder="https://news.ycombinator.com"
+          inputMode="url"
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          autoFocus
+          className="flex-1 bg-transparent pl-5 pr-2 font-mono text-[15px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none"
+        />
+        <motion.button
+          type="submit"
+          disabled={busy || !valid}
+          whileTap={valid && !busy ? { scale: 0.96 } : undefined}
+          animate={{
+            backgroundColor: valid ? "var(--color-fg-strong)" : "var(--color-ink-4)",
+            opacity: valid ? 1 : 0.55,
+          }}
+          transition={{ duration: 0.16, ease: APPLE_EASE }}
+          className="mr-2 inline-flex h-10 items-center gap-1.5 rounded-md px-4 font-medium text-[13px] text-[var(--color-bg)] disabled:cursor-not-allowed"
+        >
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+          Snapshot
+        </motion.button>
+      </motion.form>
+
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-[12px] text-[var(--color-fg-subdued)]">
+        <span>Try</span>
+        {TRY_LINKS.map((t) => (
+          <Link
+            key={t.url}
+            href={`/pick?url=${encodeURIComponent(t.url)}`}
+            className="rounded-md border border-transparent px-1.5 py-0.5 font-mono text-[var(--color-fg-muted)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+          >
+            {t.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Describe mode — URL + natural-language description in one panel.
+ * Submit hands off to /ai-extract with both prefilled, which auto-fires
+ * generation so it feels like one continuous flow.
+ */
+function DescribeMode() {
+  const router = useRouter();
+  const [url, setUrl] = useState("");
+  const [desc, setDesc] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const valid = url.trim().length > 0 && desc.trim().length > 0;
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!valid) return;
+    let u = url.trim();
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    setBusy(true);
+    const qs = new URLSearchParams({ url: u, description: desc.trim() });
+    router.push(`/ai-extract?${qs.toString()}`);
+  }
+
+  return (
+    <div>
+      <motion.form
+        onSubmit={submit}
+        animate={{
+          borderColor: focused ? "var(--color-fg)" : "var(--color-border)",
+        }}
+        whileHover={focused ? undefined : { borderColor: "var(--color-border-strong)" }}
+        transition={{ duration: 0.16, ease: APPLE_EASE }}
+        className="relative w-full overflow-hidden rounded-xl border bg-[var(--color-surface)]"
+      >
+        {/* URL row */}
+        <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-2.5">
+          <Globe className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-fg-subdued)]" />
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="https://news.ycombinator.com"
+            inputMode="url"
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            className="flex-1 bg-transparent font-mono text-[13px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none"
+          />
+        </div>
+
+        {/* Description row */}
+        <div className="px-4 pt-3 pb-2">
+          <textarea
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="What do you want to extract? e.g. Get every story's title, points, and comment count."
+            rows={2}
+            autoFocus
+            maxLength={500}
+            className="block w-full resize-none bg-transparent text-left text-[14px] leading-[1.5] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none"
+          />
+        </div>
+
+        {/* Footer row with submit */}
+        <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-2">
+          <div className="font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+            {desc.length}/500
+          </div>
+          <motion.button
+            type="submit"
+            disabled={busy || !valid}
+            whileTap={valid && !busy ? { scale: 0.96 } : undefined}
+            animate={{
+              backgroundColor: valid ? "var(--color-accent)" : "var(--color-ink-4)",
+              opacity: valid ? 1 : 0.5,
+            }}
+            transition={{ duration: 0.16, ease: APPLE_EASE }}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md px-3.5 font-medium text-[12.5px] text-white disabled:cursor-not-allowed"
+          >
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            Generate scraper
+          </motion.button>
+        </div>
+      </motion.form>
+
+      {/* Example chips — one-click prefill */}
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-left">
+        <span className="mr-1 text-[11.5px] text-[var(--color-fg-subdued)]">Try</span>
+        {DESCRIBE_EXAMPLES.map((ex) => (
+          <button
+            key={ex.url}
+            type="button"
+            onClick={() => { setUrl(ex.url); setDesc(ex.desc); }}
+            className="group inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] text-[var(--color-fg-muted)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+          >
+            <Sparkles className="h-2.5 w-2.5 text-[var(--color-accent)]" />
+            <span className="font-mono">{new URL(ex.url).host.replace(/^www\./, "")}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Static demo strip. Two panes: "what you click" + "what you get back".
+ * Window chrome makes it look real. Mock data, real component primitives.
  */
 function DemoStrip() {
   const sample = [
@@ -155,7 +393,7 @@ function DemoStrip() {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-popover)]">
-      {/* Window chrome — three Apple-style dots + URL bar */}
+      {/* Window chrome */}
       <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-4 py-2.5">
         <div className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
@@ -172,7 +410,7 @@ function DemoStrip() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr]">
-        {/* Left: the page, with highlighted selectors */}
+        {/* Left: page with highlighted selectors */}
         <div className="border-b border-[var(--color-border)] p-5 md:border-b-0 md:border-r">
           <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
             Page · clicked fields
@@ -214,7 +452,7 @@ function DemoStrip() {
           </div>
         </div>
 
-        {/* Right: clean JSON output */}
+        {/* Right: clean JSON */}
         <div className="bg-[var(--color-ink-1)] p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
