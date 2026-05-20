@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { Copy, Key, Trash2, AlertTriangle, Check } from "lucide-react";
 import { PageShell } from "@/components/nav";
+import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, type ApiKey } from "@/lib/api";
@@ -56,16 +56,14 @@ export default function ApiKeysPage() {
 
   return (
     <PageShell maxWidth="max-w-3xl">
-      <div className="py-12">
-        <div className="mb-10">
-          <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Account · API keys</div>
-          <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
-            Programmatic access
-          </h1>
-          <p className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
-            Use these from your code, the Python SDK, the TypeScript SDK, or the MCP server.
-          </p>
-        </div>
+      <div>
+        <PageHeader
+          eyebrow="Account · API keys"
+          title="Programmatic access"
+          description="Use these from your code, the Python SDK, the TypeScript SDK, or the MCP server."
+          backHref="/"
+          backLabel="Home"
+        />
 
         {/* One-time reveal */}
         {justCreated && (

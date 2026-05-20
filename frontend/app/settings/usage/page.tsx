@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, AlertTriangle, TrendingUp } from "lucide-react";
 import { PageShell } from "@/components/nav";
+import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,16 +31,14 @@ export default function UsagePage() {
 
   return (
     <PageShell maxWidth="max-w-3xl">
-      <div className="py-12">
-        <div className="mb-10">
-          <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Account · Usage</div>
-          <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
-            This month
-          </h1>
-          <p className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
-            Scrapes used in the current calendar month. Resets on the 1st (UTC).
-          </p>
-        </div>
+      <div>
+        <PageHeader
+          eyebrow="Account · Usage"
+          title="This month"
+          description="Scrapes used in the current calendar month. Resets on the 1st (UTC)."
+          backHref="/"
+          backLabel="Home"
+        />
 
         {error && (
           <Card density="compact" className="mb-6 border-[color:var(--color-danger)]/30">

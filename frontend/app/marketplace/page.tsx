@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GitFork, Loader2, AlertTriangle, ExternalLink, Globe } from "lucide-react";
 import { PageShell } from "@/components/nav";
+import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,17 +37,14 @@ export default function MarketplacePage() {
 
   return (
     <PageShell maxWidth="max-w-5xl">
-      <div className="py-12">
-        <div className="mb-10">
-          <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Marketplace</div>
-          <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
-            Community extraction recipes
-          </h1>
-          <p className="mt-3 max-w-xl text-[14px] text-[var(--color-fg-muted)]">
-            Public templates shared by the community. Fork any of them into your
-            account in one click — no setup, no schema-building.
-          </p>
-        </div>
+      <div>
+        <PageHeader
+          eyebrow="Marketplace"
+          title="Community extraction recipes"
+          description="Public templates shared by the community. Fork any of them into your account in one click — no setup, no schema-building."
+          backHref="/"
+          backLabel="Home"
+        />
 
         {error && (
           <Card density="comfortable" className="mb-6 border-[color:var(--color-danger)]/30">

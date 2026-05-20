@@ -3,12 +3,19 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 /**
  * Signature component. The URL paste input that IS the hero affordance on
- * landing and the empty state on /pick. Inline submit button on the right.
- * Mono font for the URL. Generous height. Border lifts on focus, not glow.
+ * landing and the empty state on /pick.
+ *
+ * Apple touches:
+ *  • Border lifts on focus (no glow blob).
+ *  • Submit button presses inward on tap (motion whileTap).
+ *  • Accent rim fades in when the field has a valid URL — feedback that
+ *    the action is ready, not a static button that always looks the same.
+ *  • Mono font for the URL (it's data, not prose).
  */
 export function UrlForm({
   size = "lg",
@@ -24,6 +31,7 @@ export function UrlForm({
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,20 +46,35 @@ export function UrlForm({
   const textCls = size === "lg" ? "text-[15px]" : "text-[14px]";
   const btnCls = size === "lg" ? "h-10 px-4 text-[13px]" : "h-9 px-3.5 text-[12px]";
 
+  const valid = url.trim().length > 0;
+
   return (
     <div className="w-full">
-      <form
+      <motion.form
         onSubmit={submit}
+        animate={{
+          borderColor: focused
+            ? "var(--color-border-strong)"
+            : "var(--color-border)",
+          backgroundColor: focused
+            ? "var(--color-elevated)"
+            : "var(--color-surface)",
+        }}
+        transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
         className={cn(
-          "group relative flex items-center w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]",
-          "transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)]",
-          "focus-within:border-[var(--color-border-strong)] focus-within:bg-[var(--color-elevated)]",
+          "relative flex items-center w-full rounded-xl border",
           heightCls,
         )}
+        style={{
+          boxShadow: focused ? "var(--shadow-focus)" : "none",
+          transition: "box-shadow 200ms cubic-bezier(0.32, 0.72, 0, 1)",
+        }}
       >
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           placeholder={placeholder}
           inputMode="url"
           autoComplete="off"
@@ -66,15 +89,21 @@ export function UrlForm({
             textCls,
           )}
         />
-        <button
+        <motion.button
           type="submit"
-          disabled={busy || !url.trim()}
+          disabled={busy || !valid}
+          whileTap={valid && !busy ? { scale: 0.96 } : undefined}
+          animate={{
+            backgroundColor: valid
+              ? "var(--color-fg-strong)"
+              : "var(--color-ink-4)",
+            opacity: valid ? 1 : 0.55,
+          }}
+          transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
           className={cn(
             "mr-2 inline-flex items-center gap-1.5 rounded-md font-medium",
-            "bg-[var(--color-fg)] text-[var(--color-bg)]",
-            "hover:bg-[var(--color-fg-strong)]",
-            "disabled:opacity-40 disabled:cursor-not-allowed",
-            "transition-[background,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)]",
+            "text-[var(--color-bg)]",
+            "disabled:cursor-not-allowed",
             btnCls,
           )}
         >
@@ -84,8 +113,8 @@ export function UrlForm({
             <ArrowRight className="h-3.5 w-3.5" />
           )}
           Snapshot
-        </button>
-      </form>
+        </motion.button>
+      </motion.form>
       {hint && (
         <div className="mt-3 text-center text-[12px] text-[var(--color-fg-subdued)]">
           {hint}

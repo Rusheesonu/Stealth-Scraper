@@ -1,111 +1,122 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────────────────────────────
-   STEALTH-SCRAPER DESIGN SYSTEM v1
+   STEALTH-SCRAPER — APPLE-MINIMAL LIGHT
    ─────────────────────────────────────────────────────────────────────────
-   Philosophy: a precision instrument, not a SaaS dashboard.
-   - One neutral ramp. One accent (emerald, used sparingly). One semantic set.
-   - Dark mode is primary. Light is a faithful port — same hierarchy.
-   - Borders are the primary separator. Shadows only on overlays.
-   - Monospace where data lives (URLs, selectors, IDs, numerics, timestamps).
-   - Motion means something. Never decorative.
+   Light is primary. White surface, hairline borders, generous space.
+   Dark mode is a faithful port — same hierarchy, same components.
+   Emerald accent reserved for primary action + active state + success.
+
+   Type: Inter Display + JetBrains Mono (SF Pro substitutes elsewhere
+   in the cascade). Negative letter-spacing tightens display sizes.
+
+   Radius system, picked by hierarchy:
+     buttons/inputs  →  rounded-lg  (10px)
+     cards           →  rounded-xl  (14px)
+     modals          →  rounded-2xl (20px)
+     badges          →  rounded-full
+     code blocks     →  rounded-md  (8px)
+
+   Motion: macOS easing, fast 160ms / deliberate 320ms. State only.
    ───────────────────────────────────────────────────────────────────────── */
 
 @theme {
-  /* ── Color: neutral ramp ──────────────────────────────────────────────
-     Step  0 = canvas    (page background)
-     Step  1 = surface   (cards, panels)
-     Step  2 = elevated  (modals, popovers, hover)
-     Step  3 = border    (default separator)
-     Step  4 = border-strong (focus, active)
-     Step  5 = subdued   (placeholders, disabled text)
-     Step  6 = muted     (secondary text)
-     Step  7 = fg        (primary text)
-     Step  8 = fg-strong (headings, emphasis)
-  */
-  --color-ink-0:  #0a0a0b;
-  --color-ink-1:  #111114;
-  --color-ink-2:  #18181b;
-  --color-ink-3:  #1f1f23;
-  --color-ink-4:  #2a2a2f;
-  --color-ink-5:  #4a4a52;
-  --color-ink-6:  #8a8a92;
-  --color-ink-7:  #ececed;
-  --color-ink-8:  #fafafa;
+  /* ── LIGHT PRIMARY ─────────────────────────────────────────────────── */
 
-  /* Accent — emerald, used ONLY for: primary action, active state, success.
-     If you reach for accent for decoration, stop. */
-  --color-accent:        #10b981;
-  --color-accent-dim:    #064e3b;
-  --color-accent-faint:  rgba(16, 185, 129, 0.08);
+  /* Apple-clean grays (warm whites, cool deep blacks). Mapped via
+     --color-ink-N where 0 = canvas, 9 = strongest text. */
+  --color-ink-0:  #ffffff;             /* canvas — pure white */
+  --color-ink-1:  #fafaf9;             /* page bg, washed surface */
+  --color-ink-2:  #f5f5f4;             /* hover surface */
+  --color-ink-3:  #ebebea;             /* default border, hairline */
+  --color-ink-4:  #d9d9d6;             /* strong border, focus */
+  --color-ink-5:  #a8a8a3;             /* placeholder, disabled */
+  --color-ink-6:  #6e6e69;             /* secondary text */
+  --color-ink-7:  #3a3a37;             /* primary text */
+  --color-ink-8:  #1c1c1a;             /* headings */
+  --color-ink-9:  #0a0a09;             /* hero display */
 
-  /* Semantic — sparing use. Borders muted; fills only when meaning is loud. */
-  --color-success:      #10b981;
-  --color-success-dim:  rgba(16, 185, 129, 0.12);
-  --color-warning:      #f59e0b;
-  --color-warning-dim:  rgba(245, 158, 11, 0.12);
-  --color-danger:       #ef4444;
-  --color-danger-dim:   rgba(239, 68, 68, 0.12);
-  --color-info:         #60a5fa;
-  --color-info-dim:     rgba(96, 165, 250, 0.12);
+  /* Accent — emerald, darker variant for AA contrast on white. */
+  --color-accent:        #047857;
+  --color-accent-hover:  #065f46;
+  --color-accent-soft:   #ecfdf5;
+  --color-accent-faint:  #f0fdf4;
+  --color-accent-line:   #a7f3d0;
 
-  /* Mapped tokens — what components reference. Switching dark↔light
-     changes these (see below), not the components. */
-  --color-bg:           var(--color-ink-0);
-  --color-surface:      var(--color-ink-1);
-  --color-elevated:     var(--color-ink-2);
-  --color-border:       var(--color-ink-3);
+  /* Semantic — calm tones. Backgrounds are pale; foregrounds are dark
+     for AA contrast on white. */
+  --color-success:        #047857;
+  --color-success-soft:   #ecfdf5;
+  --color-warning:        #b45309;
+  --color-warning-soft:   #fffbeb;
+  --color-danger:         #b91c1c;
+  --color-danger-soft:    #fef2f2;
+  --color-info:           #1e40af;
+  --color-info-soft:      #eff6ff;
+
+  /* Component mapping — every component reads from these names. */
+  --color-bg:            var(--color-ink-1);
+  --color-surface:       var(--color-ink-0);
+  --color-elevated:      var(--color-ink-0);
+  --color-border:        var(--color-ink-3);
   --color-border-strong: var(--color-ink-4);
-  --color-fg-subdued:   var(--color-ink-5);
-  --color-fg-muted:     var(--color-ink-6);
-  --color-fg:           var(--color-ink-7);
-  --color-fg-strong:    var(--color-ink-8);
+  --color-fg-subdued:    var(--color-ink-5);
+  --color-fg-muted:      var(--color-ink-6);
+  --color-fg:            var(--color-ink-7);
+  --color-fg-strong:     var(--color-ink-8);
+  --color-fg-display:    var(--color-ink-9);
 
-  /* Backwards-compat with v0 token names so existing pages don't break
-     while we sweep. Will be removed in the final pass. */
-  --color-panel:        var(--color-surface);
-  --color-muted:        var(--color-fg-muted);
+  /* Compatibility aliases for components we haven't swept yet (picker
+     subcomponents). They route through the same system. */
+  --color-panel:         var(--color-surface);
+  --color-muted:         var(--color-fg-muted);
 
-  /* ── Type ──────────────────────────────────────────────────────────────
-     One display face (Inter), one mono (JetBrains Mono).
-     Six-step scale with explicit line-heights. */
-  --font-display: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
-  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Legacy `-dim` aliases (older Badge/Button references). Route through
+     `-soft` so semantic backgrounds stay calm and consistent. */
+  --color-success-dim:   var(--color-success-soft);
+  --color-warning-dim:   var(--color-warning-soft);
+  --color-danger-dim:    var(--color-danger-soft);
+  --color-info-dim:      var(--color-info-soft);
 
-  --text-display:  36px;  /* hero h1 */
-  --text-h1:       28px;  /* page title */
-  --text-h2:       20px;  /* section title */
-  --text-body:     14px;  /* default UI */
-  --text-small:    12px;  /* metadata, labels */
-  --text-tiny:     11px;  /* mono IDs, timestamps */
+  /* ── TYPE ──────────────────────────────────────────────────────────── */
 
-  --leading-display: 1.1;
+  --font-display:  "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono:     "JetBrains Mono", "SF Mono", "SFMono-Regular", ui-monospace, Menlo, monospace;
+
+  --text-hero:     56px;
+  --text-display:  40px;
+  --text-h1:       28px;
+  --text-h2:       18px;
+  --text-body:     14px;
+  --text-small:    12px;
+  --text-tiny:     11px;
+
+  --leading-hero:    1.04;
+  --leading-display: 1.08;
   --leading-h1:      1.2;
-  --leading-h2:      1.3;
+  --leading-h2:      1.35;
   --leading-body:    1.55;
   --leading-small:   1.5;
   --leading-tiny:    1.4;
 
-  --tracking-display: -0.02em;
-  --tracking-h1:      -0.015em;
-  --tracking-body:    -0.005em;
-  --tracking-mono:    0;
+  --tracking-hero:    -0.035em;
+  --tracking-display: -0.028em;
+  --tracking-h1:      -0.02em;
+  --tracking-h2:      -0.01em;
+  --tracking-body:    -0.003em;
+  --tracking-mono:    -0.005em;
 
-  /* ── Radius — pick by surface, don't mix ──────────────────────────────
-     0   hard edges:  table rows, dividers
-     sm  4px:         badges, small chips
-     md  6px:         buttons, inputs
-     lg  8px:         cards, panels
-     xl  12px:        modals, popovers, hero containers
-  */
+  /* ── SHAPE ─────────────────────────────────────────────────────────── */
+
   --radius-none: 0;
-  --radius-sm:   4px;
-  --radius-md:   6px;
-  --radius-lg:   8px;
-  --radius-xl:   12px;
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   10px;
+  --radius-xl:   14px;
+  --radius-2xl:  20px;
 
-  /* ── Spacing — 4px base. Tailwind defaults are fine; these are aliases
-     for the rhythm we actually use. */
+  /* ── SPACE — 4px base ──────────────────────────────────────────────── */
+
   --space-1:  4px;
   --space-2:  8px;
   --space-3:  12px;
@@ -115,52 +126,78 @@
   --space-12: 48px;
   --space-16: 64px;
   --space-24: 96px;
+  --space-32: 128px;
 
-  /* ── Motion ────────────────────────────────────────────────────────────
-     One easing curve (slightly snappy), two durations.
-     If motion isn't communicating state change, it shouldn't exist. */
-  --ease-out: cubic-bezier(0.2, 0.6, 0.3, 1);
-  --dur-fast:        120ms;
-  --dur-deliberate:  240ms;
+  /* ── MOTION — macOS-style ──────────────────────────────────────────── */
 
-  /* ── Elevation ─────────────────────────────────────────────────────────
-     In dark mode, elevation = brightness step (background color change).
-     Shadows reserved for overlays (modals, popovers, tooltips) — never
-     for "this card is important." */
-  --shadow-popover: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 4px 12px -2px rgba(0, 0, 0, 0.4);
-  --shadow-modal:   0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+  --ease-out:   cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.5, 1.5, 0.4, 1);
+  --dur-fast:       160ms;
+  --dur-deliberate: 320ms;
+
+  /* ── SHADOWS — Apple-soft, used sparingly ──────────────────────────── */
+
+  /* Card surfaces don't get shadow by default — borders carry hierarchy.
+     Reserve shadows for things that genuinely float (popovers, modals,
+     selected segmented control thumb, focus glow on inputs). */
+  --shadow-card:    0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-modal:   0 24px 48px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-thumb:   0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --shadow-focus:   0 0 0 4px rgba(4, 120, 87, 0.12);
 }
 
-/* ── Light mode port ────────────────────────────────────────────────────
-   Faithful inversion of the dark hierarchy. Same step relationships,
-   same component code — only token values change. */
-:root[data-theme="light"] {
-  --color-ink-0:  #fafafa;
-  --color-ink-1:  #ffffff;
-  --color-ink-2:  #ffffff;
-  --color-ink-3:  #e8e8eb;
-  --color-ink-4:  #d4d4d8;
-  --color-ink-5:  #a1a1aa;
-  --color-ink-6:  #71717a;
-  --color-ink-7:  #18181b;
-  --color-ink-8:  #09090b;
+/* ── DARK MODE PORT ──────────────────────────────────────────────────────
+   Faithful port — same hierarchy, same components, just inverted ramp.
+   Apply via `data-theme="dark"` on <html>. */
+:root[data-theme="dark"] {
+  --color-ink-0:  #0a0a0a;
+  --color-ink-1:  #111111;
+  --color-ink-2:  #1a1a1a;
+  --color-ink-3:  #262626;
+  --color-ink-4:  #3a3a3a;
+  --color-ink-5:  #5a5a5a;
+  --color-ink-6:  #8a8a8a;
+  --color-ink-7:  #d4d4d4;
+  --color-ink-8:  #ededed;
+  --color-ink-9:  #fafafa;
 
-  --color-accent:       #059669;  /* slightly darker for AA contrast on white */
-  --color-accent-dim:   #d1fae5;
-  --color-accent-faint: rgba(5, 150, 105, 0.06);
+  --color-accent:        #10b981;
+  --color-accent-hover:  #34d399;
+  --color-accent-soft:   rgba(16, 185, 129, 0.08);
+  --color-accent-faint:  rgba(16, 185, 129, 0.04);
+  --color-accent-line:   rgba(16, 185, 129, 0.25);
+
+  --color-success:      #34d399;
+  --color-success-soft: rgba(52, 211, 153, 0.1);
+  --color-warning:      #fbbf24;
+  --color-warning-soft: rgba(251, 191, 36, 0.1);
+  --color-danger:       #f87171;
+  --color-danger-soft:  rgba(248, 113, 113, 0.1);
+  --color-info:         #60a5fa;
+  --color-info-soft:    rgba(96, 165, 250, 0.1);
+
+  --shadow-card:    0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-modal:   0 24px 48px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-thumb:   0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --shadow-focus:   0 0 0 4px rgba(16, 185, 129, 0.2);
 }
 
-/* ── Base ───────────────────────────────────────────────────────────────── */
+/* ── BASE ─────────────────────────────────────────────────────────────── */
 
 html {
   background: var(--color-bg);
   color: var(--color-fg);
   font-family: var(--font-display);
-  font-feature-settings: "ss01", "cv11"; /* Inter's stylistic sets */
+  font-feature-settings: "cv11", "ss01", "ss03";  /* Inter stylistic sets */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Prevent layout flash on theme toggle */
+  color-scheme: light;
 }
+html[data-theme="dark"] { color-scheme: dark; }
 
 body {
   background: var(--color-bg);
@@ -170,51 +207,65 @@ body {
   letter-spacing: var(--tracking-body);
 }
 
-*::selection {
+::selection {
   background: var(--color-accent);
-  color: #000;
+  color: white;
 }
 
-/* Focus rings — visible on every interactive element by default.
-   Subtle but unmistakable. */
+/* Focus — Apple-style ring (color + offset + soft glow) */
 *:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-accent);
+  border-radius: var(--radius-md);
 }
 
-/* Buttons and form controls — strip browser default chrome, defer
-   styling to component primitives. */
-button {
-  background: none;
-  border: none;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-input, textarea, select {
+button, input, textarea, select {
   font: inherit;
   color: inherit;
 }
+button { background: none; border: none; cursor: pointer; }
 
-/* Scrollbar — barely there, matches the system */
+/* Scrollbar — barely there */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-ink-3); border-radius: var(--radius-sm); }
-::-webkit-scrollbar-thumb:hover { background: var(--color-ink-4); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-4);
+  border-radius: 999px;
+  border: 2px solid var(--color-bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-ink-5); }
 
-/* ── Utility classes (one-offs that don't deserve a component) ──────── */
+/* ── UTILITY ──────────────────────────────────────────────────────────── */
 
 .font-mono {
   font-family: var(--font-mono);
   letter-spacing: var(--tracking-mono);
+  font-feature-settings: "ss02";  /* JetBrains Mono ligature variant */
 }
 
-/* Faint grid background — opt-in, used on hero surfaces only.
-   Borders make the system feel measured, not decorative. */
-.bg-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--color-border) 50%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-border) 50%, transparent) 1px, transparent 1px);
-  background-size: 56px 56px;
+/* Hairline divider — used in tables and dense lists where 1px solid
+   feels too heavy. Half-pixel rendering via shadow. */
+.hairline {
+  background: var(--color-border);
+  height: 1px;
+}
+
+/* Subtle dotted grid — opt-in on hero sections only. */
+.bg-dots {
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--color-fg-subdued) 40%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center;
+}
+
+/* Sticky-translucent nav bar (Apple system-chrome style) */
+.bg-blur-bar {
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Subtle inner-shadow for pressed states (Apple-style affordance) */
+.inset-shadow-soft {
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04);
 }

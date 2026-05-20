@@ -3,7 +3,8 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Mail, Lock, ArrowRight } from "lucide-react";
+import { AlertTriangle, Mail, Lock } from "lucide-react";
+import { motion } from "framer-motion";
 import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,8 +16,11 @@ type Mode = "signin" | "signup" | "magic";
 function LoginForm() {
   const search = useSearchParams();
   const next = search.get("next") || "/pick";
+  const initialMode: Mode =
+    search.get("mode") === "signup" ? "signup" :
+    search.get("mode") === "magic" ? "magic" : "signin";
 
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -61,7 +65,12 @@ function LoginForm() {
   const isSent = status === "sent";
 
   return (
-    <div className="w-full max-w-sm">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+      className="w-full max-w-sm"
+    >
       <Link href="/" className="mb-12 block">
         <Brand />
       </Link>
@@ -151,7 +160,7 @@ function LoginForm() {
       <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-center text-[12px] text-[var(--color-fg-subdued)]">
         By continuing you agree to our terms. <Link href="/pricing" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">See pricing</Link>.
       </div>
-    </div>
+    </motion.div>
   );
 }
 

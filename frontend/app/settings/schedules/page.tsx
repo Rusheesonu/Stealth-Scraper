@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, AlertTriangle, Power, Trash2, Plus, Clock } from "lucide-react";
 import { PageShell } from "@/components/nav";
+import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -74,22 +75,19 @@ export default function SchedulesPage() {
 
   return (
     <PageShell maxWidth="max-w-4xl">
-      <div className="py-12">
-        <div className="mb-10 flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Account · Schedules</div>
-            <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">Scheduled scrapes</h1>
-            <p className="mt-2 max-w-xl text-[13px] text-[var(--color-fg-muted)]">
-              Run a saved template on a cron schedule. Optional webhook delivers
-              results to your URL. Each run counts as 1 scrape against your quota.
-            </p>
-          </div>
-          {hasTemplates && !showForm && (
+      <div>
+        <PageHeader
+          eyebrow="Account · Schedules"
+          title="Scheduled scrapes"
+          description="Run a saved template on a cron schedule. Optional webhook delivers results to your URL. Each run counts as 1 scrape against your quota."
+          backHref="/"
+          backLabel="Home"
+          actions={hasTemplates && !showForm ? (
             <Button onClick={() => setShowForm(true)} variant="primary" size="md">
               <Plus className="h-3.5 w-3.5" /> New
             </Button>
-          )}
-        </div>
+          ) : undefined}
+        />
 
         {error && (
           <Card density="compact" className="mb-6 border-[color:var(--color-danger)]/30 text-[13px] text-[color:var(--color-danger)]">

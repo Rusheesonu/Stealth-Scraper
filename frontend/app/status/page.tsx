@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { PageShell } from "@/components/nav";
+import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { api, type StatusResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -37,13 +38,14 @@ export default function StatusPage() {
 
   return (
     <PageShell maxWidth="max-w-3xl">
-      <div className="py-12">
-        <div className="mb-10">
-          <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">System status</div>
-          <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
-            stealthscraper.dev
-          </h1>
-        </div>
+      <div>
+        <PageHeader
+          eyebrow="System status"
+          title="stealthscraper.dev"
+          description="Live health of every component. Auto-refreshes every 30 seconds."
+          backHref="/"
+          backLabel="Home"
+        />
 
         {/* Top status banner */}
         {error ? (

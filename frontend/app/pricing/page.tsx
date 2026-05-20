@@ -7,6 +7,9 @@ import { PageShell } from "@/components/nav";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { MotionStagger, MotionStaggerItem } from "@/components/motion-primitives";
+import { motion } from "framer-motion";
+import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
@@ -72,25 +75,39 @@ export default function PricingPage() {
 
   return (
     <PageShell maxWidth="max-w-6xl">
-      <div className="py-12 md:py-16">
-        <div className="mb-12 text-center">
+      <div className="md:py-4">
+        <div className="mb-6">
+          <Link
+            href="/"
+            className="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5 text-[12px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+          >
+            <ArrowLeft className="h-3 w-3 transition-transform duration-[var(--dur-fast)] group-hover:-translate-x-0.5" />
+            Home
+          </Link>
+        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+          className="mb-12 text-center"
+        >
           <Badge tone="muted" className="mb-5">Pricing · USD</Badge>
-          <h1 className="text-[40px] font-semibold tracking-[-0.02em] text-[var(--color-fg-strong)]">
+          <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.028em] text-[var(--color-fg-strong)]">
             Honest pricing.<br />No dark patterns.
           </h1>
           <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
             Three tiers. No fake urgency. No &quot;most popular&quot; sticker we made up.
             Cancel anytime, 14-day refund.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <MotionStagger className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
           {TIERS.map((t) => (
-            <div
+            <MotionStaggerItem
               key={t.plan}
-              className={`flex flex-col rounded-lg border p-6 ${
+              className={`flex flex-col rounded-xl border p-6 ${
                 t.highlight
-                  ? "border-[color:var(--color-accent)]/40 bg-[var(--color-accent-faint)] ring-1 ring-[color:var(--color-accent)]/20"
+                  ? "border-[color:var(--color-accent)]/40 bg-[var(--color-accent-faint)] ring-1 ring-[color:var(--color-accent)]/15"
                   : "border-[var(--color-border)] bg-[var(--color-surface)]"
               }`}
             >
@@ -120,9 +137,9 @@ export default function PricingPage() {
               >
                 {loadingPlan === t.plan ? "Loading…" : t.cta}
               </Button>
-            </div>
+            </MotionStaggerItem>
           ))}
-        </div>
+        </MotionStagger>
 
         {error && (
           <p className="mt-6 text-center text-[12px] text-[color:var(--color-danger)]">{error}</p>
