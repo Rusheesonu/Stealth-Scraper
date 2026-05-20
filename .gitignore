@@ -44,3 +44,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Local agent/IDE state — never tracked
+.claude/
+.cursor/
+.aider*

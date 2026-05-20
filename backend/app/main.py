@@ -306,14 +306,14 @@ async def assist_schema(
     user_id: str = Depends(enforce_plan),
 ) -> dict[str, Any]:
     """Snapshot the URL, hand the element catalog + user's description to
-    Claude, return a generated template ready to use with /extract.
+    the configured LLM, return a generated template ready to use with /extract.
 
     Counts as 1 scrape (for the snapshot) PLUS a flat per-call assist cost
     we absorb. Free tier: 10 assist calls/day."""
     if not assist.is_configured():
         raise HTTPException(
             status_code=503,
-            detail="AI schema generation not configured on this instance (ANTHROPIC_API_KEY missing).",
+            detail="AI schema generation not configured on this instance (LLM_API_KEY missing).",
         )
     try:
         snap = await take_snapshot(

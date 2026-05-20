@@ -1,7 +1,7 @@
 """Async client for the Stealth-Scraper REST API.
 
-Thin wrapper over httpx — no surprises, no magic. Patterns match the
-Anthropic / OpenAI SDKs so it'll feel familiar.
+Thin wrapper over httpx — no surprises, no magic. Patterns mirror modern
+LLM SDKs (OpenAI, etc.) so the ergonomics feel familiar.
 """
 
 from __future__ import annotations
