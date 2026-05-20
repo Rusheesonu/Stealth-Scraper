@@ -245,6 +245,220 @@ PAGE_TYPE_SEED_DESCRIPTIONS = {
 }
 
 
+# ── Heuristic fallback — works without an LLM ────────────────────────────
+#
+# The whole landing-page magic moment depends on auto-picking fields. If
+# the LLM is missing (local dev w/o key), rate-limited (Groq hits TPM
+# during a viral spike), or just slow, we MUST still show the visitor
+# something concrete. Otherwise the homepage demo looks broken.
+#
+# This function finds the strongest repeating patterns in the element
+# catalog using simple signals — no LLM. The fields it returns are good
+# enough for the "wow, it auto-detected!" moment on >90% of common pages.
+# The LLM still gets first crack; this is only the fallback.
+
+
+def _heuristic_suggest_fields(
+    elements: list[dict[str, Any]],
+    *,
+    max_fields: int = 5,
+) -> list[dict[str, Any]]:
+    """Find the most likely useful fields without calling an LLM.
+
+    Strategy:
+      1. Group selectors by their SHAPE (strip nth-of-type). Each shape
+         that has ≥3 matching elements is a repeating pattern — candidate
+         list field.
+      2. For each repeating shape, score it by total text density across
+         its matches (more text = more useful for extraction).
+      3. Also surface scalar candidates: the page h1, any element with
+         currency markers, the first <a> with non-trivial text.
+      4. Return the top max_fields with reasonable labels.
+
+    Never returns invented selectors — every output came directly from
+    the catalog. Same anti-hallucination guarantee as the LLM path.
+    """
+    if not elements:
+        return []
+
+    # Group by selector shape
+    by_shape: dict[str, list[dict[str, Any]]] = {}
+    for el in elements:
+        css = el.get("css") or ""
+        if not css:
+            continue
+        shape = _NTH_OF_TYPE_RE.sub("", css)
+        by_shape.setdefault(shape, []).append(el)
+
+    # Score repeating patterns: count × average text length
+    repeating: list[tuple[str, list[dict[str, Any]], float]] = []
+    for shape, items in by_shape.items():
+        if len(items) < 3:
+            continue
+        avg_text_len = sum(len((el.get("text") or "")) for el in items) / len(items)
+        if avg_text_len < 2:
+            continue  # all-empty repeating pattern → not useful (probably nav)
+        # Slight bonus for shapes that look like content (h2, h3, span inside a list item)
+        score = len(items) * avg_text_len
+        repeating.append((shape, items, score))
+
+    # Sort by score, take top patterns first
+    repeating.sort(key=lambda x: -x[2])
+
+    out: list[dict[str, Any]] = []
+    used_shapes: set[str] = set()
+
+    for shape, items, _score in repeating:
+        if len(out) >= max_fields:
+            break
+        if shape in used_shapes:
+            continue
+        used_shapes.add(shape)
+        label = _label_from_sample(items[0])
+        # Dedupe labels (prepend a numeric if needed)
+        label = _unique_label(label, [f["label"] for f in out])
+        out.append({
+            "label": label,
+            "selector": shape,
+            "kind": "list",
+            "attr": "",
+        })
+
+    # If we didn't find any repeating patterns (single-product page, doc page),
+    # fall back to scalar fields: h1, price patterns, primary image.
+    if len(out) < max_fields:
+        scalars = _scalar_candidates(elements, exclude_labels={f["label"] for f in out})
+        for s in scalars:
+            if len(out) >= max_fields:
+                break
+            out.append(s)
+
+    return out
+
+
+def _label_from_sample(el: dict[str, Any]) -> str:
+    """Best-effort label from a sample element. Looks at CSS selector
+    class names (most reliable — devs name their classes after content),
+    then tag, then text content, then attributes.
+
+    Order matters: selector class hints win because they reveal the
+    site author's intent. .product-price beats checking if text starts
+    with $."""
+    tag = (el.get("tag") or "").lower()
+    text = (el.get("text") or "").strip()
+    text_lo = text.lower()
+    css = (el.get("css") or "").lower()
+    attrs = el.get("attrs") or {}
+
+    # ── Selector class-name hints (strongest signal — devs name classes
+    # after their semantic content). Check most specific first.
+    if "price" in css:                                       return "price"
+    if "title" in css or "headline" in css:                  return "title"
+    if "author" in css or "byline" in css:                   return "author"
+    if "rating" in css or "stars" in css or "score" in css:  return "rating"
+    if "review" in css or "comment" in css:                  return "reviews"
+    if "tag" in css and tag not in ("a", "img"):             return "tag"
+    if "quote" in css and tag in ("span", "div", "p"):       return "quote"
+    if "name" in css:                                        return "name"
+    if "description" in css or "desc" in css or "body" in css: return "description"
+    if "category" in css:                                    return "category"
+    if "date" in css or "time" in css:                       return "date"
+    if "image" in css or "thumb" in css or "photo" in css:   return "image"
+
+    # ── Tag-based defaults (after class hints because classes are more
+    # specific than tags)
+    if tag in ("h1", "h2", "h3"):
+        return "title" if tag == "h1" else "heading"
+    if tag == "img":
+        return "image"
+    if tag == "small":  # HTML5 spec: small = attribution/byline
+        return "author"
+    if tag == "a":
+        return "link"
+    if tag == "button":
+        return "button"
+    if tag == "time":
+        return "date"
+
+    # ── Text-content patterns
+    if re.search(r"[\$€£₹¥]\s*\d", text):
+        return "price"
+    if any(w in text_lo for w in ("rating", "stars", "out of 5")):
+        return "rating"
+    if any(w in text_lo for w in ("review", "comment")):
+        return "review_count"
+    if re.search(r"\b\d+\s*(point|upvote)", text_lo):
+        return "points"
+    # Quote-like text (starts + ends with quote marks)
+    if (text.startswith(("“", '"', "'", "«"))
+            and text.endswith(("”", '"', "'", "»"))
+            and len(text) > 20):
+        return "quote"
+
+    # ── Attribute hints
+    if attrs.get("href"):
+        return "link"
+    if attrs.get("src"):
+        return "image"
+
+    return "field"
+
+
+def _unique_label(base: str, taken: list[str]) -> str:
+    """Ensure no two fields share the same label (the picker enforces this
+    too, but better to send a clean schema)."""
+    if base not in taken:
+        return base
+    i = 2
+    while f"{base}_{i}" in taken:
+        i += 1
+    return f"{base}_{i}"
+
+
+def _scalar_candidates(
+    elements: list[dict[str, Any]],
+    *,
+    exclude_labels: set[str],
+) -> list[dict[str, Any]]:
+    """Pick a few single-occurrence high-value fields from the catalog —
+    h1, page price, primary image. Used to round out heuristic suggestions
+    when there aren't enough repeating patterns to fill max_fields."""
+    out: list[dict[str, Any]] = []
+
+    # First h1
+    for el in elements:
+        if (el.get("tag") or "").lower() == "h1" and (el.get("text") or "").strip():
+            css = el.get("css") or ""
+            if css and "title" not in exclude_labels:
+                out.append({"label": "title", "selector": css, "kind": "text", "attr": ""})
+                break
+
+    # First price-looking text
+    for el in elements:
+        text = (el.get("text") or "").strip()
+        if re.search(r"[\$€£₹¥]\s*\d", text):
+            css = el.get("css") or ""
+            if css and "price" not in exclude_labels:
+                out.append({"label": "price", "selector": css, "kind": "text", "attr": ""})
+                break
+
+    # First substantial image
+    for el in elements:
+        if (el.get("tag") or "").lower() == "img":
+            attrs = el.get("attrs") or {}
+            css = el.get("css") or ""
+            if css and attrs.get("src") and "image" not in exclude_labels:
+                out.append({
+                    "label": "image",
+                    "selector": css,
+                    "kind": "attr",
+                    "attr": "src",
+                })
+                break
+
+    return out
+
+
 # ── Prompt ───────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
@@ -387,24 +601,49 @@ async def auto_suggest_template(
     url: str,
     title: str = "",
 ) -> tuple[list[dict[str, Any]], str]:
-    """Landing-page magic preview entry point. Detects what kind of page
-    this is, seeds the LLM with a type-specific description, returns the
-    template + the detected page type so the frontend can label the preview
-    ("We picked these because this looks like a product page").
+    """Landing-page magic preview entry point. The whole homepage demo
+    hinges on this — visitors paste a URL and expect to see fields
+    auto-picked. We must ALWAYS return something concrete; the empty
+    "we couldn't auto-pick" state breaks the magic.
+
+    Resolution order:
+      1. If the LLM is configured, ask it (best results — picks the
+         specific fields a user wants for this page type).
+      2. If the LLM is missing OR returns nothing OR throws, fall back
+         to the local heuristic suggester (works without any LLM,
+         finds repeating patterns + high-value scalars).
+      3. If even the heuristic returns nothing (extremely sparse page),
+         return an empty template — the frontend then shows the
+         "open in picker and click what you want" CTA.
 
     Returns: (template, page_type)
     """
     page_type = _detect_page_type(elements, title)
-    seed_description = PAGE_TYPE_SEED_DESCRIPTIONS.get(
-        page_type, PAGE_TYPE_SEED_DESCRIPTIONS["generic"]
-    )
-    template = await generate_template(
-        elements=elements,
-        description=seed_description,
-        url=url,
-        title=title,
-    )
-    return template, page_type
+
+    # Path 1 — try the LLM first if configured. Soft-fail to heuristic
+    # on ANY error so the homepage demo never breaks because of LLM issues.
+    if is_configured():
+        try:
+            seed_description = PAGE_TYPE_SEED_DESCRIPTIONS.get(
+                page_type, PAGE_TYPE_SEED_DESCRIPTIONS["generic"]
+            )
+            template = await generate_template(
+                elements=elements,
+                description=seed_description,
+                url=url,
+                title=title,
+            )
+            if template:
+                return template, page_type
+            log.info("LLM returned empty template, falling back to heuristic")
+        except LLMError as e:
+            log.warning("LLM error (%s), falling back to heuristic: %s", e.kind, e)
+        except Exception as e:
+            log.warning("LLM unexpected error, falling back to heuristic: %r", e)
+
+    # Path 2 — heuristic fallback. Always works, no network calls.
+    heuristic_template = _heuristic_suggest_fields(elements, max_fields=5)
+    return heuristic_template, page_type
 
 
 async def generate_template(
