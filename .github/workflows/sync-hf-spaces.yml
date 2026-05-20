@@ -1,37 +1,42 @@
 name: Sync to HuggingFace Spaces
 
-# Pushes the latest master to the HF Spaces git remote so the backend
-# deploys automatically. Without this, GitHub pushes never reached HF —
-# they're separate git endpoints. HF Spaces rebuilds the Docker image
-# on every push to its `main` branch (which is our `master`).
+# Auto-deploys backend/ to HF Spaces on every push to master.
+#
+# Why subtree? The GitHub repo is a monorepo (backend/, frontend/, oss/).
+# HF Spaces with the Docker SDK expects the Dockerfile at the REPO ROOT,
+# so we use `git subtree split --prefix=backend` to produce a synthetic
+# branch containing only backend/* at root, then push that to HF's main.
 #
 # Setup (one-time):
-#   1. GitHub repo Settings → Secrets and variables → Actions → New repo secret:
+#   1. GitHub repo → Settings → Secrets and variables → Actions →
+#      New repository secret:
 #        Name:  HF_TOKEN
-#        Value: <write-access HF token from https://huggingface.co/settings/tokens>
-#   2. (Optional) Settings → Secrets → New repo variable:
+#        Value: <write-scoped HF token from https://huggingface.co/settings/tokens>
+#   2. (Optional) New repository variable (not secret):
 #        Name:  HF_SPACE
 #        Value: Illusion98/stealth-scraeper
-#      Falls back to the hardcoded default below if not set.
+#      Falls back to the hardcoded default below.
 
 on:
   push:
     branches: [master, main]
-  # Allow manual trigger from the Actions tab too.
+    # Skip pushes that touch nothing in backend/ (or this workflow itself).
+    paths:
+      - 'backend/**'
+      - '.github/workflows/sync-hf-spaces.yml'
   workflow_dispatch:
 
 jobs:
   sync:
-    name: Push master → HF Spaces main
+    name: backend/ → HF Spaces main
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (full history — HF needs the full ref)
+      - name: Checkout (full history — subtree needs it)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
 
-      - name: Push to HF Spaces
+      - name: Subtree-split backend/ and force-push to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ vars.HF_SPACE || 'Illusion98/stealth-scraeper' }}
@@ -40,6 +45,18 @@ jobs:
             echo "::error::HF_TOKEN secret is not set. Add it under repo Settings → Secrets and variables → Actions."
             exit 1
           fi
-          # User-component-of-the-namespace is used as the git username.
+          # User-component-of-the-namespace is used as the git auth username.
           HF_USER="${HF_SPACE%%/*}"
-          git push --force "https://${HF_USER}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main
+          HF_URL="https://${HF_USER}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}"
+
+          # CI needs a git identity to create the subtree commit.
+          git config user.email "ci@stealthscraper.dev"
+          git config user.name "ci-bot"
+
+          # Produce a synthetic SHA where backend/ contents sit at root.
+          SPLIT_SHA=$(git subtree split --prefix=backend HEAD)
+          echo "Subtree SHA: $SPLIT_SHA"
+
+          # Force-push because HF's main has its own divergent history
+          # (the repo was originally seeded outside our git tree).
+          git push --force "$HF_URL" "$SPLIT_SHA:main"

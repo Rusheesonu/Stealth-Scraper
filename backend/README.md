@@ -1,7 +1,21 @@
+---
+title: Stealth Scraper API
+emoji: 🕸️
+colorFrom: gray
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+short_description: FastAPI backend — stealth Chromium snapshot + structured extract
+---
+
 # Backend — Stealth-Scraper v2
 
 FastAPI + **nodriver** (stealth-patched Chromium via CDP). Talks to the
 Next.js frontend on `:3000`.
+
+> The YAML front-matter above is required by HuggingFace Spaces, which
+> deploys this directory as its Docker SDK root. Don't remove it.
 
 ## Quickstart
 
