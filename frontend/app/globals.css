@@ -1,22 +1,173 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────
+   STEALTH-SCRAPER DESIGN SYSTEM v1
+   ─────────────────────────────────────────────────────────────────────────
+   Philosophy: a precision instrument, not a SaaS dashboard.
+   - One neutral ramp. One accent (emerald, used sparingly). One semantic set.
+   - Dark mode is primary. Light is a faithful port — same hierarchy.
+   - Borders are the primary separator. Shadows only on overlays.
+   - Monospace where data lives (URLs, selectors, IDs, numerics, timestamps).
+   - Motion means something. Never decorative.
+   ───────────────────────────────────────────────────────────────────────── */
+
 @theme {
-  --color-bg: #0a0a0a;
-  --color-panel: #111111;
-  --color-border: #1f1f1f;
-  --color-fg: #fafafa;
-  --color-muted: #737373;
-  --color-accent: #10b981;
-  --color-accent-dim: #065f46;
-  --font-display: "Inter", "SF Pro Display", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* ── Color: neutral ramp ──────────────────────────────────────────────
+     Step  0 = canvas    (page background)
+     Step  1 = surface   (cards, panels)
+     Step  2 = elevated  (modals, popovers, hover)
+     Step  3 = border    (default separator)
+     Step  4 = border-strong (focus, active)
+     Step  5 = subdued   (placeholders, disabled text)
+     Step  6 = muted     (secondary text)
+     Step  7 = fg        (primary text)
+     Step  8 = fg-strong (headings, emphasis)
+  */
+  --color-ink-0:  #0a0a0b;
+  --color-ink-1:  #111114;
+  --color-ink-2:  #18181b;
+  --color-ink-3:  #1f1f23;
+  --color-ink-4:  #2a2a2f;
+  --color-ink-5:  #4a4a52;
+  --color-ink-6:  #8a8a92;
+  --color-ink-7:  #ececed;
+  --color-ink-8:  #fafafa;
+
+  /* Accent — emerald, used ONLY for: primary action, active state, success.
+     If you reach for accent for decoration, stop. */
+  --color-accent:        #10b981;
+  --color-accent-dim:    #064e3b;
+  --color-accent-faint:  rgba(16, 185, 129, 0.08);
+
+  /* Semantic — sparing use. Borders muted; fills only when meaning is loud. */
+  --color-success:      #10b981;
+  --color-success-dim:  rgba(16, 185, 129, 0.12);
+  --color-warning:      #f59e0b;
+  --color-warning-dim:  rgba(245, 158, 11, 0.12);
+  --color-danger:       #ef4444;
+  --color-danger-dim:   rgba(239, 68, 68, 0.12);
+  --color-info:         #60a5fa;
+  --color-info-dim:     rgba(96, 165, 250, 0.12);
+
+  /* Mapped tokens — what components reference. Switching dark↔light
+     changes these (see below), not the components. */
+  --color-bg:           var(--color-ink-0);
+  --color-surface:      var(--color-ink-1);
+  --color-elevated:     var(--color-ink-2);
+  --color-border:       var(--color-ink-3);
+  --color-border-strong: var(--color-ink-4);
+  --color-fg-subdued:   var(--color-ink-5);
+  --color-fg-muted:     var(--color-ink-6);
+  --color-fg:           var(--color-ink-7);
+  --color-fg-strong:    var(--color-ink-8);
+
+  /* Backwards-compat with v0 token names so existing pages don't break
+     while we sweep. Will be removed in the final pass. */
+  --color-panel:        var(--color-surface);
+  --color-muted:        var(--color-fg-muted);
+
+  /* ── Type ──────────────────────────────────────────────────────────────
+     One display face (Inter), one mono (JetBrains Mono).
+     Six-step scale with explicit line-heights. */
+  --font-display: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-display:  36px;  /* hero h1 */
+  --text-h1:       28px;  /* page title */
+  --text-h2:       20px;  /* section title */
+  --text-body:     14px;  /* default UI */
+  --text-small:    12px;  /* metadata, labels */
+  --text-tiny:     11px;  /* mono IDs, timestamps */
+
+  --leading-display: 1.1;
+  --leading-h1:      1.2;
+  --leading-h2:      1.3;
+  --leading-body:    1.55;
+  --leading-small:   1.5;
+  --leading-tiny:    1.4;
+
+  --tracking-display: -0.02em;
+  --tracking-h1:      -0.015em;
+  --tracking-body:    -0.005em;
+  --tracking-mono:    0;
+
+  /* ── Radius — pick by surface, don't mix ──────────────────────────────
+     0   hard edges:  table rows, dividers
+     sm  4px:         badges, small chips
+     md  6px:         buttons, inputs
+     lg  8px:         cards, panels
+     xl  12px:        modals, popovers, hero containers
+  */
+  --radius-none: 0;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+
+  /* ── Spacing — 4px base. Tailwind defaults are fine; these are aliases
+     for the rhythm we actually use. */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  /* ── Motion ────────────────────────────────────────────────────────────
+     One easing curve (slightly snappy), two durations.
+     If motion isn't communicating state change, it shouldn't exist. */
+  --ease-out: cubic-bezier(0.2, 0.6, 0.3, 1);
+  --dur-fast:        120ms;
+  --dur-deliberate:  240ms;
+
+  /* ── Elevation ─────────────────────────────────────────────────────────
+     In dark mode, elevation = brightness step (background color change).
+     Shadows reserved for overlays (modals, popovers, tooltips) — never
+     for "this card is important." */
+  --shadow-popover: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+  --shadow-modal:   0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 8px 24px -4px rgba(0, 0, 0, 0.5);
 }
 
-html, body {
+/* ── Light mode port ────────────────────────────────────────────────────
+   Faithful inversion of the dark hierarchy. Same step relationships,
+   same component code — only token values change. */
+:root[data-theme="light"] {
+  --color-ink-0:  #fafafa;
+  --color-ink-1:  #ffffff;
+  --color-ink-2:  #ffffff;
+  --color-ink-3:  #e8e8eb;
+  --color-ink-4:  #d4d4d8;
+  --color-ink-5:  #a1a1aa;
+  --color-ink-6:  #71717a;
+  --color-ink-7:  #18181b;
+  --color-ink-8:  #09090b;
+
+  --color-accent:       #059669;  /* slightly darker for AA contrast on white */
+  --color-accent-dim:   #d1fae5;
+  --color-accent-faint: rgba(5, 150, 105, 0.06);
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+
+html {
   background: var(--color-bg);
   color: var(--color-fg);
   font-family: var(--font-display);
+  font-feature-settings: "ss01", "cv11"; /* Inter's stylistic sets */
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  letter-spacing: var(--tracking-body);
 }
 
 *::selection {
@@ -24,16 +175,46 @@ html, body {
   color: #000;
 }
 
-/* Scrollbar — subtle dark */
+/* Focus rings — visible on every interactive element by default.
+   Subtle but unmistakable. */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Buttons and form controls — strip browser default chrome, defer
+   styling to component primitives. */
+button {
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Scrollbar — barely there, matches the system */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #262626; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #404040; }
+::-webkit-scrollbar-thumb { background: var(--color-ink-3); border-radius: var(--radius-sm); }
+::-webkit-scrollbar-thumb:hover { background: var(--color-ink-4); }
 
-/* Grid background utility */
+/* ── Utility classes (one-offs that don't deserve a component) ──────── */
+
+.font-mono {
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-mono);
+}
+
+/* Faint grid background — opt-in, used on hero surfaces only.
+   Borders make the system feel measured, not decorative. */
 .bg-grid {
   background-image:
-    linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 48px 48px;
+    linear-gradient(to right, color-mix(in srgb, var(--color-border) 50%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-border) 50%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
 }

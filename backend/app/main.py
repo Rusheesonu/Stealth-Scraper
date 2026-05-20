@@ -180,7 +180,7 @@ async def status_endpoint() -> dict[str, Any]:
             {"name": "Scrape engine",   "status": "operational" if pool.running else "idle"},
             {"name": "Billing webhook", "status": "operational"},
             {"name": "Auth (Supabase)", "status": "operational"},
-            {"name": "AI assist (Claude)", "status": "operational" if assist.is_configured() else "not configured"},
+            {"name": f"AI assist ({assist.provider_label()})", "status": "operational" if assist.is_configured() else "not configured"},
         ],
     }
 

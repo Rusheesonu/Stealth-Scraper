@@ -2,125 +2,175 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
-import { Nav } from "@/components/nav";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { PageShell } from "@/components/nav";
+import { Card } from "@/components/ui/card";
 import { api, type StatusResponse } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
+/**
+ * Status page — realtime without anxiety. No spinners that imply failure,
+ * no red unless something is broken. Dot indicators do the talking.
+ */
 export default function StatusPage() {
   const [data, setData] = useState<StatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   useEffect(() => {
     let alive = true;
     async function tick() {
       try {
         const res = await api.status();
-        if (alive) {
-          setData(res);
-          setError(null);
-        }
+        if (alive) { setData(res); setError(null); setLastFetched(new Date()); }
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : String(e));
       }
     }
     void tick();
     const id = setInterval(tick, 30_000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
+    return () => { alive = false; clearInterval(id); };
   }, []);
 
-  const allOk =
-    data?.components.every(
-      (c) => c.status === "operational" || c.status === "idle",
-    ) ?? false;
+  const allOk = data?.components.every((c) => c.status === "operational" || c.status === "idle") ?? false;
+  const downCount = data?.components.filter((c) => c.status !== "operational" && c.status !== "idle" && c.status !== "not configured").length ?? 0;
 
   return (
-    <main className="min-h-screen">
-      <Nav />
-      <div className="mx-auto max-w-3xl px-6 py-12">
+    <PageShell maxWidth="max-w-3xl">
+      <div className="py-12">
         <div className="mb-10">
-          <h1 className="mb-2 text-3xl font-semibold tracking-tight">Status</h1>
-          <p className="text-sm text-[var(--color-muted)]">
-            Real-time view of Stealth-Scraper services. Refreshes every 30s.
-          </p>
+          <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">System status</div>
+          <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
+            stealthscraper.dev
+          </h1>
         </div>
 
-        {/* Top banner */}
+        {/* Top status banner */}
         {error ? (
-          <div className="mb-8 flex items-center gap-3 rounded-lg border border-red-900 bg-red-950/40 p-5">
-            <AlertTriangle className="h-5 w-5 text-red-300" />
-            <div>
-              <div className="font-medium text-red-200">Couldn&apos;t reach status endpoint</div>
-              <div className="text-xs text-red-300/80">{error}</div>
-            </div>
-          </div>
+          <BannerError detail={error} />
         ) : !data ? (
-          <div className="mb-8 flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)]/40 p-5">
-            <Loader2 className="h-5 w-5 animate-spin text-[var(--color-muted)]" />
-            <span className="text-sm text-[var(--color-muted)]">Loading…</span>
-          </div>
+          <BannerLoading />
+        ) : allOk ? (
+          <BannerOk version={data.version} proxy={data.scrape_engine.proxy_region} />
         ) : (
-          <div
-            className={`mb-8 flex items-center gap-3 rounded-lg border p-5 ${
-              allOk
-                ? "border-emerald-700 bg-emerald-950/30"
-                : "border-amber-700 bg-amber-950/30"
-            }`}
-          >
-            <CheckCircle2
-              className={`h-6 w-6 ${
-                allOk ? "text-emerald-400" : "text-amber-400"
-              }`}
-            />
-            <div>
-              <div className="text-lg font-semibold">
-                {allOk ? "All systems operational" : "Partial degradation"}
-              </div>
-              <div className="text-xs text-[var(--color-muted)]">
-                v{data.version} · scrape engine{" "}
-                {data.scrape_engine.running ? "warm" : "idle"}
-                {data.scrape_engine.proxy_region &&
-                  ` · proxy ${data.scrape_engine.proxy_region}`}
-              </div>
-            </div>
-          </div>
+          <BannerDegraded count={downCount} />
         )}
 
         {/* Components */}
         {data && (
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)]/30">
-            {data.components.map((c, i) => (
-              <div
-                key={c.name}
-                className={`flex items-center justify-between px-5 py-3.5 ${
-                  i > 0 ? "border-t border-[var(--color-border)]" : ""
-                }`}
-              >
-                <span className="text-sm">{c.name}</span>
-                <span className={statusPillClass(c.status)}>{c.status}</span>
-              </div>
-            ))}
+          <div className="mt-8">
+            <div className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              Components
+            </div>
+            <div className="overflow-hidden rounded-lg border border-[var(--color-border)]">
+              {data.components.map((c, i) => (
+                <div
+                  key={c.name}
+                  className={cn(
+                    "flex items-center justify-between gap-4 px-4 py-3.5",
+                    i > 0 && "border-t border-[var(--color-border)]",
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <StatusDot status={c.status} />
+                    <span className="text-[14px] text-[var(--color-fg)]">{c.name}</span>
+                  </div>
+                  <span className="font-mono text-[11px] text-[var(--color-fg-subdued)]">{c.status}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        <div className="mt-10 text-xs text-[var(--color-muted)]">
-          Want incident emails? Sign in →{" "}
-          <Link href="/settings/api-keys" className="text-[var(--color-accent)] hover:underline">
-            settings
-          </Link>
-          .
+        {lastFetched && (
+          <div className="mt-8 text-center font-mono text-[11px] text-[var(--color-fg-subdued)]">
+            Refreshed {timeAgo(lastFetched)} · auto-refreshes every 30s
+          </div>
+        )}
+
+        <div className="mt-12 text-center text-[12px] text-[var(--color-fg-muted)]">
+          For incidents or planned maintenance, follow{" "}
+          <a href="https://x.com/stealthscraper" target="_blank" rel="noreferrer" className="text-[var(--color-accent)] hover:underline">
+            @stealthscraper
+          </a>{" "}
+          or check{" "}
+          <Link href="/settings/usage" className="text-[var(--color-accent)] hover:underline">your usage</Link>.
         </div>
       </div>
-    </main>
+    </PageShell>
   );
 }
 
-function statusPillClass(status: string): string {
-  const base = "rounded-full px-2.5 py-0.5 text-xs font-mono";
-  if (status === "operational") return `${base} bg-emerald-950/60 text-emerald-300`;
-  if (status === "idle") return `${base} bg-zinc-800 text-zinc-400`;
-  if (status === "not configured") return `${base} bg-zinc-800 text-zinc-500`;
-  return `${base} bg-amber-950/60 text-amber-300`;
+function StatusDot({ status }: { status: string }) {
+  if (status === "operational") {
+    return (
+      <span className="relative inline-flex h-2 w-2">
+        <span className="absolute inset-0 animate-ping rounded-full bg-[var(--color-accent)] opacity-30" />
+        <span className="relative h-2 w-2 rounded-full bg-[var(--color-accent)]" />
+      </span>
+    );
+  }
+  if (status === "idle" || status === "not configured") {
+    return <span className="h-2 w-2 rounded-full bg-[var(--color-fg-subdued)]" />;
+  }
+  return <span className="h-2 w-2 rounded-full bg-[var(--color-warning)]" />;
+}
+
+function BannerOk({ version, proxy }: { version: string; proxy: string | null }) {
+  return (
+    <Card density="comfortable" className="border-[color:var(--color-accent)]/30 bg-[var(--color-accent-faint)]">
+      <div className="flex items-center gap-3">
+        <StatusDot status="operational" />
+        <div className="flex-1">
+          <div className="text-[16px] font-semibold tracking-tight text-[var(--color-fg-strong)]">All systems operational</div>
+          <div className="mt-0.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
+            v{version}{proxy && ` · egress ${proxy}`}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function BannerDegraded({ count }: { count: number }) {
+  return (
+    <Card density="comfortable" className="border-[color:var(--color-warning)]/30">
+      <div className="flex items-center gap-3">
+        <AlertTriangle className="h-5 w-5 text-[var(--color-warning)]" />
+        <div className="text-[16px] font-semibold tracking-tight">Partial degradation</div>
+        <span className="font-mono text-[11px] text-[var(--color-fg-muted)]">{count} component(s) impacted</span>
+      </div>
+    </Card>
+  );
+}
+
+function BannerError({ detail }: { detail: string }) {
+  return (
+    <Card density="comfortable" className="border-[color:var(--color-danger)]/30">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 h-5 w-5 text-[color:var(--color-danger)]" />
+        <div>
+          <div className="text-[16px] font-semibold tracking-tight">Status endpoint unreachable</div>
+          <div className="mt-1 font-mono text-[11px] text-[var(--color-fg-muted)]">{detail}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function BannerLoading() {
+  return (
+    <Card density="comfortable">
+      <div className="flex items-center gap-3 text-[14px] text-[var(--color-fg-muted)]">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Checking system status…
+      </div>
+    </Card>
+  );
+}
+
+function timeAgo(d: Date): string {
+  const sec = Math.max(1, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (sec < 60) return `${sec}s ago`;
+  return `${Math.floor(sec / 60)}m ago`;
 }
