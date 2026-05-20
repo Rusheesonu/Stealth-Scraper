@@ -6,7 +6,7 @@ colorTo: green
 sdk: docker
 app_port: 7860
 pinned: false
-short_description: FastAPI backend — stealth Chromium snapshot + structured extract
+short_description: Stealth Chromium snapshot + structured extract API
 ---
 
 # Backend — Stealth-Scraper v2
