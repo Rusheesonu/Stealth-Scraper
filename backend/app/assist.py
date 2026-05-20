@@ -1,6 +1,6 @@
 """AI-assisted schema generation via any OpenAI-compatible LLM endpoint.
 
-Defaults to Groq + Llama 3.3 70B because:
+Defaults to Groq because:
   * Free tier covers >>> our launch traffic (30 req/min, 14k req/day)
   * Sub-second latency makes the live demo feel magical
   * OpenAI-compatible API means swapping providers later is a one-line change
@@ -8,13 +8,23 @@ Defaults to Groq + Llama 3.3 70B because:
 Configure via env (defaults to Groq if unset):
     LLM_API_KEY   — your provider key (e.g. Groq, OpenAI, OpenRouter)
     LLM_BASE_URL  — defaults to https://api.groq.com/openai/v1
-    LLM_MODEL     — defaults to llama-3.3-70b-versatile
+    LLM_MODELS    — csv chain, e.g. "llama-3.3-70b-versatile,llama-3.1-8b-instant"
+                    Tried in order on model-level failures (deprecation, 404).
+    LLM_MODEL     — singular override; promoted to head of the chain.
+                    Use this when you want one specific model with the
+                    defaults as safety net.
+
+Why a chain?
+  Free-tier providers decommission models faster than you can ship. The chain
+  + in-process dead-model cache means a single deprecation announcement no
+  longer breaks production — the next request transparently uses the fallback.
 
 Future: users will BYOK via /settings/llm — see Task #41."""
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from typing import Any
@@ -22,21 +32,65 @@ from typing import Any
 import httpx
 
 
+log = logging.getLogger(__name__)
+
+
 # ── Provider config ──────────────────────────────────────────────────────
 
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
-# gemma2-9b-it: 15k TPM on Groq free tier — most generous in the free pool.
-# Quality is fine for "pick CSS selectors from a list." Override via LLM_MODEL
-# for harder pages once you're on a paid tier.
-LLM_MODEL = os.getenv("LLM_MODEL", "gemma2-9b-it")
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "30"))
+
+# Default model chain for Groq (the default provider). Order matters:
+# we try [0] first, fall through on model-level errors. Keep this list
+# narrow but resilient — two currently-supported flagship models. When
+# Groq deprecates one, the other keeps prod alive while we update.
+#
+# Updated 2026 after gemma2-9b-it deprecation:
+DEFAULT_MODEL_CHAIN = [
+    "llama-3.3-70b-versatile",  # Groq flagship, 30k TPM free, broadly capable
+    "llama-3.1-8b-instant",     # smaller fallback, same provider, separate quota
+]
+
+
+def _resolve_model_chain() -> list[str]:
+    """Resolve env config into an ordered model chain. Resolution order:
+
+      1. LLM_MODELS (csv) — explicit user-defined chain, wins outright.
+      2. LLM_MODEL (singular) — single model wanted first, but defaults
+         remain as fallbacks (so a typo or deprecation doesn't break prod).
+      3. DEFAULT_MODEL_CHAIN — both defaults, in order.
+    """
+    csv = os.getenv("LLM_MODELS", "").strip()
+    if csv:
+        return [m.strip() for m in csv.split(",") if m.strip()]
+    single = os.getenv("LLM_MODEL", "").strip()
+    if single:
+        # Promote the user's pick to head, keep defaults as safety net.
+        return [single] + [m for m in DEFAULT_MODEL_CHAIN if m != single]
+    return list(DEFAULT_MODEL_CHAIN)
+
+
+# In-process cache: once a model returns "decommissioned" or "not found",
+# don't keep retrying it on every subsequent request. Cleared on restart
+# (HF Spaces redeploys roughly daily anyway).
+_DEAD_MODELS: set[str] = set()
+
 
 # Trim defaults chosen so a noisy 1000-element page (Target product pages,
 # Amazon search results) lands under ~4k input tokens — safely inside the
-# tightest Groq free-tier TPM bucket (6k).
+# tightest Groq free-tier TPM bucket.
 MAX_CATALOG_ELEMENTS = int(os.getenv("LLM_MAX_CATALOG_ELEMENTS", "70"))
 MAX_TEXT_LEN = int(os.getenv("LLM_MAX_TEXT_LEN", "50"))
+
+
+# Friendly exception for clear error UX. Carries an HTTP-style status hint
+# so main.py can map to the right response code.
+class LLMError(RuntimeError):
+    def __init__(self, message: str, *, status: int = 502, kind: str = "error"):
+        super().__init__(message)
+        self.status = status
+        self.kind = kind  # one of: not_configured | auth | rate_limit | all_models_dead | bad_response | timeout | error
 
 
 def is_configured() -> bool:
@@ -58,6 +112,16 @@ def provider_label() -> str:
     return LLM_BASE_URL
 
 
+def active_models() -> dict[str, Any]:
+    """For /status — what's the current chain and which models are dead?"""
+    chain = _resolve_model_chain()
+    return {
+        "chain": chain,
+        "dead": sorted(_DEAD_MODELS),
+        "primary": chain[0] if chain else None,
+    }
+
+
 # ── Prompt ───────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
@@ -76,44 +140,75 @@ Rules:
 
 # ── Generation ───────────────────────────────────────────────────────────
 
-async def generate_template(
-    *,
-    elements: list[dict[str, Any]],
-    description: str,
-    url: str,
-    title: str = "",
-) -> list[dict[str, Any]]:
-    """Call the configured LLM, return a parsed template array."""
-    if not is_configured():
-        raise RuntimeError(
-            "AI schema generation is not configured — set LLM_API_KEY "
-            "(default provider is Groq — free tier at console.groq.com)"
-        )
 
-    trimmed = _trim_catalog(elements, max_elements=MAX_CATALOG_ELEMENTS)
-
-    # Compact JSON (no indent) — saves ~25% tokens. The model parses it fine.
-    user_msg = (
-        f"URL: {url}\n"
-        f"Title: {title or '(no title)'}\n\n"
-        f"Elements ({len(trimmed)}/{len(elements)} kept after dedup+filter):\n"
-        f"{json.dumps(trimmed, separators=(',', ':'))}\n\n"
-        f"Extract: {description}"
-    )
-
-    payload = {
-        "model": LLM_MODEL,
+def _build_payload(model: str, system: str, user: str) -> dict[str, Any]:
+    return {
+        "model": model,
         "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": user_msg},
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
         ],
-        "temperature": 0.1,  # we want determinism, not creativity
-        "response_format": {"type": "json_object"},  # forces valid JSON output
+        "temperature": 0.1,
+        "response_format": {"type": "json_object"},
         "max_tokens": 2000,
     }
 
+
+def _is_dead_model_error(status: int, body_text: str) -> bool:
+    """Heuristic: does this response mean 'this model is gone / unsupported'?
+
+    Covered:
+      * Groq:     400 + 'decommissioned' or code='model_decommissioned'
+      * Groq:     400 + 'model_not_found'
+      * OpenAI:   404 + code='model_not_found'
+      * Generic:  404 status (model endpoint missing on provider)
+    Not covered (intentionally):
+      * 429 rate-limit — same model might work in 60s, don't blacklist it
+      * 5xx server error — provider problem, not model problem
+    """
+    lower = body_text.lower()
+    if status == 404:
+        return True
+    if status == 400 and (
+        "decommissioned" in lower
+        or "model_decommissioned" in lower
+        or "model_not_found" in lower
+        or "does not exist" in lower
+        or "no such model" in lower
+        or "is not supported" in lower
+    ):
+        return True
+    return False
+
+
+def _extract_error_message(body_text: str) -> str:
+    """Pull a clean human-readable message from a provider error response,
+    falling back to the raw body if shape is unexpected."""
+    try:
+        data = json.loads(body_text)
+        if isinstance(data, dict):
+            err = data.get("error")
+            if isinstance(err, dict):
+                msg = err.get("message")
+                if isinstance(msg, str):
+                    return msg
+            if isinstance(err, str):
+                return err
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return body_text[:200]
+
+
+async def _call_one_model(
+    *,
+    model: str,
+    user_msg: str,
+) -> httpx.Response:
+    """Single POST to the configured provider with a specific model.
+    Caller decides what to do with the result."""
+    payload = _build_payload(model, _SYSTEM_PROMPT, user_msg)
     async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
-        res = await client.post(
+        return await client.post(
             f"{LLM_BASE_URL}/chat/completions",
             headers={
                 "Authorization": f"Bearer {LLM_API_KEY}",
@@ -122,41 +217,191 @@ async def generate_template(
             json=payload,
         )
 
-    # Auto-retry on 413 (request too large) with progressively smaller trims.
-    # First request uses the configured defaults; if rejected, halve element
-    # count + text length and try again. Most pages succeed on first or second
-    # attempt.
-    if res.status_code == 413:
-        for retry_n, factor in enumerate([0.5, 0.25], start=1):
-            half_trim = _trim_catalog(elements, max_elements=max(20, int(MAX_CATALOG_ELEMENTS * factor)))
-            for el in half_trim:
-                if el.get("x") and len(el["x"]) > int(MAX_TEXT_LEN * factor):
-                    el["x"] = el["x"][:int(MAX_TEXT_LEN * factor)]
-            retry_msg = (
-                f"URL: {url}\nElements ({len(half_trim)} trimmed for size):\n"
-                f"{json.dumps(half_trim, separators=(',', ':'))}\nExtract: {description}"
+
+async def generate_template(
+    *,
+    elements: list[dict[str, Any]],
+    description: str,
+    url: str,
+    title: str = "",
+) -> list[dict[str, Any]]:
+    """Call the LLM, return a parsed template array.
+
+    Iterates the model chain on model-level failures (deprecation, 404).
+    Auto-shrinks the catalog on 413 (request too large) without restarting
+    the chain. Caches dead models so subsequent requests skip them.
+    """
+    if not is_configured():
+        raise LLMError(
+            "AI schema generation is not configured. Admin: set LLM_API_KEY "
+            "(free Groq key at console.groq.com).",
+            status=503,
+            kind="not_configured",
+        )
+
+    chain = _resolve_model_chain()
+    if not chain:
+        raise LLMError(
+            "No LLM models configured. Set LLM_MODELS env var.",
+            status=503,
+            kind="not_configured",
+        )
+
+    # Skip known-dead models — but keep them as last-resort fallback in case
+    # the cache is wrong (provider revived a model, our cache is stale).
+    live = [m for m in chain if m not in _DEAD_MODELS]
+    revived_attempt = [m for m in chain if m in _DEAD_MODELS]
+    attempt_order = live + revived_attempt
+
+    trimmed = _trim_catalog(elements, max_elements=MAX_CATALOG_ELEMENTS)
+    user_msg = (
+        f"URL: {url}\n"
+        f"Title: {title or '(no title)'}\n\n"
+        f"Elements ({len(trimmed)}/{len(elements)} kept after dedup+filter):\n"
+        f"{json.dumps(trimmed, separators=(',', ':'))}\n\n"
+        f"Extract: {description}"
+    )
+
+    last_non_model_error: tuple[int, str] | None = None
+    tried: list[str] = []
+
+    for model in attempt_order:
+        tried.append(model)
+        try:
+            res = await _call_one_model(model=model, user_msg=user_msg)
+        except httpx.TimeoutException as e:
+            log.warning("LLM timeout on model=%s: %s", model, e)
+            last_non_model_error = (504, f"timeout after {LLM_TIMEOUT}s")
+            continue
+        except httpx.HTTPError as e:
+            log.warning("LLM transport error on model=%s: %s", model, e)
+            last_non_model_error = (502, f"transport error: {e}")
+            continue
+
+        # Happy path
+        if res.status_code < 400:
+            # Successful response — clear from dead cache in case it was
+            # marked wrongly (provider revived the model).
+            _DEAD_MODELS.discard(model)
+            log.info("LLM ok model=%s status=%d", model, res.status_code)
+            return _parse_response(res, model=model)
+
+        # 413 — payload too large. Trim and retry on the SAME model
+        # (not a model problem, don't waste a fallback hop).
+        if res.status_code == 413:
+            res = await _retry_with_trim(
+                model=model,
+                elements=elements,
+                description=description,
+                url=url,
             )
-            payload["messages"][1]["content"] = retry_msg
-            async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
-                res = await client.post(
-                    f"{LLM_BASE_URL}/chat/completions",
-                    headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"},
-                    json=payload,
-                )
-            if res.status_code != 413:
-                break
+            if res is not None and res.status_code < 400:
+                _DEAD_MODELS.discard(model)
+                return _parse_response(res, model=model)
+            # If retry still failed, fall through to non-model-error handling.
 
-    if res.status_code >= 400:
-        raise RuntimeError(f"LLM API {res.status_code}: {res.text[:300]}")
+        body_text = res.text if res is not None else ""
+        if res is not None and _is_dead_model_error(res.status_code, body_text):
+            log.warning("LLM model dead model=%s status=%d: %s", model, res.status_code, body_text[:200])
+            _DEAD_MODELS.add(model)
+            continue  # Try next model in chain.
 
+        # Non-model error (auth, rate-limit, 5xx) — don't burn the chain on
+        # it. Remember it and break; if no model succeeds we'll report this.
+        if res is not None:
+            last_non_model_error = (res.status_code, _extract_error_message(body_text))
+            # Retry the next model anyway — sometimes a different model has
+            # a different rate-limit bucket on the same provider.
+            continue
+
+    # Chain exhausted. Decide what to report.
+    if last_non_model_error is not None:
+        status, msg = last_non_model_error
+        if status == 401 or status == 403:
+            raise LLMError(
+                "LLM provider rejected the API key. Admin: check LLM_API_KEY.",
+                status=503,
+                kind="auth",
+            )
+        if status == 429:
+            raise LLMError(
+                "AI is rate-limited right now. Try the visual picker instead, "
+                "or wait ~60 seconds.",
+                status=429,
+                kind="rate_limit",
+            )
+        if status == 504:
+            raise LLMError(
+                f"AI service timed out after {LLM_TIMEOUT}s. Try a smaller page "
+                "or the visual picker.",
+                status=504,
+                kind="timeout",
+            )
+        raise LLMError(
+            f"AI service error ({status}): {msg}",
+            status=502,
+            kind="error",
+        )
+
+    # Every model in the chain returned a model-dead error.
+    raise LLMError(
+        f"All configured AI models are unavailable: {', '.join(tried)}. "
+        "Admin: update LLM_MODELS env var with current model names — "
+        "see https://console.groq.com/docs/models",
+        status=503,
+        kind="all_models_dead",
+    )
+
+
+async def _retry_with_trim(
+    *,
+    model: str,
+    elements: list[dict[str, Any]],
+    description: str,
+    url: str,
+) -> httpx.Response | None:
+    """Half-then-quarter trim retry sequence for 413 (payload too large).
+    Returns the last response (success or final failure)."""
+    last: httpx.Response | None = None
+    for factor in (0.5, 0.25):
+        half_trim = _trim_catalog(elements, max_elements=max(20, int(MAX_CATALOG_ELEMENTS * factor)))
+        cap = max(20, int(MAX_TEXT_LEN * factor))
+        for el in half_trim:
+            if el.get("x") and len(el["x"]) > cap:
+                el["x"] = el["x"][:cap]
+        retry_msg = (
+            f"URL: {url}\nElements ({len(half_trim)} trimmed for size):\n"
+            f"{json.dumps(half_trim, separators=(',', ':'))}\n"
+            f"Extract: {description}"
+        )
+        try:
+            last = await _call_one_model(model=model, user_msg=retry_msg)
+        except (httpx.TimeoutException, httpx.HTTPError) as e:
+            log.warning("LLM trim-retry transport error model=%s: %s", model, e)
+            return None
+        if last.status_code != 413:
+            return last
+    return last
+
+
+def _parse_response(res: httpx.Response, *, model: str) -> list[dict[str, Any]]:
+    """Extract + validate the template array from a successful LLM response."""
     body = res.json()
     choices = body.get("choices", [])
     if not choices:
-        raise RuntimeError("LLM returned no choices")
+        raise LLMError(
+            f"LLM (model={model}) returned no choices",
+            status=502,
+            kind="bad_response",
+        )
 
     content = choices[0].get("message", {}).get("content", "").strip()
     if not content:
-        raise RuntimeError("LLM returned empty content")
+        raise LLMError(
+            f"LLM (model={model}) returned empty content",
+            status=502,
+            kind="bad_response",
+        )
 
     # Strip accidental fences in case response_format isn't honored.
     if content.startswith("```"):
@@ -170,24 +415,37 @@ async def generate_template(
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError as e:
-        raise RuntimeError(f"LLM returned invalid JSON: {e} — raw: {content[:300]}") from e
+        raise LLMError(
+            f"LLM (model={model}) returned invalid JSON: {e}",
+            status=502,
+            kind="bad_response",
+        ) from e
 
-    # Some models honor response_format and return {"template": [...]},
-    # others return the array directly. Handle both.
     if isinstance(parsed, dict) and "template" in parsed:
         items = parsed["template"]
     elif isinstance(parsed, list):
         items = parsed
     elif isinstance(parsed, dict):
-        # Last-ditch: any list value inside.
         items = next((v for v in parsed.values() if isinstance(v, list)), None)
         if items is None:
-            raise RuntimeError(f"LLM returned unexpected shape: {list(parsed.keys())}")
+            raise LLMError(
+                f"LLM (model={model}) returned unexpected shape: {list(parsed.keys())}",
+                status=502,
+                kind="bad_response",
+            )
     else:
-        raise RuntimeError(f"LLM returned unexpected type: {type(parsed).__name__}")
+        raise LLMError(
+            f"LLM (model={model}) returned unexpected type: {type(parsed).__name__}",
+            status=502,
+            kind="bad_response",
+        )
 
     if not isinstance(items, list):
-        raise RuntimeError(f"Expected a list of fields, got {type(items).__name__}")
+        raise LLMError(
+            f"Expected a list of fields, got {type(items).__name__}",
+            status=502,
+            kind="bad_response",
+        )
 
     valid: list[dict[str, Any]] = []
     for f in items:
@@ -202,6 +460,8 @@ async def generate_template(
 
     return valid
 
+
+# ── Catalog trim helpers ─────────────────────────────────────────────────
 
 _NTH_OF_TYPE_RE = re.compile(r":nth-of-type\(\d+\)")
 _INTERESTING_TAGS = {
@@ -240,7 +500,7 @@ def _trim_catalog(elements: list[dict[str, Any]], *, max_elements: int) -> list[
         seen_shapes.add(shape)
 
         out.append({
-            "t": tag,                                 # short keys also save tokens
+            "t": tag,
             "x": text[:MAX_TEXT_LEN] if text else "",
             "c": css,
         })

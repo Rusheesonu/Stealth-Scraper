@@ -167,6 +167,14 @@ async def health() -> dict[str, Any]:
 async def status_endpoint() -> dict[str, Any]:
     """Public status data — consumed by the /status page on the frontend.
     No auth required. Don't expose any per-user data here."""
+    models = assist.active_models() if assist.is_configured() else None
+    # If we have any live model in the chain, the AI service is "operational"
+    # — even if some models are dead-cached, the chain falls through.
+    ai_status = (
+        "not configured" if not assist.is_configured()
+        else "operational" if models and any(m not in models["dead"] for m in models["chain"])
+        else "degraded"  # every model in chain is currently cached as dead
+    )
     return {
         "service": "stealth-scraper",
         "version": "2.0.0",
@@ -175,12 +183,19 @@ async def status_endpoint() -> dict[str, Any]:
             "running": pool.running,
             "proxy_region": pool.current_proxy_label(),
         },
+        "llm": {
+            "provider": assist.provider_label(),
+            "configured": assist.is_configured(),
+            "chain": models["chain"] if models else [],
+            "dead": models["dead"] if models else [],
+            "primary": models["primary"] if models else None,
+        },
         "components": [
             {"name": "API",             "status": "operational"},
             {"name": "Scrape engine",   "status": "operational" if pool.running else "idle"},
             {"name": "Billing webhook", "status": "operational"},
             {"name": "Auth (Supabase)", "status": "operational"},
-            {"name": f"AI assist ({assist.provider_label()})", "status": "operational" if assist.is_configured() else "not configured"},
+            {"name": f"AI assist ({assist.provider_label()})", "status": ai_status},
         ],
     }
 
@@ -331,7 +346,19 @@ async def assist_schema(
             url=snap.url,
             title=snap.title,
         )
+    except assist.LLMError as e:
+        # LLMError carries a curated status + clean message. Pass through
+        # the kind in headers so the frontend can route to specific UX
+        # (e.g. "all models dead" → suggest visual picker).
+        raise HTTPException(
+            status_code=e.status,
+            detail=str(e),
+            headers={"X-LLM-Error-Kind": e.kind},
+        ) from e
     except Exception as e:
+        # Defensive: anything we didn't catch (programmer error) still
+        # surfaces as 502 with the exception string, but without leaking
+        # provider-specific JSON.
         raise HTTPException(status_code=502, detail=f"schema generation failed: {e}") from e
 
     return {

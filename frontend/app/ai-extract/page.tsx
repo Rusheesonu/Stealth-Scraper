@@ -45,11 +45,23 @@ function AiExtractForm() {
       setStage("done");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(
-        msg.includes("not configured")
-          ? "AI assist isn't configured yet — admin needs to set LLM_API_KEY (free Groq key at console.groq.com)."
-          : msg,
-      );
+      // Translate common backend errors into user-actionable copy. The
+      // backend now emits clean LLMError messages, so most cases just
+      // pass through — but we still soften the rare raw cases.
+      let userMsg = msg;
+      const lower = msg.toLowerCase();
+      if (lower.includes("not configured")) {
+        userMsg = "AI extract isn't configured yet on this instance. Admin: set LLM_API_KEY (free Groq key at console.groq.com).";
+      } else if (lower.includes("rate-limited") || lower.includes("rate limit")) {
+        userMsg = "AI is rate-limited right now. Try the visual picker, or wait about a minute.";
+      } else if (lower.includes("all configured ai models") || lower.includes("all models")) {
+        userMsg = "Our AI models are temporarily unavailable. Use the visual picker meanwhile — it does the same thing, you just click instead of describe.";
+      } else if (lower.includes("rejected the api key") || lower.includes("auth")) {
+        userMsg = "AI service is misconfigured. Admin: rotate LLM_API_KEY.";
+      } else if (lower.includes("timed out")) {
+        userMsg = "AI service timed out. Try a smaller page or use the visual picker.";
+      }
+      setError(userMsg);
       setStage("error");
     }
   }
