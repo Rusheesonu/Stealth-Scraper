@@ -9,8 +9,11 @@ import { Card, CardTitle, Section } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LandingHero } from "@/components/landing-hero";
 import { FeaturedTemplates } from "@/components/featured-templates";
+import { ClickFlowDemo } from "@/components/click-flow-demo";
 import { SdkPreview } from "@/components/sdk-preview";
 import { OssSection } from "@/components/oss-section";
+import { FounderNote } from "@/components/founder-note";
+import { LandingFaq } from "@/components/landing-faq";
 
 /**
  * Landing. Hero IS the URL paste input + a static demo strip showing
@@ -23,12 +26,15 @@ export default function Home() {
     <PageShell maxWidth="max-w-6xl" vPadding="flush">
       <LandingHero />
       <FeaturedTemplates />
+      <ClickFlowDemo />
       <ProblemSection />
       <FeaturesSection />
       <SdkPreview />
       <AiExtractCta />
       <OssSection />
+      <FounderNote />
       <PricingTeaser />
+      <LandingFaq />
       <CtaStrip />
     </PageShell>
   );
@@ -158,6 +164,11 @@ function PricingTeaser() {
   ];
   return (
     <Section eyebrow="Pricing" title="Pay as you grow. Cancel anytime.">
+      <p className="mx-auto mb-6 max-w-2xl text-center text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
+        Every scrape is one <strong className="text-[var(--color-fg)]">new data point</strong>, not a re-prompt.
+        Save a recipe once, then 10,000 runs = 10,000 new rows — your saved selectors
+        never re-pay for schema generation.
+      </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {tiers.map((t) => (
           <Card
