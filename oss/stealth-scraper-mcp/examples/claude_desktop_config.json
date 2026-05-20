@@ -1,0 +1,11 @@
+{
+  "_comment": "Drop the `stealth-scraper` block into your Claude Desktop config at ~/Library/Application Support/Claude/claude_desktop_config.json (macOS) or %APPDATA%\\Claude\\claude_desktop_config.json (Windows). Replace ssk_... with your real key from https://stealthscraper.dev/settings/api-keys",
+  "mcpServers": {
+    "stealth-scraper": {
+      "command": "stealth-scraper-mcp",
+      "env": {
+        "STEALTH_SCRAPER_API_KEY": "ssk_REPLACE_WITH_YOUR_KEY"
+      }
+    }
+  }
+}

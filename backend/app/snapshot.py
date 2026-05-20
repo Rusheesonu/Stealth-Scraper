@@ -8,6 +8,7 @@ from typing import Any
 
 from nodriver import cdp
 
+from app.actions import run_actions, BrowserAction
 from app.browser import pool, with_transient_retry
 from app.extract_js import COLLECT_ELEMENTS_JS
 
@@ -27,17 +28,25 @@ async def take_snapshot(
     *,
     viewport_width: int = 1440,
     viewport_height: int = 900,
+    actions: list[BrowserAction] | None = None,
 ) -> SnapshotResult:
-    """One-shot snapshot with a restart+retry on transient nodriver flakes
-    (StopIteration in CDP cleanup, target crashed, connection closed)."""
+    """One-shot snapshot with a restart+retry on transient nodriver flakes.
+
+    Optional actions run after navigation but before element collection —
+    used to dismiss cookie banners, log in, scroll-trigger lazy content."""
 
     async def _once() -> SnapshotResult:
-        return await _snapshot_inner(url, viewport_width, viewport_height)
+        return await _snapshot_inner(url, viewport_width, viewport_height, actions)
 
     return await with_transient_retry(_once, label="snapshot")
 
 
-async def _snapshot_inner(url: str, viewport_width: int, viewport_height: int) -> SnapshotResult:
+async def _snapshot_inner(
+    url: str,
+    viewport_width: int,
+    viewport_height: int,
+    actions: list[BrowserAction] | None,
+) -> SnapshotResult:
     """Order matters more than anything in this function.
 
     The hard lesson: any viewport resize after navigation fires a window
@@ -75,6 +84,17 @@ async def _snapshot_inner(url: str, viewport_width: int, viewport_height: int) -
         await tab.get(url)
         await _wait_ready(tab, timeout=8.0)
         await asyncio.sleep(0.5)
+
+        # Run pre-snapshot actions (dismiss cookie banners, log in, etc).
+        # Failures are logged but don't abort — best-effort.
+        if actions:
+            try:
+                await run_actions(tab, actions)
+                # Give the page a moment to settle after actions before we
+                # start collecting elements / taking screenshots.
+                await asyncio.sleep(0.4)
+            except Exception as e:
+                print(f"[snapshot] actions failed: {e!r}")
 
         # 3. Force-eager all lazy images BEFORE scrolling. That way when
         # intersection-observers fire during the scroll pass, the images

@@ -1,8 +1,11 @@
-"""Supabase JWT verification — FastAPI dependency.
+"""Bearer auth — accepts either a Supabase user JWT (browser sessions)
+OR a Stealth-Scraper API key (`ssk_...` prefix, programmatic clients).
 
-The frontend sends user session JWTs in `Authorization: Bearer <token>`.
-We verify them against Supabase's JWKS endpoint (asymmetric ES256) — no
-shared secret required with the new key format.
+JWTs are verified against Supabase's JWKS endpoint (asymmetric ES256/RS256).
+API keys are SHA-256 hashed and looked up in the local `api_keys` table.
+
+Both paths return the user_id (Supabase UUID) so downstream code is
+identical regardless of credential type.
 """
 
 from __future__ import annotations
@@ -14,25 +17,42 @@ import jwt
 from fastapi import Header, HTTPException, status
 from jwt import PyJWKClient
 
+from app import db
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
-if not SUPABASE_URL:
-    raise RuntimeError("SUPABASE_URL env var required — see backend/.env.example")
 
-JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+API_KEY_PREFIX = "ssk_"
+
+
+def _supabase_url() -> str:
+    """Read SUPABASE_URL at use time, not import time, so app boot doesn't
+    crash before dotenv has loaded (e.g. during pytest collection or
+    `python -c` smoke tests)."""
+    url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    if not url:
+        raise HTTPException(
+            status_code=503,
+            detail="SUPABASE_URL not configured on the server — set the env var",
+        )
+    return url
 
 
 @lru_cache(maxsize=1)
 def _jwks_client() -> PyJWKClient:
-    # PyJWKClient caches keys internally with the given lifespan.
-    # We cache the client itself so all requests share one connection.
-    return PyJWKClient(JWKS_URL, cache_keys=True, lifespan=600)
+    # PyJWKClient caches keys internally. We cache the client itself so all
+    # requests share one connection. Computed lazily — first call to
+    # get_current_user is what triggers the real env var check.
+    jwks_url = f"{_supabase_url()}/auth/v1/.well-known/jwks.json"
+    return PyJWKClient(jwks_url, cache_keys=True, lifespan=600)
 
 
 async def get_current_user(authorization: str = Header(default="")) -> str:
-    """Validate the bearer JWT, return the user UUID (`sub` claim).
+    """Resolve a bearer credential to a user_id.
 
-    Raises 401 on missing / malformed / invalid / expired token.
+    Accepts:
+      * `Authorization: Bearer ssk_<hex>` — Stealth-Scraper API key
+      * `Authorization: Bearer <supabase-jwt>` — browser session
+
+    Raises 401 on missing / malformed / invalid / expired / revoked credential.
     """
     if not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -48,6 +68,17 @@ async def get_current_user(authorization: str = Header(default="")) -> str:
             detail="empty bearer token",
         )
 
+    # API-key path — short, deterministic, no network.
+    if token.startswith(API_KEY_PREFIX):
+        user_id = await db.lookup_api_key_user(token)
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid or revoked API key",
+            )
+        return user_id
+
+    # JWT path — verify via Supabase JWKS.
     try:
         signing_key = _jwks_client().get_signing_key_from_jwt(token)
         claims = jwt.decode(
@@ -75,3 +106,22 @@ async def get_current_user(authorization: str = Header(default="")) -> str:
             detail="token has no subject",
         )
     return user_id
+
+
+async def get_current_user_jwt_only(authorization: str = Header(default="")) -> str:
+    """Like get_current_user but REJECTS API keys — only the browser session
+    JWT is accepted. Used for credential-management endpoints (you can't
+    use an API key to create/list/revoke other API keys; that would let a
+    leaked key escalate)."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="missing bearer token (browser session required for this endpoint)",
+        )
+    token = authorization[len("Bearer "):].strip()
+    if token.startswith(API_KEY_PREFIX):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="API key cannot be used to manage other API keys — sign in via browser",
+        )
+    return await get_current_user(authorization)

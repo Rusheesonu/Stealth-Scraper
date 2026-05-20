@@ -180,6 +180,12 @@ export default function Home() {
           >
             stealth-browser (OSS)
           </Link>
+          <Link href="/status" className="hover:text-[var(--color-fg)]">
+            Status
+          </Link>
+          <Link href="/marketplace" className="hover:text-[var(--color-fg)]">
+            Templates marketplace
+          </Link>
         </nav>
       </footer>
     </main>

@@ -143,4 +143,116 @@ export const api = {
       `/billing/checkout?plan=${encodeURIComponent(plan)}`,
       { method: "POST" },
     ),
+
+  apiKeys: {
+    list: () => call<ApiKey[]>("/api-keys"),
+    create: (name: string) =>
+      call<ApiKey & { key: string }>("/api-keys", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }),
+    revoke: (id: number) =>
+      call<void>(`/api-keys/${id}`, { method: "DELETE" }),
+  },
+
+  usage: () => call<UsageStatus>("/usage"),
+
+  status: () => call<StatusResponse>("/status"),
+
+  assistSchema: (params: {
+    url: string;
+    description: string;
+    viewport_width?: number;
+    viewport_height?: number;
+  }) =>
+    call<{
+      url: string;
+      title: string;
+      description: string;
+      template: TemplateField[];
+      element_count: number;
+    }>("/assist/schema", { method: "POST", body: JSON.stringify(params) }),
+
+  // Marketplace -----------------------------------------------------------
+  marketplace: {
+    list: () => call<PublicTemplate[]>("/marketplace"),
+    publish: (templateId: number, isPublic: boolean, description: string) =>
+      call<SavedTemplate>(`/templates/${templateId}/publish`, {
+        method: "PUT",
+        body: JSON.stringify({ is_public: isPublic, description }),
+      }),
+    fork: (templateId: number) =>
+      call<SavedTemplate>(`/templates/${templateId}/fork`, { method: "POST" }),
+  },
+
+  // Scheduled scrapes -----------------------------------------------------
+  schedules: {
+    list: () => call<ScheduledJob[]>("/schedules"),
+    create: (body: {
+      template_id: number;
+      name: string;
+      target_url: string;
+      schedule_cron: string;
+      webhook_url?: string;
+    }) =>
+      call<ScheduledJob>("/schedules", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    toggle: (id: number, enabled: boolean) =>
+      call<{ id: number; enabled: boolean }>(
+        `/schedules/${id}/toggle?enabled=${enabled}`,
+        { method: "PUT" },
+      ),
+    delete: (id: number) =>
+      call<void>(`/schedules/${id}`, { method: "DELETE" }),
+  },
+};
+
+export type PublicTemplate = SavedTemplate & {
+  is_public: boolean;
+  fork_count: number;
+  description: string;
+};
+
+export type ScheduledJob = {
+  id: number;
+  user_id: string;
+  template_id: number;
+  name: string;
+  target_url: string;
+  schedule_cron: string;
+  webhook_url: string;
+  last_run_at: string | null;
+  last_status: string | null;
+  next_run_at: string | null;
+  enabled: number;          // SQLite 0/1
+  created_at: string;
+  updated_at: string;
+};
+
+export type UsageStatus = {
+  plan: string;
+  year_month: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  percent: number;
+};
+
+export type StatusResponse = {
+  service: string;
+  version: string;
+  status: string;
+  scrape_engine: { running: boolean; proxy_region: string | null };
+  components: { name: string; status: string }[];
+};
+
+export type ApiKey = {
+  id: number;
+  name: string;
+  prefix: string;             // e.g. "ssk_abc12345"
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
 };

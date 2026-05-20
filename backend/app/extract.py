@@ -1,4 +1,13 @@
-"""URL + template → structured data extractor (nodriver + lxml)."""
+"""URL + template → structured data extractor (nodriver + lxml).
+
+Supports three modes:
+  * fields    (default) — per-template-field extraction, returns dict
+  * markdown  — full page → markdown via markdownify (for RAG ingestion)
+  * html      — full page HTML, no processing
+
+Plus per-field kinds:
+  text | attr | list | html | markdown
+"""
 
 from __future__ import annotations
 
@@ -8,6 +17,7 @@ from typing import Any, Literal, TypedDict
 
 from lxml import html as lxml_html
 
+from app.actions import run_actions, BrowserAction
 from app.browser import pool, with_transient_retry
 
 
@@ -15,21 +25,51 @@ class Field(TypedDict, total=False):
     label: str
     selector: str
     xpath: str
-    kind: Literal["text", "attr", "list", "html"]
+    kind: Literal["text", "attr", "list", "html", "markdown"]
     attr: str
 
 
-async def extract(url: str, template: list[Field]) -> dict[str, Any]:
+async def extract(
+    url: str,
+    template: list[Field],
+    *,
+    output_format: Literal["fields", "markdown", "html"] = "fields",
+    pagination_selector: str | None = None,
+    max_pages: int = 1,
+    actions: list[BrowserAction] | None = None,
+) -> dict[str, Any]:
     """Run a template against a URL. Restart+retry once on transient
-    nodriver flakes, same as /snapshot."""
+    nodriver flakes, same as /snapshot.
+
+    Pagination (max_pages > 1 + pagination_selector): after extracting page N,
+    we click the selector, wait for navigation/load, and extract again. List
+    fields concatenate across pages; scalar fields keep page 1's value.
+
+    Actions: optional list of click/scroll/fill/wait steps that run BEFORE
+    extraction. Lets you handle login walls, cookie banners, infinite scroll.
+    """
 
     async def _once() -> dict[str, Any]:
-        return await _extract_inner(url, template)
+        return await _extract_inner(
+            url, template,
+            output_format=output_format,
+            pagination_selector=pagination_selector,
+            max_pages=max_pages,
+            actions=actions,
+        )
 
     return await with_transient_retry(_once, label="extract")
 
 
-async def _extract_inner(url: str, template: list[Field]) -> dict[str, Any]:
+async def _extract_inner(
+    url: str,
+    template: list[Field],
+    *,
+    output_format: Literal["fields", "markdown", "html"],
+    pagination_selector: str | None,
+    max_pages: int,
+    actions: list[BrowserAction] | None,
+) -> dict[str, Any]:
     """Uses the shared stealth browser, then runs selectors against the
     rendered HTML via lxml — faster than round-tripping every selector
     through CDP."""
@@ -37,59 +77,123 @@ async def _extract_inner(url: str, template: list[Field]) -> dict[str, Any]:
     result: dict[str, Any] = {"url": url, "fields": {}, "errors": {}, "title": ""}
     try:
         await tab.get(url)
-        # Poll document.readyState — bounded, same as snapshot.py.
-        deadline = asyncio.get_event_loop().time() + 8.0
-        while asyncio.get_event_loop().time() < deadline:
-            try:
-                state = await tab.evaluate("document.readyState")
-                if isinstance(state, tuple):
-                    state = state[0]
-                if state == "complete":
-                    break
-            except Exception:
-                pass
-            await asyncio.sleep(0.15)
+        await _wait_ready(tab, timeout=8.0)
         await asyncio.sleep(0.5)
 
-        content = await tab.get_content()
+        # Run pre-extraction actions (click banners, fill forms, etc.)
+        if actions:
+            try:
+                await run_actions(tab, actions)
+            except Exception as e:
+                result["errors"]["_actions"] = str(e)
+
         try:
             result["title"] = await tab.evaluate("document.title")
         except Exception:
             pass
 
+        # Special output modes return early, no per-field processing.
+        if output_format == "html":
+            result["html"] = await tab.get_content()
+            return result
+
+        if output_format == "markdown":
+            html_content = await tab.get_content()
+            result["markdown"] = _html_to_markdown(html_content)
+            return result
+
+        # Standard mode: per-field extraction over rendered HTML.
+        content = await tab.get_content()
         if not content:
             raise RuntimeError("Empty page content — site blocked or navigation failed")
 
-        tree = lxml_html.fromstring(content)
+        all_pages_html = [content]
 
-        # Two-phase pull:
-        #   1. Try to treat list fields as "columns of the same grid". If
-        #      we can find a shared ancestor selector, we iterate rows and
-        #      extract each field within the row — missing cells become
-        #      `null` so lists stay aligned when the user zips records.
-        #   2. Anything not handled by phase 1 (scalars, list fields whose
-        #      selectors don't share an ancestor) falls through to plain
-        #      per-selector extraction.
-        row_values, row_labels = _pull_lists_per_row(tree, template)
-        for label in row_labels:
-            result["fields"][label] = row_values.get(label)
+        # Pagination loop — click next, wait, capture HTML, repeat.
+        if pagination_selector and max_pages > 1:
+            for _ in range(max_pages - 1):
+                try:
+                    clicked = await tab.evaluate(
+                        f"(() => {{ const el = document.querySelector({_js_str(pagination_selector)}); "
+                        f"if (!el) return false; el.click(); return true; }})()"
+                    )
+                    if isinstance(clicked, tuple):
+                        clicked = clicked[0]
+                    if not clicked:
+                        break
+                except Exception:
+                    break
+                await asyncio.sleep(1.0)
+                await _wait_ready(tab, timeout=8.0)
+                await asyncio.sleep(0.5)
+                page_html = await tab.get_content()
+                if page_html:
+                    all_pages_html.append(page_html)
 
-        for field in template:
-            label = field.get("label") or field.get("selector") or "field"
-            if label in row_labels:
-                continue
-            try:
-                result["fields"][label] = _pull(tree, field)
-            except Exception as e:
-                result["errors"][label] = str(e)
-                result["fields"][label] = None
+        # Merge: parse each page, run template, concat list fields, keep scalars from p1.
+        merged_fields: dict[str, Any] = {}
+        for i, page_html in enumerate(all_pages_html):
+            tree = lxml_html.fromstring(page_html)
+            row_values, row_labels = _pull_lists_per_row(tree, template)
+            page_fields: dict[str, Any] = dict(row_values)
+            for field in template:
+                label = field.get("label") or field.get("selector") or "field"
+                if label in row_labels:
+                    continue
+                try:
+                    page_fields[label] = _pull(tree, field)
+                except Exception as e:
+                    if i == 0:
+                        result["errors"][label] = str(e)
+                    page_fields[label] = None
 
+            if i == 0:
+                merged_fields = page_fields
+            else:
+                # Concat list values; keep scalar values from page 1.
+                for k, v in page_fields.items():
+                    if isinstance(v, list) and isinstance(merged_fields.get(k), list):
+                        merged_fields[k] = merged_fields[k] + v
+
+        result["fields"] = merged_fields
+        if len(all_pages_html) > 1:
+            result["pages_fetched"] = len(all_pages_html)
         return result
     finally:
         try:
             await tab.close()
         except Exception:
             pass
+
+
+def _js_str(s: str) -> str:
+    """Safely embed a Python string as a JS string literal."""
+    import json
+    return json.dumps(s)
+
+
+def _html_to_markdown(html_content: str) -> str:
+    """Convert HTML to markdown for RAG ingestion. Imported lazily so the
+    backend boots even if markdownify isn't installed (graceful degrade
+    to a JS-stripped text fallback)."""
+    if not html_content:
+        return ""
+    try:
+        import markdownify
+        return markdownify.markdownify(
+            html_content,
+            heading_style="ATX",  # # H1 instead of underlined
+            strip=["script", "style", "noscript"],
+        ).strip()
+    except ImportError:
+        # Fallback: strip tags via lxml.
+        try:
+            tree = lxml_html.fromstring(html_content)
+            for tag in tree.xpath("//script | //style | //noscript"):
+                tag.getparent().remove(tag)
+            return (tree.text_content() or "").strip()
+        except Exception:
+            return html_content
 
 
 def _pull(tree, field: Field) -> Any:
@@ -129,6 +233,12 @@ def _read(node, kind: str, attr: str) -> Any:
             return lxml_html.tostring(node, encoding="unicode")
         except Exception:
             return None
+    if kind == "markdown":
+        try:
+            html_str = lxml_html.tostring(node, encoding="unicode")
+            return _html_to_markdown(html_str)
+        except Exception:
+            return None
     # text default
     try:
         if hasattr(node, "text_content"):
@@ -138,24 +248,24 @@ def _read(node, kind: str, attr: str) -> Any:
         return None
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# Per-row extraction
-# ─────────────────────────────────────────────────────────────────────────
-#
-# The pain this solves: a template like
-#   titles   = "#search > .a-section > h2 > a"
-#   prices   = "#search > .a-section > .a-price > .a-offscreen"
-#   options  = "#search > .a-section > .a-row > .a-size-base"
-# produces three independent lxml queries. If product 7 has no "Options:
-# 2 sizes" line, `options` returns 15 items while the other two return
-# 16 — and the zipped records view now shows product 7's options on row
-# 8, product 8's on row 9, etc. A user-visible alignment bug.
-#
-# Fix: find the longest shared CSS prefix across list fields, treat that
-# as the row ancestor, then scope each field's remaining selector
-# fragment to each row. Missing match within a row becomes `null` so
-# every list ends up the same length.
+async def _wait_ready(tab, timeout: float) -> None:
+    """Poll document.readyState until 'complete' or timeout."""
+    deadline = asyncio.get_event_loop().time() + timeout
+    while asyncio.get_event_loop().time() < deadline:
+        try:
+            state = await tab.evaluate("document.readyState")
+            if isinstance(state, tuple):
+                state = state[0]
+            if state == "complete":
+                return
+        except Exception:
+            pass
+        await asyncio.sleep(0.15)
 
+
+# ─────────────────────────────────────────────────────────────────────────
+# Per-row extraction (unchanged from previous version)
+# ─────────────────────────────────────────────────────────────────────────
 
 def _pull_lists_per_row(
     tree, template: list[Field]
@@ -167,8 +277,6 @@ def _pull_lists_per_row(
         if f.get("kind") != "list":
             continue
         sel = (f.get("selector") or "").strip()
-        # Skip shift-click union selectors — per-row logic doesn't handle
-        # alternatives cleanly and independent extraction is good enough.
         if not sel or "," in sel:
             continue
         label = f.get("label") or f.get("selector") or "field"
@@ -180,8 +288,6 @@ def _pull_lists_per_row(
     parsed = [_split_selector(f[1]["selector"]) for f in list_fields]
     prefix = _longest_common_prefix(parsed)
 
-    # A usable "row ancestor" must have at least one concrete step past
-    # the document root AND leave each field with a non-empty suffix.
     if len(prefix) == 0:
         return {}, set()
     if any(len(prefix) >= len(parts) for parts in parsed):
@@ -192,9 +298,6 @@ def _pull_lists_per_row(
         rows = tree.cssselect(row_selector)
     except Exception:
         return {}, set()
-    # Row-based extraction is only a win when the ancestor actually
-    # repeats. A single-row result means we didn't find the right level
-    # — let the fallback path handle it.
     if len(rows) < 2:
         return {}, set()
 
@@ -213,9 +316,6 @@ def _pull_lists_per_row(
     return values, {label for label, _ in list_fields}
 
 
-# Split `a > b.c > d:nth-of-type(2)` into its top-level steps. We do NOT
-# split on descendant combinators or commas — both would require a full
-# CSS parser, and our selectors are always generated with " > " joins.
 _STEP_SEP_RE = re.compile(r"\s*>\s*")
 
 

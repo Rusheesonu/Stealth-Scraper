@@ -1,0 +1,51 @@
+[project]
+name = "stealth-scraper"
+version = "0.1.0"
+description = "Async Python SDK for Stealth-Scraper — structured web data extraction for AI agents, RAG pipelines, and scrapers. Anti-bot bypass included."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Rushi Sonu", email = "rushikesh.sonu@gmail.com" },
+]
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+]
+keywords = [
+    "scraping",
+    "stealth",
+    "rag",
+    "ai-agent",
+    "cloudflare",
+    "datadome",
+    "web-data",
+    "sdk",
+    "api-client",
+    "structured-extraction",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://stealthscraper.dev"
+Repository = "https://github.com/Rusheesonu/stealth-scraper-python"
+Issues = "https://github.com/Rusheesonu/stealth-scraper-python/issues"
+"Hosted SaaS" = "https://stealthscraper.dev"
+"OSS Engine" = "https://github.com/Rusheesonu/stealth-browser"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["stealth_scraper*"]
+exclude = ["tests*", "examples*"]

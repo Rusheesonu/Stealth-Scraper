@@ -1,0 +1,56 @@
+[project]
+name = "stealth-scraper-mcp"
+version = "0.1.0"
+description = "MCP server for Stealth-Scraper — give AI agents (Claude Desktop, Cursor, Cline) direct access to structured web data extraction with anti-bot bypass."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Rushi Sonu", email = "rushikesh.sonu@gmail.com" },
+]
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.0",
+    "httpx>=0.27",
+]
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-desktop",
+    "cursor",
+    "cline",
+    "ai-agent",
+    "scraping",
+    "stealth",
+    "cloudflare",
+    "datadome",
+    "rag",
+    "web-data",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.scripts]
+stealth-scraper-mcp = "stealth_scraper_mcp.__main__:main"
+
+[project.urls]
+Homepage = "https://stealthscraper.dev"
+Repository = "https://github.com/Rusheesonu/stealth-scraper-mcp"
+"Hosted SaaS" = "https://stealthscraper.dev"
+Issues = "https://github.com/Rusheesonu/stealth-scraper-mcp/issues"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["stealth_scraper_mcp*"]
+exclude = ["tests*", "examples*"]
