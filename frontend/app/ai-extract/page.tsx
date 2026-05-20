@@ -40,10 +40,10 @@ export default function AiExtractPage() {
       setStage("done");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // Friendlier message for the common 503 case.
+      // Friendlier message for the common 503 case (no LLM key configured).
       setError(
         msg.includes("not configured")
-          ? "AI assist isn't configured on this instance — admin needs to set ANTHROPIC_API_KEY."
+          ? "AI assist isn't configured yet — admin needs to set LLM_API_KEY (free Groq key at console.groq.com)."
           : msg,
       );
       setStage("error");
@@ -104,9 +104,9 @@ export default function AiExtractPage() {
             Describe it. <span className="text-[var(--color-accent)]">Get a scraper.</span>
           </h1>
           <p className="mx-auto max-w-xl text-sm text-[var(--color-muted)]">
-            Paste a URL, describe what you want in plain English. Claude reads
-            the page and builds the extraction schema for you. Refine in the
-            visual picker or run it as-is.
+            Paste a URL, describe what you want in plain English. An LLM
+            reads the page and builds the extraction schema in under a second.
+            Refine in the visual picker or run it as-is.
           </p>
         </div>
 
@@ -140,7 +140,7 @@ export default function AiExtractPage() {
             {stage === "generating" ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Reading page + asking Claude…
+                Reading page + asking the LLM…
               </>
             ) : (
               <>
@@ -269,11 +269,11 @@ export default function AiExtractPage() {
         )}
 
         <div className="mt-12 text-center text-xs text-[var(--color-muted)]">
-          Powered by Claude. Each generation counts as 1 scrape against your{" "}
+          Each generation counts as 1 scrape against your{" "}
           <Link href="/settings/usage" className="text-[var(--color-accent)] hover:underline">
             monthly quota
           </Link>
-          .
+          . Default provider is Groq (free) — admins can swap to any OpenAI-compatible LLM.
         </div>
       </div>
     </main>
