@@ -1,0 +1,45 @@
+name: Sync to HuggingFace Spaces
+
+# Pushes the latest master to the HF Spaces git remote so the backend
+# deploys automatically. Without this, GitHub pushes never reached HF —
+# they're separate git endpoints. HF Spaces rebuilds the Docker image
+# on every push to its `main` branch (which is our `master`).
+#
+# Setup (one-time):
+#   1. GitHub repo Settings → Secrets and variables → Actions → New repo secret:
+#        Name:  HF_TOKEN
+#        Value: <write-access HF token from https://huggingface.co/settings/tokens>
+#   2. (Optional) Settings → Secrets → New repo variable:
+#        Name:  HF_SPACE
+#        Value: Illusion98/stealth-scraeper
+#      Falls back to the hardcoded default below if not set.
+
+on:
+  push:
+    branches: [master, main]
+  # Allow manual trigger from the Actions tab too.
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Push master → HF Spaces main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history — HF needs the full ref)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to HF Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE || 'Illusion98/stealth-scraeper' }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::error::HF_TOKEN secret is not set. Add it under repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          # User-component-of-the-namespace is used as the git username.
+          HF_USER="${HF_SPACE%%/*}"
+          git push --force "https://${HF_USER}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main
