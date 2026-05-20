@@ -217,16 +217,14 @@ export function Footer() {
           <span className="font-mono">© 2026 Stealth-Scraper</span>
         </div>
         <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px]">
+          {/* Keep the footer focused on first-party destinations. The OSS
+              engine has its own contextual link inside the OSS section on
+              the homepage — pulling visitors out to GitHub from the footer
+              mid-funnel was killing conversion. */}
           <Link href="/pricing" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">Pricing</Link>
           <Link href="/marketplace" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">Marketplace</Link>
           <Link href="/status" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">Status</Link>
           <Link href="/design" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">Design</Link>
-          <a href="https://github.com/Rusheesonu/stealth-browser" target="_blank" rel="noreferrer" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
-            OSS engine
-          </a>
-          <a href="https://github.com/Rusheesonu/Stealth-Scraper" target="_blank" rel="noreferrer" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
-            GitHub
-          </a>
         </nav>
       </div>
     </footer>

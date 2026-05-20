@@ -9,6 +9,8 @@ import { Card, CardTitle, Section } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LandingHero } from "@/components/landing-hero";
 import { FeaturedTemplates } from "@/components/featured-templates";
+import { SdkPreview } from "@/components/sdk-preview";
+import { OssSection } from "@/components/oss-section";
 
 /**
  * Landing. Hero IS the URL paste input + a static demo strip showing
@@ -23,7 +25,9 @@ export default function Home() {
       <FeaturedTemplates />
       <ProblemSection />
       <FeaturesSection />
+      <SdkPreview />
       <AiExtractCta />
+      <OssSection />
       <PricingTeaser />
       <CtaStrip />
     </PageShell>
