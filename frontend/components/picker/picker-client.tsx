@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Download, Layers, Loader2, Play, RotateCcw, X } from "lucide-react";
 
 import { Brand } from "@/components/brand";
+import { PageShell } from "@/components/nav";
 import { UrlForm } from "@/components/url-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -333,51 +334,56 @@ export function PickerClient() {
 
   if (!url) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6">
-        <div className="w-full max-w-xl text-center">
-          <h1 className="mb-3 text-3xl font-semibold tracking-tight">
+      <PageShell maxWidth="max-w-2xl">
+        <div className="py-16 sm:py-24">
+          <div className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            Picker
+          </div>
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-[var(--color-fg-strong)]">
             Snapshot a URL to start
           </h1>
-          <p className="mx-auto mb-8 max-w-md text-sm text-[var(--color-muted)]">
-            Paste any URL. We&apos;ll load it, take a screenshot, then you click
-            on the fields you want to extract.
+          <p className="mt-2 max-w-md text-[14px] leading-[1.55] text-[var(--color-fg-muted)]">
+            Paste any URL. We&apos;ll load it in a real browser, take a screenshot,
+            then you click on the fields you want to extract.
           </p>
-          <div className="mb-6">
-            <UrlForm />
+
+          <div className="mt-8">
+            <UrlForm autoFocus />
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[var(--color-muted)]">
-            <span>Try one:</span>
-            <Link
-              href="/pick?url=https://news.ycombinator.com"
-              className="rounded-full border border-[var(--color-border)] px-3 py-1 font-mono hover:border-emerald-800 hover:text-emerald-300"
-            >
-              news.ycombinator.com
-            </Link>
-            <Link
-              href="/pick?url=https://quotes.toscrape.com"
-              className="rounded-full border border-[var(--color-border)] px-3 py-1 font-mono hover:border-emerald-800 hover:text-emerald-300"
-            >
-              quotes.toscrape.com
-            </Link>
-            <Link
-              href="/pick?url=https://example.com"
-              className="rounded-full border border-[var(--color-border)] px-3 py-1 font-mono hover:border-emerald-800 hover:text-emerald-300"
-            >
-              example.com
-            </Link>
+
+          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12px]">
+            <span className="text-[var(--color-fg-subdued)]">Try one:</span>
+            {[
+              { url: "https://news.ycombinator.com", label: "news.ycombinator.com" },
+              { url: "https://quotes.toscrape.com",  label: "quotes.toscrape.com" },
+              { url: "https://books.toscrape.com",   label: "books.toscrape.com" },
+            ].map((t) => (
+              <Link
+                key={t.url}
+                href={`/pick?url=${encodeURIComponent(t.url)}`}
+                className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 font-mono text-[11px] text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)]"
+              >
+                {t.label}
+              </Link>
+            ))}
           </div>
-          <div className="mt-12 text-sm text-[var(--color-muted)]">
+
+          <div className="mt-10 border-t border-[var(--color-border)] pt-6 text-[13px] text-[var(--color-fg-muted)]">
             Or open a{" "}
-            <Link
-              href="/templates"
-              className="text-[var(--color-accent)] hover:underline"
-            >
+            <Link href="/templates" className="text-[var(--color-accent)] hover:underline">
               saved template
             </Link>
-            .
+            {" · "}
+            <Link href="/ai-extract" className="text-[var(--color-accent)] hover:underline">
+              try AI extract
+            </Link>
+            {" · "}
+            <Link href="/marketplace" className="text-[var(--color-accent)] hover:underline">
+              browse the marketplace
+            </Link>
           </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 

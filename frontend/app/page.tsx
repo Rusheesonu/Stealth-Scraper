@@ -7,80 +7,24 @@ import { PageShell } from "@/components/nav";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle, Section } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UrlForm } from "@/components/url-form";
+import { LandingHero } from "@/components/landing-hero";
 
 /**
- * Landing. Hero IS the URL paste input — product demonstrates itself
- * in the first viewport. No carousel, no feature grid above the fold.
+ * Landing. Hero IS the URL paste input + a static demo strip showing
+ * what comes back — product demonstrates itself in the first viewport.
+ * No carousel, no feature grid above the fold.
  */
-
-const TRY_LINKS = [
-  { label: "news.ycombinator.com", url: "https://news.ycombinator.com" },
-  { label: "quotes.toscrape.com",  url: "https://quotes.toscrape.com" },
-  { label: "books.toscrape.com",   url: "https://books.toscrape.com" },
-];
 
 export default function Home() {
   return (
-    <PageShell maxWidth="max-w-6xl">
-      <Hero />
+    <PageShell maxWidth="max-w-6xl" vPadding="flush">
+      <LandingHero />
       <ProblemSection />
       <FeaturesSection />
       <AiExtractCta />
       <PricingTeaser />
       <CtaStrip />
     </PageShell>
-  );
-}
-
-function Hero() {
-  return (
-    <section className="py-20 md:py-28">
-      <div className="mx-auto max-w-3xl text-center">
-        <div className="mb-6 inline-flex">
-          <Badge tone="accent">v2.0 · structured web data for AI agents</Badge>
-        </div>
-        <h1 className="text-[44px] font-semibold leading-[1.05] tracking-[-0.025em] text-[var(--color-fg-strong)] sm:text-[56px]">
-          Describe a page.<br />Get structured data.
-        </h1>
-        <p className="mx-auto mt-6 max-w-xl text-[15px] leading-[1.55] text-[var(--color-fg-muted)]">
-          Click the fields you want — or describe them in plain English. Stealth-Scraper
-          loads any page in a real browser, gets past Cloudflare and Datadome, and
-          returns clean JSON. No XPath, no markdown to re-parse.
-        </p>
-
-        <div className="mx-auto mt-10 max-w-xl">
-          <UrlForm
-            size="lg"
-            autoFocus
-            placeholder="https://news.ycombinator.com"
-            hint={
-              <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-                <span>Try</span>
-                {TRY_LINKS.map((t) => (
-                  <Link
-                    key={t.url}
-                    href={`/pick?url=${encodeURIComponent(t.url)}`}
-                    className="rounded-sm font-mono text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline underline-offset-2"
-                  >
-                    {t.label}
-                  </Link>
-                ))}
-              </div>
-            }
-          />
-        </div>
-
-        <div className="mt-6 flex items-center justify-center gap-2 text-[12px] text-[var(--color-fg-subdued)]">
-          <Sparkles className="h-3 w-3" />
-          <span>Or</span>
-          <Link href="/ai-extract" className="text-[var(--color-accent)] hover:underline underline-offset-2">
-            describe what you want in plain English
-          </Link>
-          <span>— faster for one-offs.</span>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -204,20 +148,29 @@ function PricingTeaser() {
 
 function CtaStrip() {
   return (
-    <section className="py-20 text-center">
-      <h2 className="text-[32px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
-        Stop fighting Cloudflare. Start shipping your agent.
-      </h2>
-      <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
-        100 scrapes / month free. No credit card. Sign up with your email.
-      </p>
-      <div className="mt-8 flex items-center justify-center gap-3">
-        <Link href="/login">
-          <Button variant="primary" size="lg">Get started — free <ArrowRight className="h-4 w-4" /></Button>
-        </Link>
-        <Link href="/ai-extract">
-          <Button variant="secondary" size="lg"><Sparkles className="h-4 w-4" />Try AI extract</Button>
-        </Link>
+    <section className="relative -mx-6 overflow-hidden px-6 py-16 text-center">
+      {/* Subtle accent wash to lift the final CTA off the page — Apple-style
+          ambient gradient, not a banner block. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-1/2 mx-auto h-[200px] max-w-2xl -translate-y-1/2 opacity-60"
+        style={{ background: "radial-gradient(ellipse at center, var(--color-accent-faint) 0%, transparent 70%)" }}
+        aria-hidden
+      />
+      <div className="relative">
+        <h2 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--color-fg-strong)]">
+          Stop fighting Cloudflare.<br />Start shipping your agent.
+        </h2>
+        <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
+          100 scrapes / month free. No credit card. Sign up with your email.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link href="/login?mode=signup">
+            <Button variant="primary" size="lg">Get started — free <ArrowRight className="h-4 w-4" /></Button>
+          </Link>
+          <Link href="/ai-extract">
+            <Button variant="secondary" size="lg"><Sparkles className="h-4 w-4" />Try AI extract</Button>
+          </Link>
+        </div>
       </div>
     </section>
   );

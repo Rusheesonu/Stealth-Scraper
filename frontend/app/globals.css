@@ -144,7 +144,9 @@
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
   --shadow-modal:   0 24px 48px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
   --shadow-thumb:   0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
-  --shadow-focus:   0 0 0 4px rgba(4, 120, 87, 0.12);
+  /* Focus — Apple-style hairline ring. NO glow blob. 2px solid accent
+     with a 1px bg gap (looks like a hand-drawn ring around the field). */
+  --shadow-focus:   0 0 0 1px var(--color-bg), 0 0 0 3px rgba(4, 120, 87, 0.35);
 }
 
 /* ── DARK MODE PORT ──────────────────────────────────────────────────────
@@ -181,7 +183,7 @@
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
   --shadow-modal:   0 24px 48px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-thumb:   0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.06);
-  --shadow-focus:   0 0 0 4px rgba(16, 185, 129, 0.2);
+  --shadow-focus:   0 0 0 1px var(--color-bg), 0 0 0 3px rgba(16, 185, 129, 0.5);
 }
 
 /* ── BASE ─────────────────────────────────────────────────────────────── */
@@ -212,12 +214,21 @@ body {
   color: white;
 }
 
-/* Focus — Apple-style ring (color + offset + soft glow) */
-*:focus-visible {
+/* Focus — Apple-style ring. Only apply to native form controls; components
+   handle their own focus via `focus-visible:` Tailwind classes (this prevents
+   the global ring from fighting each component's own radius / shape). */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
-  border-color: var(--color-accent);
-  border-radius: var(--radius-md);
+}
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 button, input, textarea, select {
