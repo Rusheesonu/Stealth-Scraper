@@ -126,7 +126,7 @@ export default function SchedulesPage() {
                 <select
                   value={templateId}
                   onChange={(e) => setTemplateId(Number(e.target.value))}
-                  className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] text-[var(--color-fg)]"
+                  className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] text-[var(--color-fg)] hover:border-[var(--color-border-strong)] focus-visible:border-[var(--color-fg-strong)] focus-visible:outline-none transition-[border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
                 >
                   {templates?.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
@@ -143,7 +143,7 @@ export default function SchedulesPage() {
                 <select
                   value={scheduleCron}
                   onChange={(e) => setScheduleCron(e.target.value)}
-                  className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] text-[var(--color-fg)]"
+                  className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] text-[var(--color-fg)] hover:border-[var(--color-border-strong)] focus-visible:border-[var(--color-fg-strong)] focus-visible:outline-none transition-[border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
                 >
                   {SCHEDULE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>

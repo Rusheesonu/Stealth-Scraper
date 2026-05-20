@@ -214,21 +214,25 @@ body {
   color: white;
 }
 
-/* Focus — Apple-style ring. Only apply to native form controls; components
-   handle their own focus via `focus-visible:` Tailwind classes (this prevents
-   the global ring from fighting each component's own radius / shape). */
+/* Focus — minimal global. Form controls (input/textarea/select) own their
+   focus styling via Tailwind `focus-visible:` classes per component, so we
+   don't stack a global ring on top of their custom border treatment.
+   A subtle browser default outline is fine as a fallback for accessibility. */
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
 }
+/* Interactive elements that don't manage their own focus (raw <a>, buttons,
+   plain divs with role=button) get an outline ring. Components that need
+   custom focus chrome opt out via `focus-visible:outline-none`. */
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible,
-[tabindex]:focus-visible {
+[tabindex]:not([tabindex="-1"]):focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+  border-radius: var(--radius-md);
 }
 
 button, input, textarea, select {

@@ -53,10 +53,13 @@ export function UrlForm({
       <motion.form
         onSubmit={submit}
         animate={{
+          // Three states, three borders: idle (light), hovered (medium),
+          // focused (text-dark). One ring only — no inner shadow ever.
           borderColor: focused
-            ? "var(--color-fg-strong)"
+            ? "var(--color-fg)"
             : "var(--color-border)",
         }}
+        whileHover={focused ? undefined : { borderColor: "var(--color-border-strong)" }}
         transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
         className={cn(
           "relative flex items-center w-full rounded-xl border bg-[var(--color-surface)]",
