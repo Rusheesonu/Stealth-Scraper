@@ -26,7 +26,7 @@ All three pass through the hosted Stealth-Scraper API, which means: residential 
 pip install stealth-scraper-mcp
 ```
 
-Requires Python 3.11+. Get your API key at [stealthscraper.dev/settings/api-keys](https://stealthscraper.dev/settings/api-keys) (free tier includes 100 scrapes/month).
+Requires Python 3.11+. Get your API key at [stealthscraper.dev/settings/api-keys](https://stealthscraper.dev/settings/api-keys) (free tier includes 50 scrapes/month).
 
 ## Setup — Claude Desktop
 
@@ -96,7 +96,7 @@ Stdio transport, command `stealth-scraper-mcp`, env var `STEALTH_SCRAPER_API_KEY
 
 ## Quotas + pricing
 
-Free tier: 100 scrapes/month. [Paid plans](https://stealthscraper.dev/pricing) start at $29/month for 1,000 scrapes (includes hard-site access). Soft Cloudflare and standard sites work on the free tier.
+Free tier: 50 scrapes/month. [Paid plans](https://stealthscraper.dev/pricing) start at $29/month for 1,000 scrapes (includes hard-site access). Soft Cloudflare and standard sites work on the free tier.
 
 ## License
 

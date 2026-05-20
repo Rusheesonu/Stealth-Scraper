@@ -82,7 +82,7 @@ function LoginForm() {
       </h1>
       <p className="mb-8 text-[13px] text-[var(--color-fg-muted)]">
         {mode === "magic" ? "We'll email you a one-tap link." :
-         mode === "signup" ? "100 scrapes/month free. No credit card." :
+         mode === "signup" ? "50 scrapes/month free. No credit card." :
          "Continue to your dashboard."}
       </p>
 

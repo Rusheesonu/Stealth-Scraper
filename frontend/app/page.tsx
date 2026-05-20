@@ -157,7 +157,7 @@ function AiExtractCta() {
 
 function PricingTeaser() {
   const tiers = [
-    { name: "Free",      price: "$0",   features: ["100 scrapes/mo", "Soft sites"] },
+    { name: "Free",      price: "$0",   features: ["50 scrapes/mo", "Soft sites"] },
     { name: "Hobby",     price: "$29",  features: ["1,000 scrapes/mo", "Hard sites"] },
     { name: "Pro",       price: "$99",  features: ["10,000 scrapes/mo", "API + SDKs", "Scheduled runs"], highlight: true },
     { name: "Business",  price: "$299", features: ["100,000 scrapes/mo", "Team seats", "Priority"] },
@@ -217,7 +217,7 @@ function CtaStrip() {
         </h2>
         <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
           Stop re-prompting on every URL. Build the schema once, ship your
-          agent. 100 free scrapes / month — no card required.
+          agent. 50 free scrapes / month — no card required.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link href="/login?mode=signup">

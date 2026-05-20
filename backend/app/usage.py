@@ -24,7 +24,11 @@ from app.auth import get_current_user
 
 
 PLAN_LIMITS: dict[str, int] = {
-    "free":     100,
+    # Free tier is 50/month: enough for ~1 week of evaluation but tight
+    # enough to force a paid commitment if someone's building a real
+    # product. 100 lets hobbyists free-ride forever; 25 burns out before
+    # they see value. 50 is the sweet spot for Chromium-per-scrape cost.
+    "free":     50,
     "hobby":    1_000,
     "pro":      10_000,
     "business": 100_000,

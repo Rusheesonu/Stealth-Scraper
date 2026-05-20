@@ -26,7 +26,7 @@ const TIERS: {
 }[] = [
   {
     plan: "free", name: "Free", price: "$0", blurb: "Try it without a card.",
-    features: ["100 scrapes/month", "Soft sites only", "Visual picker + AI extract", "Community templates"],
+    features: ["50 scrapes/month", "Soft sites only", "Visual picker + AI extract", "Community templates"],
     cta: "Sign in",
   },
   {

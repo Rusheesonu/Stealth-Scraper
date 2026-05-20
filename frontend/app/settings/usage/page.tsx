@@ -106,7 +106,7 @@ export default function UsagePage() {
               <Card density="comfortable" className="mt-6">
                 <div className="text-[14px] font-semibold tracking-tight">You&apos;re on the free tier</div>
                 <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
-                  Free: 100 scrapes/mo, soft sites. Hard sites (Cloudflare,
+                  Free: 50 scrapes/mo, soft sites. Hard sites (Cloudflare,
                   Datadome) require Hobby+ ($29/mo, 1,000 scrapes).
                 </p>
                 <Link href="/pricing">
