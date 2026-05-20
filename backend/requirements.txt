@@ -14,7 +14,8 @@ lxml>=5.3
 cssselect>=1.2
 beautifulsoup4>=4.12
 python-multipart>=0.0.9
-aiosqlite>=0.20
+asyncpg>=0.30          # primary persistent store (Supabase Postgres via pooler)
+aiosqlite>=0.20         # kept for legacy / migration scripts only
 httpx>=0.28
 
 # Supabase JWT verification (ES256 via JWKS endpoint).

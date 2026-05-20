@@ -39,6 +39,7 @@ from app.usage import enforce_plan, enforce_plan_bulk, plan_limit, current_year_
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Postgres pool init — fails loud if DATABASE_URL is unset or schema is missing.
     await db.init()
     # Don't eagerly start the browser — lazy-init on first request keeps
     # cold-boot fast and avoids OOM on small hosts.
@@ -47,6 +48,7 @@ async def lifespan(app: FastAPI):
     yield
     job_scheduler.stop_scheduler()
     await pool.stop()
+    await db.close()
 
 
 app = FastAPI(
