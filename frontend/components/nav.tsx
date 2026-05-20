@@ -61,6 +61,24 @@ export function Nav() {
             >
               Pick
             </Link>
+            <Link
+              href="/settings/usage"
+              className="text-[var(--color-muted)] hover:text-[var(--color-fg)]"
+            >
+              Usage
+            </Link>
+            <Link
+              href="/settings/schedules"
+              className="text-[var(--color-muted)] hover:text-[var(--color-fg)]"
+            >
+              Schedules
+            </Link>
+            <Link
+              href="/settings/api-keys"
+              className="text-[var(--color-muted)] hover:text-[var(--color-fg)]"
+            >
+              API keys
+            </Link>
             <span className="hidden md:inline font-mono text-xs text-[var(--color-muted)]">
               {email}
             </span>

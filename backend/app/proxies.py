@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import random
 from functools import lru_cache
 from pathlib import Path
@@ -28,12 +29,31 @@ PROXIES_PATH = DATA_DIR / "proxies.json"
 
 @lru_cache(maxsize=1)
 def _config() -> dict:
-    if not PROXIES_PATH.exists():
-        return {"credentials": [], "endpoints": []}
-    return json.loads(PROXIES_PATH.read_text())
+    """Load proxy config. Env var `PROXIES_JSON` wins (for production / HF
+    Spaces secrets where the file isn't shipped), then falls back to the
+    local file (dev convenience). Returns empty schema if neither exists."""
+    env_json = os.getenv("PROXIES_JSON", "").strip()
+    if env_json:
+        try:
+            return json.loads(env_json)
+        except json.JSONDecodeError as e:
+            print(f"[proxies] PROXIES_JSON env var invalid JSON: {e}")
+    if PROXIES_PATH.exists():
+        try:
+            return json.loads(PROXIES_PATH.read_text())
+        except json.JSONDecodeError as e:
+            print(f"[proxies] {PROXIES_PATH} invalid JSON: {e}")
+    return {"credentials": [], "endpoints": []}
 
 
 def available() -> bool:
+    """True only when both a proxy config exists AND PROXIES_ENABLED=true.
+
+    Opt-in by design: local dev should never accidentally route through a
+    residential proxy that won't work from the dev's network. Production
+    flips PROXIES_ENABLED=true on the HF Spaces secret panel."""
+    if os.getenv("PROXIES_ENABLED", "").strip().lower() not in ("1", "true", "yes", "on"):
+        return False
     cfg = _config()
     return bool(cfg.get("credentials")) and bool(cfg.get("endpoints"))
 

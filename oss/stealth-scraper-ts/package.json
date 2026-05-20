@@ -1,0 +1,57 @@
+{
+  "name": "stealth-scraper",
+  "version": "0.1.0",
+  "description": "TypeScript / JavaScript SDK for Stealth-Scraper — structured web data extraction for AI agents, RAG pipelines, and scrapers. Anti-bot bypass included.",
+  "keywords": [
+    "scraping",
+    "stealth",
+    "rag",
+    "ai-agent",
+    "cloudflare",
+    "datadome",
+    "web-data",
+    "sdk",
+    "api-client",
+    "structured-extraction"
+  ],
+  "license": "MIT",
+  "author": "Rushi Sonu <rushikesh.sonu@gmail.com>",
+  "homepage": "https://stealthscraper.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rusheesonu/stealth-scraper-ts"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0"
+  }
+}

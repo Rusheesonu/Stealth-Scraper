@@ -21,6 +21,15 @@ httpx>=0.28
 pyjwt[crypto]>=2.9
 python-dotenv>=1.0
 
+# HTML → Markdown for RAG ingestion output mode + markdown field kind.
+markdownify>=0.13
+
+# AI-assisted schema generation (LLM-powered).
+anthropic>=0.40
+
+# Background scheduler for cron'd scrapes + webhook delivery retries.
+apscheduler>=3.10
+
 # Dev / test
 pytest>=8.3
 pytest-asyncio>=0.24
