@@ -1,56 +1,45 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Check, ArrowRight } from "lucide-react";
+import { PageShell } from "@/components/nav";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api";
-import { Nav } from "@/components/nav";
 import { createClient } from "@/lib/supabase/client";
 
 type Plan = "hobby" | "pro" | "business";
 
 const TIERS: {
-  plan: Plan;
+  plan: Plan | "free";
   name: string;
   price: string;
+  blurb: string;
   features: string[];
   cta: string;
   highlight?: boolean;
 }[] = [
   {
-    plan: "hobby",
-    name: "Hobby",
-    price: "$29",
-    features: [
-      "1,000 scrapes / month",
-      "Cloudflare + Datadome unlocked",
-      "Saved templates",
-      "Email support",
-    ],
+    plan: "free", name: "Free", price: "$0", blurb: "Try it without a card.",
+    features: ["100 scrapes/month", "Soft sites only", "Visual picker + AI extract", "Community templates"],
+    cta: "Sign in",
+  },
+  {
+    plan: "hobby", name: "Hobby", price: "$29", blurb: "Single-developer experiments.",
+    features: ["1,000 scrapes/month", "Cloudflare + Datadome unlocked", "Saved templates", "Email support"],
     cta: "Start Hobby",
   },
   {
-    plan: "pro",
-    name: "Pro",
-    price: "$99",
-    features: [
-      "10,000 scrapes / month",
-      "REST API access",
-      "Scheduled runs",
-      "Batch URL processing",
-      "All Hobby features",
-    ],
+    plan: "pro", name: "Pro", price: "$99", blurb: "AI agents, RAG pipelines, real workflows.",
+    features: ["10,000 scrapes/month", "REST API + Python/TS SDKs + MCP", "Scheduled runs + webhooks", "Batch URL processing", "All Hobby features"],
     cta: "Start Pro",
     highlight: true,
   },
   {
-    plan: "business",
-    name: "Business",
-    price: "$299",
-    features: [
-      "100,000 scrapes / month",
-      "Team seats",
-      "Priority support",
-      "All Pro features",
-    ],
+    plan: "business", name: "Business", price: "$299", blurb: "Agencies, growing teams, higher volume.",
+    features: ["100,000 scrapes/month", "Team seats", "Priority support", "All Pro features"],
     cta: "Start Business",
   },
 ];
@@ -59,20 +48,19 @@ export default function PricingPage() {
   const [loadingPlan, setLoadingPlan] = useState<Plan | null>(null);
   const [error, setError] = useState("");
 
-  async function handleCheckout(plan: Plan) {
+  async function handleCta(plan: Plan | "free") {
+    if (plan === "free") {
+      window.location.href = "/login";
+      return;
+    }
     setLoadingPlan(plan);
     setError("");
-
     const supabase = createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
+    const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
       window.location.href = `/login?next=/pricing`;
       return;
     }
-
     try {
       const { checkout_url } = await api.createCheckout(plan);
       window.location.href = checkout_url;
@@ -83,62 +71,90 @@ export default function PricingPage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <Nav />
-      <div className="mx-auto max-w-6xl px-4 pt-16 pb-20">
-      <div className="text-center mb-16">
-        <h1 className="text-4xl font-semibold mb-4">Pricing</h1>
-        <p className="text-zinc-400">
-          Pay as you grow. Cancel anytime. 14-day refunds, no questions asked.
-        </p>
-      </div>
+    <PageShell maxWidth="max-w-6xl">
+      <div className="py-12 md:py-16">
+        <div className="mb-12 text-center">
+          <Badge tone="muted" className="mb-5">Pricing · USD</Badge>
+          <h1 className="text-[40px] font-semibold tracking-[-0.02em] text-[var(--color-fg-strong)]">
+            Honest pricing.<br />No dark patterns.
+          </h1>
+          <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
+            Three tiers. No fake urgency. No &quot;most popular&quot; sticker we made up.
+            Cancel anytime, 14-day refund.
+          </p>
+        </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {TIERS.map((tier) => (
-          <div
-            key={tier.plan}
-            className={`rounded-xl border p-8 flex flex-col ${
-              tier.highlight
-                ? "border-emerald-500 bg-emerald-500/5"
-                : "border-zinc-800 bg-zinc-900/40"
-            }`}
-          >
-            <h2 className="text-2xl font-semibold mb-1">{tier.name}</h2>
-            <div className="mb-6">
-              <span className="text-4xl font-semibold">{tier.price}</span>
-              <span className="text-zinc-400 ml-1">/ mo</span>
-            </div>
-            <ul className="space-y-2 mb-8 flex-1 text-sm">
-              {tier.features.map((f) => (
-                <li key={f} className="flex items-start gap-2">
-                  <span className="text-emerald-500 mt-0.5">✓</span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={() => handleCheckout(tier.plan)}
-              disabled={loadingPlan !== null}
-              className={`rounded-md px-4 py-2.5 text-sm font-medium transition ${
-                tier.highlight
-                  ? "bg-emerald-500 text-zinc-900 hover:bg-emerald-400"
-                  : "bg-white text-zinc-900 hover:bg-zinc-100"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          {TIERS.map((t) => (
+            <div
+              key={t.plan}
+              className={`flex flex-col rounded-lg border p-6 ${
+                t.highlight
+                  ? "border-[color:var(--color-accent)]/40 bg-[var(--color-accent-faint)] ring-1 ring-[color:var(--color-accent)]/20"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)]"
+              }`}
             >
-              {loadingPlan === tier.plan ? "Loading…" : tier.cta}
-            </button>
-          </div>
-        ))}
-      </div>
+              <div className="mb-1 flex items-baseline justify-between">
+                <h2 className="text-[15px] font-semibold tracking-tight">{t.name}</h2>
+                {t.highlight && <Badge tone="accent" size="xs">popular</Badge>}
+              </div>
+              <p className="mb-6 text-[12px] text-[var(--color-fg-muted)]">{t.blurb}</p>
+              <div className="mb-6 flex items-baseline gap-1">
+                <span className="text-[36px] font-semibold tracking-[-0.02em] text-[var(--color-fg-strong)]">{t.price}</span>
+                <span className="text-[12px] text-[var(--color-fg-muted)]">/mo</span>
+              </div>
+              <ul className="mb-6 flex-1 space-y-2 text-[13px] text-[var(--color-fg-muted)]">
+                {t.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[var(--color-accent)]" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                variant={t.highlight ? "accent" : (t.plan === "free" ? "secondary" : "primary")}
+                size="md"
+                onClick={() => handleCta(t.plan)}
+                disabled={loadingPlan !== null}
+                className="w-full"
+              >
+                {loadingPlan === t.plan ? "Loading…" : t.cta}
+              </Button>
+            </div>
+          ))}
+        </div>
 
-      {error && (
-        <p className="text-center mt-8 text-sm text-red-400">{error}</p>
-      )}
+        {error && (
+          <p className="mt-6 text-center text-[12px] text-[color:var(--color-danger)]">{error}</p>
+        )}
 
-      <p className="text-center mt-12 text-xs text-zinc-500">
-        Free tier available — sign up to get 100 scrapes/month on soft sites.
-      </p>
+        <div className="mt-16 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <Card density="comfortable">
+            <div className="text-[14px] font-semibold tracking-tight">Cancel anytime</div>
+            <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+              One click in your account. No retention popups, no &quot;before you go&quot; flow.
+            </p>
+          </Card>
+          <Card density="comfortable">
+            <div className="text-[14px] font-semibold tracking-tight">14-day refund</div>
+            <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+              No questions. Email <a href="mailto:support@stealthscraper.dev" className="text-[var(--color-accent)] hover:underline">support@stealthscraper.dev</a>.
+            </p>
+          </Card>
+          <Card density="comfortable">
+            <div className="text-[14px] font-semibold tracking-tight">Quota resets monthly</div>
+            <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+              1st of each month, UTC. See your current usage in <Link href="/settings/usage" className="text-[var(--color-accent)] hover:underline">/settings/usage</Link>.
+            </p>
+          </Card>
+        </div>
+
+        <div className="mt-16 text-center">
+          <Link href="/ai-extract" className="inline-flex items-center gap-1 text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
+            Or try AI extract first <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
       </div>
-    </main>
+    </PageShell>
   );
 }

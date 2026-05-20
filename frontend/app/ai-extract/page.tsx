@@ -2,16 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Sparkles, Loader2, ArrowRight, Save, Copy, ExternalLink, AlertTriangle } from "lucide-react";
-import { Nav } from "@/components/nav";
+import { Sparkles, Loader2, ArrowRight, Save, Copy, ExternalLink, AlertTriangle, Check } from "lucide-react";
+import { PageShell } from "@/components/nav";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 import { api, type TemplateField, type ExtractResponse } from "@/lib/api";
 
 type Stage = "idle" | "generating" | "extracting" | "done" | "error";
 
 const EXAMPLES = [
-  { url: "https://news.ycombinator.com", desc: "Get the top 10 stories — title, points, comment count, and submitter username." },
-  { url: "https://quotes.toscrape.com", desc: "Get every quote, its author, and the tags on it." },
-  { url: "https://www.producthunt.com", desc: "Get today's product launches with name, tagline, and upvote count." },
+  { url: "https://news.ycombinator.com",   desc: "Get the top 10 stories — title, points, comment count, submitter." },
+  { url: "https://quotes.toscrape.com",    desc: "Get every quote, its author, and the tags on it." },
+  { url: "https://books.toscrape.com",     desc: "Get every book — title, price, rating, in stock yes/no." },
 ];
 
 export default function AiExtractPage() {
@@ -26,13 +30,8 @@ export default function AiExtractPage() {
   async function generate(e?: React.FormEvent) {
     e?.preventDefault();
     if (!url.trim() || !description.trim()) return;
-
     setStage("generating");
-    setError("");
-    setTemplate(null);
-    setResults(null);
-    setSavedId(null);
-
+    setError(""); setTemplate(null); setResults(null); setSavedId(null);
     try {
       const norm = /^https?:\/\//i.test(url) ? url : `https://${url}`;
       const res = await api.assistSchema({ url: norm, description: description.trim() });
@@ -40,7 +39,6 @@ export default function AiExtractPage() {
       setStage("done");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // Friendlier message for the common 503 case (no LLM key configured).
       setError(
         msg.includes("not configured")
           ? "AI assist isn't configured yet — admin needs to set LLM_API_KEY (free Groq key at console.groq.com)."
@@ -52,8 +50,7 @@ export default function AiExtractPage() {
 
   async function runExtraction() {
     if (!template) return;
-    setStage("extracting");
-    setResults(null);
+    setStage("extracting"); setResults(null);
     try {
       const norm = /^https?:\/\//i.test(url) ? url : `https://${url}`;
       const res = await api.extract(norm, template);
@@ -81,93 +78,76 @@ export default function AiExtractPage() {
   }
 
   function loadExample(ex: typeof EXAMPLES[number]) {
-    setUrl(ex.url);
-    setDescription(ex.desc);
-    setStage("idle");
-    setTemplate(null);
-    setResults(null);
-    setError("");
+    setUrl(ex.url); setDescription(ex.desc);
+    setStage("idle"); setTemplate(null); setResults(null); setError("");
   }
 
   const isBusy = stage === "generating" || stage === "extracting";
 
   return (
-    <main className="min-h-screen">
-      <Nav />
-      <div className="mx-auto max-w-3xl px-6 py-12">
+    <PageShell maxWidth="max-w-3xl">
+      <div className="py-12">
         <div className="mb-10 text-center">
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-800/60 bg-emerald-950/40 px-3 py-1 text-xs font-medium text-emerald-300">
-            <Sparkles className="h-3 w-3" />
-            AI-powered · alpha
-          </div>
-          <h1 className="mb-3 text-4xl font-semibold tracking-tight">
-            Describe it. <span className="text-[var(--color-accent)]">Get a scraper.</span>
+          <Badge tone="accent" className="mb-5"><Sparkles className="h-3 w-3" /> AI extract · alpha</Badge>
+          <h1 className="text-[36px] font-semibold tracking-[-0.02em] text-[var(--color-fg-strong)]">
+            Describe it.<br />Get a scraper.
           </h1>
-          <p className="mx-auto max-w-xl text-sm text-[var(--color-muted)]">
+          <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
             Paste a URL, describe what you want in plain English. An LLM
             reads the page and builds the extraction schema in under a second.
-            Refine in the visual picker or run it as-is.
           </p>
         </div>
 
-        {/* Form */}
-        <form
-          onSubmit={generate}
-          className="mb-6 space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)]/40 p-5"
-        >
-          <input
-            type="text"
+        <form onSubmit={generate} className="space-y-2.5">
+          <Input
+            mono
+            size="lg"
             placeholder="https://news.ycombinator.com"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={isBusy}
-            className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-600 disabled:opacity-50"
+            autoFocus
           />
-          <textarea
-            placeholder="What do you want to extract? e.g. 'Get product title, price, and rating from each item on this page'"
+          <Textarea
+            placeholder="What do you want to extract? e.g. 'Get product title, price, and rating from each item.'"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             disabled={isBusy}
             rows={3}
             maxLength={500}
-            className="w-full resize-none rounded-md border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-600 disabled:opacity-50"
           />
-          <button
+          <Button
             type="submit"
+            variant="accent"
+            size="lg"
             disabled={isBusy || !url.trim() || !description.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-zinc-900 hover:opacity-90 disabled:opacity-50"
+            className="w-full"
           >
             {stage === "generating" ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Reading page + asking the LLM…
-              </>
+              <><Loader2 className="h-4 w-4 animate-spin" /> Reading page + asking the LLM…</>
             ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Generate scraper
-              </>
+              <><Sparkles className="h-4 w-4" /> Generate scraper</>
             )}
-          </button>
+          </Button>
         </form>
 
         {/* Examples */}
         {stage === "idle" && !template && (
-          <div className="mb-8">
-            <div className="mb-3 text-xs uppercase tracking-wider text-[var(--color-muted)]">
-              Or try one:
+          <div className="mt-10">
+            <div className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              Or try one
             </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
               {EXAMPLES.map((ex) => (
                 <button
                   key={ex.url}
                   onClick={() => loadExample(ex)}
-                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-panel)]/30 p-3 text-left text-xs transition hover:border-emerald-900 hover:bg-[var(--color-panel)]/60"
+                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
                 >
-                  <div className="mb-1 truncate font-mono text-[10px] text-[var(--color-muted)]">
+                  <div className="mb-1.5 truncate font-mono text-[10px] text-[var(--color-fg-subdued)]">
                     {ex.url.replace(/^https?:\/\//, "")}
                   </div>
-                  <div className="text-[var(--color-fg)]">{ex.desc}</div>
+                  <div className="text-[12px] leading-[1.5] text-[var(--color-fg)]">{ex.desc}</div>
                 </button>
               ))}
             </div>
@@ -176,107 +156,81 @@ export default function AiExtractPage() {
 
         {/* Error */}
         {error && (
-          <div className="mb-6 flex items-start gap-2 rounded-md border border-red-900 bg-red-950/40 p-4 text-sm text-red-200">
-            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-            <span>{error}</span>
+          <div className="mt-6 flex items-start gap-2 rounded-md border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-dim)] p-3 text-[12px] text-[color:var(--color-danger)]">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+            <span className="text-[var(--color-fg)]">{error}</span>
           </div>
         )}
 
         {/* Generated template */}
         {template && (
-          <div className="mb-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)]/40 p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                Generated schema ({template.length} field{template.length === 1 ? "" : "s"})
-              </h2>
+          <Card density="comfortable" className="mt-8">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Generated schema</div>
+                <div className="mt-0.5 text-[14px] font-semibold">{template.length} field{template.length === 1 ? "" : "s"}</div>
+              </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={runExtraction}
-                  disabled={isBusy}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-zinc-900 hover:opacity-90 disabled:opacity-50"
-                >
-                  {stage === "extracting" ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Running…
-                    </>
-                  ) : (
-                    <>
-                      <ArrowRight className="h-3 w-3" />
-                      Run extraction
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={saveAsTemplate}
-                  disabled={savedId !== null}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-[var(--color-panel)] disabled:opacity-50"
-                >
-                  <Save className="h-3 w-3" />
-                  {savedId ? "Saved ✓" : "Save template"}
-                </button>
+                <Button onClick={runExtraction} disabled={isBusy} variant="accent" size="sm">
+                  {stage === "extracting" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
+                  Run
+                </Button>
+                <Button onClick={saveAsTemplate} disabled={savedId !== null} variant="secondary" size="sm">
+                  {savedId ? <Check className="h-3 w-3" /> : <Save className="h-3 w-3" />}
+                  {savedId ? "Saved" : "Save"}
+                </Button>
                 <Link
                   href={`/pick?url=${encodeURIComponent(/^https?:\/\//i.test(url) ? url : `https://${url}`)}`}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-zinc-300 hover:bg-[var(--color-panel)]"
+                  className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 text-[12px] text-[var(--color-fg-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  Refine in picker
+                  Picker
                 </Link>
               </div>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {template.map((f, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 rounded-md border border-[var(--color-border)] bg-black/30 px-3 py-2 font-mono text-xs"
-                >
-                  <span className="rounded bg-emerald-950/60 px-1.5 py-0.5 font-semibold text-emerald-300">
-                    {f.label}
-                  </span>
-                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-400">
-                    {f.kind || "text"}
-                  </span>
-                  <span className="truncate text-[var(--color-muted)]">{f.selector}</span>
+                <div key={i} className="flex items-center gap-2 rounded-sm border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5">
+                  <Badge tone="accent" size="xs">{f.label}</Badge>
+                  <Badge tone="muted" size="xs">{f.kind || "text"}</Badge>
+                  <code className="flex-1 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">{f.selector}</code>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Results */}
         {results && (
-          <div className="rounded-xl border border-emerald-800/60 bg-emerald-950/10 p-5">
+          <Card density="comfortable" className="mt-3 border-[color:var(--color-accent)]/30">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                Extracted data
-              </h2>
+              <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Extracted JSON</div>
               <CopyButton text={JSON.stringify(results.fields, null, 2)} />
             </div>
-            <pre className="max-h-[400px] overflow-auto rounded-md border border-[var(--color-border)] bg-black/40 p-3 font-mono text-xs">
+            <pre className="max-h-[400px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3 font-mono text-[11px] text-[var(--color-fg)]">
               {JSON.stringify(results.fields, null, 2)}
             </pre>
             {Object.keys(results.errors || {}).length > 0 && (
               <details className="mt-3">
-                <summary className="cursor-pointer text-xs text-amber-400">
+                <summary className="cursor-pointer text-[12px] text-[var(--color-warning)]">
                   {Object.keys(results.errors).length} field error(s)
                 </summary>
-                <pre className="mt-2 rounded-md bg-amber-950/40 p-3 text-xs text-amber-200">
+                <pre className="mt-2 rounded-md border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-dim)] p-3 font-mono text-[11px] text-[var(--color-warning)]">
                   {JSON.stringify(results.errors, null, 2)}
                 </pre>
               </details>
             )}
-          </div>
+          </Card>
         )}
 
-        <div className="mt-12 text-center text-xs text-[var(--color-muted)]">
+        <div className="mt-16 border-t border-[var(--color-border)] pt-6 text-center text-[11px] text-[var(--color-fg-subdued)]">
           Each generation counts as 1 scrape against your{" "}
-          <Link href="/settings/usage" className="text-[var(--color-accent)] hover:underline">
+          <Link href="/settings/usage" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">
             monthly quota
-          </Link>
-          . Default provider is Groq (free) — admins can swap to any OpenAI-compatible LLM.
+          </Link>.
         </div>
       </div>
-    </main>
+    </PageShell>
   );
 }
 
@@ -286,18 +240,16 @@ function CopyButton({ text }: { text: string }) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard API can be unavailable in some contexts
-    }
+      setTimeout(() => setCopied(false), 1200);
+    } catch {}
   }
   return (
     <button
       onClick={doCopy}
-      className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 text-xs text-zinc-300 hover:bg-[var(--color-panel)]"
+      className="inline-flex h-7 items-center gap-1 rounded-sm border border-[var(--color-border)] px-2 text-[11px] text-[var(--color-fg-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]"
     >
-      <Copy className="h-3 w-3" />
-      {copied ? "Copied" : "Copy JSON"}
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+      {copied ? "Copied" : "Copy"}
     </button>
   );
 }

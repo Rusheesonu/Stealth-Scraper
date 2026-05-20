@@ -1,37 +1,25 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Brand } from "@/components/brand";
+import { PageShell } from "@/components/nav";
+import { Button } from "@/components/ui/button";
 import { TemplatesList } from "@/components/templates-list";
 
 export default function TemplatesPage() {
   return (
-    <main className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-panel)]/80 px-6 py-4 backdrop-blur">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-fg)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <Brand />
+    <PageShell maxWidth="max-w-5xl">
+      <div className="py-12">
+        <div className="mb-10 flex items-start justify-between gap-4">
+          <div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Library</div>
+            <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">Templates</h1>
+            <p className="mt-2 max-w-xl text-[13px] text-[var(--color-fg-muted)]">
+              Saved extraction recipes. Click any to re-run on a new URL with the same structure.
+              Publish public to share with the community.
+            </p>
+          </div>
+          <Link href="/pick"><Button variant="primary" size="md">New snapshot →</Button></Link>
         </div>
-        <Link
-          href="/"
-          className="text-sm text-[var(--color-muted)] hover:text-[var(--color-fg)]"
-        >
-          New snapshot →
-        </Link>
-      </header>
-
-      <section className="mx-auto max-w-4xl px-6 py-10">
-        <h1 className="mb-2 text-3xl font-semibold tracking-tight">Saved templates</h1>
-        <p className="mb-8 text-[var(--color-muted)]">
-          Each template is a reusable extraction recipe. Click to re-run on any URL with
-          the same structure.
-        </p>
         <TemplatesList />
-      </section>
-    </main>
+      </div>
+    </PageShell>
   );
 }

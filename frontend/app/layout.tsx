@@ -22,8 +22,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-[var(--color-bg)] text-[var(--color-fg)] antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen antialiased">
+        {/* Theme defaults to dark; user toggle (when shipped) writes
+            data-theme="light" on <html>. Suppress hydration warning so
+            client-side theme detection doesn't flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => { try { const t = localStorage.getItem('theme') || 'dark'; if (t === 'light') document.documentElement.dataset.theme = 'light'; } catch {} })()`,
+          }}
+        />
         {children}
       </body>
     </html>

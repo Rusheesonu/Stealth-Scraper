@@ -4,24 +4,44 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
+/**
+ * Button. Four variants, three sizes. Every variant uses the same radius
+ * (md = 6px), same easing, same focus ring. No accent decoration on
+ * non-primary variants — accent is reserved for the page's single primary
+ * action.
+ */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] disabled:pointer-events-none disabled:opacity-50",
+  [
+    "inline-flex items-center justify-center gap-1.5",
+    "rounded-md font-medium tracking-[-0.005em]",
+    "transition-[background,border-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)]",
+    "disabled:pointer-events-none disabled:opacity-50",
+    "select-none",
+  ].join(" "),
   {
     variants: {
       variant: {
+        // Filled white-on-black (Apple-style). The single page-level CTA.
         primary:
-          "bg-[var(--color-accent)] text-black hover:bg-emerald-400 shadow-[0_0_0_1px_rgba(16,185,129,0.3)]",
+          "bg-[var(--color-fg)] text-[var(--color-bg)] hover:bg-[var(--color-fg-strong)]",
+        // Subtle accent fill — for "generate", "go" affirmative actions
+        // that deserve to be felt but aren't THE primary CTA.
+        accent:
+          "bg-[var(--color-accent)] text-black hover:brightness-110",
+        // Bordered, mostly used for confirmations + side actions.
         secondary:
-          "bg-[var(--color-panel)] text-[var(--color-fg)] border border-[var(--color-border)] hover:border-neutral-600",
+          "bg-transparent text-[var(--color-fg)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]",
+        // No background, no border — text-only actions inside dense UI.
         ghost:
-          "text-[var(--color-fg)] hover:bg-[var(--color-panel)]",
+          "bg-transparent text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)]",
+        // Destructive — bordered, muted fill on hover.
         danger:
-          "bg-red-900/40 text-red-200 border border-red-900 hover:bg-red-900/60",
+          "bg-transparent text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/30 hover:bg-[var(--color-danger-dim)] hover:border-[color:var(--color-danger)]/60",
       },
       size: {
-        sm: "h-8 px-3",
-        md: "h-10 px-4",
-        lg: "h-12 px-6 text-base",
+        sm: "h-7 px-2.5 text-[12px]",
+        md: "h-9 px-3.5 text-[13px]",
+        lg: "h-11 px-5 text-[14px]",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },
