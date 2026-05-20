@@ -50,6 +50,25 @@ export default function Home() {
         </div>
       </section>
 
+      {/* AI EXTRACT CTA STRIP */}
+      <section className="relative z-10 mx-auto max-w-4xl px-6 pb-12">
+        <Link
+          href="/ai-extract"
+          className="group flex items-center justify-between rounded-xl border border-emerald-800/60 bg-emerald-950/20 px-6 py-4 transition hover:border-emerald-700 hover:bg-emerald-950/40"
+        >
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+              new
+            </span>
+            <span className="text-sm">
+              <span className="text-[var(--color-accent)]">✨ AI extract:</span>{" "}
+              describe what you want, get a scraper in 5 seconds. No clicking.
+            </span>
+          </div>
+          <ArrowRight className="h-4 w-4 text-[var(--color-muted)] group-hover:text-[var(--color-fg)] group-hover:translate-x-0.5 transition" />
+        </Link>
+      </section>
+
       {/* PROBLEM */}
       <section className="relative z-10 mx-auto max-w-5xl px-6 py-20 border-t border-[var(--color-border)]">
         <h2 className="mb-3 text-center text-3xl font-semibold tracking-tight">
