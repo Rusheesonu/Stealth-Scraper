@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { LandingPreview } from "@/components/landing-preview";
+import { LandingPreviewModal } from "@/components/landing-preview-modal";
 import { api, type PublicSnapshotResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -213,6 +213,7 @@ function UrlMode() {
   const [preview, setPreview] = useState<PublicSnapshotResponse | null>(null);
   const [submittedUrl, setSubmittedUrl] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Listen for prefill events from the featured-templates strip below.
   // When a user clicks a template card, that card scrolls to top and
@@ -237,16 +238,19 @@ function UrlMode() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return;
+    // Open the modal IMMEDIATELY — visitor sees the loading animation
+    // start, not a frozen button. The actual snapshot request fires in
+    // parallel; modal swaps loader → result when it resolves.
     setBusy(true);
     setError("");
     setPreview(null);
+    setSubmittedUrl(normalizedUrl);
+    setModalOpen(true);
     try {
       const res = await api.publicSnapshotAndSuggest(normalizedUrl);
       setPreview(res);
-      setSubmittedUrl(normalizedUrl);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // Rate-limit copy is friendlier than the raw 429 message.
       if (msg.includes("429")) {
         setError("You've used your free previews for this hour. Sign up free for unlimited.");
       } else if (msg.includes("502") || msg.toLowerCase().includes("snapshot failed")) {
@@ -259,23 +263,15 @@ function UrlMode() {
     }
   }
 
-  function reset() {
-    setPreview(null);
-    setError("");
-    setSubmittedUrl("");
-  }
-
-  // If a preview is up, show ONLY the preview — collapsing the form means
-  // the page doesn't feel cluttered. User can hit "try another url" inside
-  // the preview to come back to the form.
-  if (preview) {
-    return (
-      <LandingPreview
-        preview={preview}
-        originalUrl={submittedUrl}
-        onReset={reset}
-      />
-    );
+  function closeModal() {
+    setModalOpen(false);
+    // Delay state reset so the exit animation can play before the
+    // content disappears. Matches modal exit duration (~280ms).
+    setTimeout(() => {
+      setPreview(null);
+      setError("");
+      setSubmittedUrl("");
+    }, 320);
   }
 
   return (
@@ -320,39 +316,8 @@ function UrlMode() {
         </motion.button>
       </motion.form>
 
-      {/* Loading hint — first load takes 10-15s warming the browser */}
-      <AnimatePresence>
-        {busy && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: APPLE_EASE }}
-            className="overflow-hidden"
-          >
-            <div className="mt-3 flex items-center justify-center gap-1.5 text-[11.5px] text-[var(--color-fg-muted)]">
-              <div className="h-1 w-1 animate-pulse rounded-full bg-[var(--color-accent)]" />
-              <span>Warming a real Chromium, taking a snapshot, asking AI to pick fields…</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Error */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: APPLE_EASE }}
-            className="mt-3 flex items-start gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-2.5 text-[12px] text-[var(--color-fg)]"
-          >
-            <AlertTriangle className="mt-0.5 h-3 w-3 flex-shrink-0 text-[color:var(--color-danger)]" />
-            <span>{error}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Loading + error states now live INSIDE the modal — see
+          LandingPreviewModal. The form stays clean. */}
 
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-[12px] text-[var(--color-fg-subdued)]">
         <span>Try</span>
@@ -367,6 +332,18 @@ function UrlMode() {
           </button>
         ))}
       </div>
+
+      {/* Magic-snapshot modal — opens instantly on submit, shows the
+          dramatic loading animation while the snapshot runs, swaps to
+          result phase when it lands. Replaces the old inline preview
+          (which was cramped + hid the URL form). */}
+      <LandingPreviewModal
+        open={modalOpen}
+        url={submittedUrl}
+        preview={preview}
+        error={error}
+        onClose={closeModal}
+      />
     </div>
   );
 }
