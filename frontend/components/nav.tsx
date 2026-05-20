@@ -50,6 +50,12 @@ export function Nav() {
         ) : email ? (
           <>
             <Link
+              href="/ai-extract"
+              className="inline-flex items-center gap-1 text-[var(--color-accent)] hover:text-emerald-200"
+            >
+              ✨ AI extract
+            </Link>
+            <Link
               href="/templates"
               className="text-[var(--color-muted)] hover:text-[var(--color-fg)]"
             >
