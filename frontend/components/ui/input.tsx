@@ -8,8 +8,10 @@ import { cn } from "@/lib/utils";
  * pass `mono` for URL/selector/ID fields. Focus state lifts the border to
  * `border-strong` rather than throwing on a glow.
  */
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
   mono?: boolean;
+  /** Visual sizing — shadows the native HTML `size` attribute, which is character-count
+      and never used in modern layouts. We need `Omit` because string ≠ number. */
   size?: "sm" | "md" | "lg";
 }
 
