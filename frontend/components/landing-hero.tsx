@@ -73,7 +73,7 @@ export function LandingHero() {
           className="mb-5 inline-flex"
         >
           <Badge tone="accent">
-            <span className="font-mono">v2.0</span> · structured web data for AI agents
+            <span className="font-mono">v2.0</span> · visual scraping for AI agents
           </Badge>
         </motion.div>
 
@@ -83,9 +83,9 @@ export function LandingHero() {
           transition={{ duration: 0.45, delay: 0.06, ease: APPLE_EASE }}
           className="text-[40px] font-semibold leading-[1.04] tracking-[-0.028em] text-[var(--color-fg-display)] sm:text-[52px]"
         >
-          Describe a page.<br />
+          The visual scraper for AI agents.<br />
           <span className="bg-gradient-to-br from-[var(--color-fg-display)] to-[color-mix(in_srgb,var(--color-fg-display)_60%,var(--color-accent))] bg-clip-text text-transparent">
-            Get structured data.
+            Point, click, save, ship.
           </span>
         </motion.h1>
 
@@ -95,9 +95,10 @@ export function LandingHero() {
           transition={{ duration: 0.45, delay: 0.12, ease: APPLE_EASE }}
           className="mx-auto mt-5 max-w-xl text-[15px] leading-[1.55] text-[var(--color-fg-muted)]"
         >
-          Click the fields you want — or describe them in plain English. We load
-          any page in a real browser, get past Cloudflare and Datadome, and
-          return clean JSON.
+          Other scrapers ask you to prompt and pray. We let you{" "}
+          <span className="text-[var(--color-fg)]">see what you&apos;re extracting</span>{" "}
+          — click any element, save the recipe, run it forever. With selectors
+          you can actually debug.
         </motion.p>
 
         {/* TAB TOGGLE — the centerpiece. Two modes, equal weight. */}

@@ -32,12 +32,24 @@ export default function Home() {
 
 function ProblemSection() {
   const problems = [
-    { icon: AlertTriangle, title: "Hard sites stop most scrapers", body: "Cloudflare Turnstile, Datadome, Akamai — modern bot walls block most automation no matter how patched." },
-    { icon: FileX,         title: "Markdown ≠ schema",             body: "You scrape, then LLM-parse or hand-write extractors to get a real schema. Two systems, two failure modes." },
-    { icon: Wrench,        title: "DIY eats dev cycles",           body: "Selector maintenance, retries, lazy loaders, sticky banners — a second job. Your agent never ships." },
+    {
+      icon: FileX,
+      title: "Prompt-and-pray doesn't scale",
+      body: "Black-box AI scrapers look magical until you need to debug. Wrong field? Re-prompt. Schema drifted? Re-prompt. You can't fix what you can't see.",
+    },
+    {
+      icon: Wrench,
+      title: "Every API call is stateless",
+      body: "Most scraping APIs are one-shot. No saved recipe. You re-extract from scratch on every URL — paying for the same schema generation again and again.",
+    },
+    {
+      icon: AlertTriangle,
+      title: "Cloudflare hates your Playwright",
+      body: "Modern bot walls (Cloudflare, Datadome, Akamai) block most automation. Most APIs use vanilla Playwright. We use nodriver — CDP-patched, undetectable.",
+    },
   ];
   return (
-    <Section eyebrow="The problem" title="Why your agent's data pipeline keeps breaking">
+    <Section eyebrow="The problem" title="Why scrapers built for AI agents keep failing">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {problems.map((p) => (
           <Card key={p.title} density="comfortable">
@@ -53,13 +65,29 @@ function ProblemSection() {
 
 function FeaturesSection() {
   const features = [
-    { icon: MousePointerClick, title: "Click to pick",           body: "Visual schema picker. Hover, click, label. No XPath. No CSS selectors that break on the next deploy." },
-    { icon: Shield,            title: "CDP-level stealth",       body: "nodriver patches Chromium at the flag/CDP level — passes Cloudflare, Datadome, Turnstile checks others can't reach." },
-    { icon: Code,              title: "API + SDKs + MCP server", body: "Python, TypeScript, MCP. Drop into your AI agent or RAG pipeline in one line." },
-    { icon: FileJson,          title: "Schemas, not markdown",   body: "Every extraction returns clean structured fields. Row-aligned lists. Ready for vector DB, DataFrame, agent context." },
+    {
+      icon: MousePointerClick,
+      title: "Visual picker, not prompts",
+      body: "Click any field on the page. See the selector. See the value before extraction. Edit live. Save when ready.",
+    },
+    {
+      icon: FileJson,
+      title: "Recipes you save and reuse",
+      body: "Define a schema once. Run it on 1,000 URLs. Share with your team. Fork community templates. Version your selectors like code.",
+    },
+    {
+      icon: Shield,
+      title: "Through any bot wall",
+      body: "CDP-level Chromium patches via nodriver — passes Cloudflare Turnstile, Datadome, Akamai checks that vanilla Playwright trips on.",
+    },
+    {
+      icon: Code,
+      title: "Drop into your stack",
+      body: "REST API, Python + TypeScript SDKs, MCP server for Claude Desktop / Cursor / Cline. One line of code to integrate.",
+    },
   ];
   return (
-    <Section eyebrow="What's different" title="Built by a data architect, for data pipelines">
+    <Section eyebrow="The different shape" title="What you get that prompt-only scrapers can't ship">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {features.map((f) => (
           <Card key={f.title} density="compact">
@@ -75,30 +103,40 @@ function FeaturesSection() {
 
 function AiExtractCta() {
   return (
-    <Section eyebrow="AI extract" title="One sentence in. Working scraper out.">
+    <Section
+      eyebrow="AI assist (for when typing's faster than clicking)"
+      title="Describe it. We draft the schema. You open it in the picker to verify."
+    >
       <Link
         href="/ai-extract"
         className="group block overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2">
-          <div className="border-b border-[var(--color-border)] p-8 md:border-b-0 md:border-r">
-            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You write</div>
-            <p className="font-mono text-[13px] leading-[1.55] text-[var(--color-fg)]">
-              &quot;Get every product title, price, rating, and review count from this Target page.&quot;
+        <div className="grid grid-cols-1 md:grid-cols-3">
+          <div className="border-b border-[var(--color-border)] p-7 md:border-b-0 md:border-r">
+            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You write</div>
+            <p className="font-mono text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
+              &quot;Get every product&apos;s title, price, rating, and review count.&quot;
             </p>
           </div>
-          <div className="p-8">
-            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You get (in &lt;1s)</div>
-            <div className="space-y-1.5">
+          <div className="border-b border-[var(--color-border)] p-7 md:border-b-0 md:border-r">
+            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">AI drafts (1s)</div>
+            <div className="space-y-1">
               {["product_title", "price", "rating", "review_count"].map((label) => (
                 <div key={label} className="flex items-center gap-2">
-                  <Check className="h-3 w-3 text-[var(--color-accent)]" />
-                  <code className="font-mono text-[12px] text-[var(--color-fg)]">{label}</code>
+                  <Check className="h-3 w-3 flex-shrink-0 text-[var(--color-accent)]" />
+                  <code className="font-mono text-[11.5px] text-[var(--color-fg)]">{label}</code>
                 </div>
               ))}
             </div>
-            <div className="mt-4 inline-flex items-center gap-1 text-[12px] text-[var(--color-accent)] group-hover:underline underline-offset-2">
-              Try AI extract <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+          </div>
+          <div className="p-7">
+            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You verify in the picker</div>
+            <p className="mb-3 text-[12.5px] leading-[1.55] text-[var(--color-fg-muted)]">
+              Open the AI draft in the visual picker. Confirm selectors, edit
+              what&apos;s off, save the recipe. <span className="text-[var(--color-fg)]">No more hoping the AI got it right.</span>
+            </p>
+            <div className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-accent)] group-hover:underline underline-offset-2">
+              Try AI assist <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
             </div>
           </div>
         </div>
@@ -160,10 +198,11 @@ function CtaStrip() {
       />
       <div className="relative">
         <h2 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--color-fg-strong)]">
-          Stop fighting Cloudflare.<br />Start shipping your agent.
+          Save the recipe.<br />Run it forever.
         </h2>
         <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
-          100 scrapes / month free. No credit card. Sign up with your email.
+          Stop re-prompting on every URL. Build the schema once, ship your
+          agent. 100 free scrapes / month — no card required.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link href="/login?mode=signup">
