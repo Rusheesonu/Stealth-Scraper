@@ -111,16 +111,27 @@ export function ClickFlowDemo() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr]">
-          {/* Page area */}
+          {/* Page area — when the cursor clicks ONE title, the highlight
+              animates across ALL matching titles in sequence, showing
+              "list mode" — that's the wow moment. Same for points. */}
           <div className="relative h-[300px] border-b border-[var(--color-border)] bg-[var(--color-bg)] p-5 md:border-b-0 md:border-r">
             <ul className="space-y-2.5">
               {SAMPLE_ROWS.map((row, i) => {
-                const titleHighlighted = step >= 1 && i === 0;
-                const pointsHighlighted = step >= 1 && i === 0;
+                // Cascading highlight: row 0 lights up first (where the cursor
+                // clicked), then rows 1 + 2 light up sequentially with a 80ms
+                // stagger. Shows the user "click one, get them all."
+                const titleStagger = 0.5 + i * 0.08;
+                const pointsStagger = 1.4 + i * 0.08;
+                const titleHighlighted = step >= 1;
+                const pointsHighlighted = step >= 1;
                 return (
                   <li key={i} className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
                     <div className="text-[12.5px] leading-[1.45] text-[var(--color-fg)]">
                       <motion.span
+                        initial={{
+                          backgroundColor: "transparent",
+                          boxShadow: "0 0 0 0px transparent inset",
+                        }}
                         animate={titleHighlighted ? {
                           backgroundColor: "var(--color-accent-soft)",
                           boxShadow: "0 0 0 1px var(--color-accent-line) inset",
@@ -128,7 +139,7 @@ export function ClickFlowDemo() {
                           backgroundColor: "transparent",
                           boxShadow: "0 0 0 0px transparent inset",
                         }}
-                        transition={{ duration: 0.25, ease: APPLE_EASE }}
+                        transition={{ duration: 0.22, delay: titleStagger, ease: APPLE_EASE }}
                         className="rounded-sm px-0.5 py-px"
                       >
                         {row.title}
@@ -136,6 +147,10 @@ export function ClickFlowDemo() {
                     </div>
                     <div className="mt-1.5 font-mono text-[10px] text-[var(--color-fg-muted)]">
                       <motion.span
+                        initial={{
+                          backgroundColor: "transparent",
+                          boxShadow: "0 0 0 0px transparent inset",
+                        }}
                         animate={pointsHighlighted ? {
                           backgroundColor: "var(--color-info-soft)",
                           boxShadow: "0 0 0 1px color-mix(in srgb, var(--color-info) 25%, transparent) inset",
@@ -143,7 +158,7 @@ export function ClickFlowDemo() {
                           backgroundColor: "transparent",
                           boxShadow: "0 0 0 0px transparent inset",
                         }}
-                        transition={{ duration: 0.25, ease: APPLE_EASE }}
+                        transition={{ duration: 0.22, delay: pointsStagger, ease: APPLE_EASE }}
                         className="rounded-sm px-0.5 py-px"
                       >
                         {row.points}
@@ -154,6 +169,34 @@ export function ClickFlowDemo() {
                 );
               })}
             </ul>
+
+            {/* Floating "30 matches" badge that pops in when the click
+                happens — communicates "this isn't one item, it's a
+                whole list." This is the wow moment. */}
+            <AnimatePresence>
+              {step >= 1 && (
+                <motion.div
+                  key="matches-badge"
+                  initial={{ opacity: 0, scale: 0.5, y: 4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  transition={{
+                    duration: 0.35,
+                    delay: 0.55,
+                    ease: APPLE_EASE,
+                  }}
+                  className="pointer-events-none absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-fg-strong)] px-2.5 py-1 text-[10.5px] font-mono text-[var(--color-bg)] shadow-[var(--shadow-popover)]"
+                >
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.62, type: "spring", stiffness: 400, damping: 18 }}
+                    className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]"
+                  />
+                  found 30 matches
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Cursor — moves between steps. Faster motion (0.35s) +
                 punchier click feedback. */}
@@ -237,8 +280,24 @@ export function ClickFlowDemo() {
                   transition={{ duration: 0.22, ease: APPLE_EASE }}
                   className="space-y-1.5"
                 >
-                  <FieldRow color="var(--color-accent)" label="title" kind="list" delay={0.6} />
-                  <FieldRow color="var(--color-info)" label="points" kind="list" delay={0.85} />
+                  {/* Field cards now show actual extracted text streaming
+                      in row-by-row — proves the "click one, get the whole
+                      list" promise concretely. This is what makes the
+                      magic land. */}
+                  <FieldRow
+                    color="var(--color-accent)"
+                    label="title"
+                    kind="list"
+                    valueDelay={0.7}
+                    values={SAMPLE_ROWS.map((r) => r.title)}
+                  />
+                  <FieldRow
+                    color="var(--color-info)"
+                    label="points"
+                    kind="list"
+                    valueDelay={1.55}
+                    values={SAMPLE_ROWS.map((r) => String(r.points))}
+                  />
 
                   {step === 2 && (
                     <motion.div
@@ -278,22 +337,59 @@ c.run_template("tpl_hn", url)`}
 }
 
 function FieldRow({
-  color, label, kind, delay,
-}: { color: string; label: string; kind: string; delay: number }) {
+  color, label, kind, valueDelay, values,
+}: {
+  color: string;
+  label: string;
+  kind: string;
+  valueDelay: number;
+  values: string[];
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, x: 8 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, delay, ease: APPLE_EASE }}
-      className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2"
+      transition={{ duration: 0.28, delay: Math.max(0, valueDelay - 0.15), ease: APPLE_EASE }}
+      className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]"
     >
-      <div className="flex items-center gap-2">
+      {/* Header row — name + kind chip */}
+      <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-2.5 py-1.5">
         <span className="h-2 w-2 shrink-0 rounded-full ring-1 ring-inset ring-black/15" style={{ background: color }} />
         <span className="truncate text-[12px] font-medium text-[var(--color-fg-strong)]">{label}</span>
         <span className="ml-auto inline-flex h-[16px] items-center rounded px-1.5 font-mono text-[9px] ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]">
           {kind}
         </span>
       </div>
+
+      {/* Streaming values — each row appears with a 120ms stagger so the
+          user SEES the data flowing in row-by-row. This is what sells the
+          'click one element, get the whole list' magic. */}
+      <ul className="space-y-px px-2.5 py-1.5">
+        {values.slice(0, 3).map((v, i) => (
+          <motion.li
+            key={i}
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+              duration: 0.22,
+              delay: valueDelay + i * 0.12,
+              ease: APPLE_EASE,
+            }}
+            className="truncate font-mono text-[10px] leading-[1.55] text-[var(--color-fg)]"
+          >
+            <span className="text-[var(--color-fg-subdued)]">{i}.</span>{" "}
+            {v.length > 38 ? v.slice(0, 38) + "…" : v}
+          </motion.li>
+        ))}
+        <motion.li
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.22, delay: valueDelay + 0.5, ease: APPLE_EASE }}
+          className="font-mono text-[9.5px] text-[var(--color-fg-subdued)]"
+        >
+          … +27 more
+        </motion.li>
+      </ul>
     </motion.div>
   );
 }

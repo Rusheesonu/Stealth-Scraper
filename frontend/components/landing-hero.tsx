@@ -484,23 +484,27 @@ function DescribeMode() {
  * Window chrome makes it look real. Mock data, real component primitives.
  */
 function DemoStrip() {
+  // Only show 2 rows to keep the static demo compact — the third row
+  // pushed the demo below the fold on most laptop viewports. The
+  // animated ClickFlowDemo lower on the page does the heavy lifting
+  // for "see how it actually works"; this strip just proves "look,
+  // the output is real JSON."
   const sample = [
     { title: "Show HN: A tool for AI agents to scrape any website", points: 412, comments: 87, by: "rushi_k" },
     { title: "Cloudflare's new bot defense is breaking the open web", points: 287, comments: 142, by: "datapunk" },
-    { title: "We replaced our Selenium farm with CDP patches", points: 198, comments: 64, by: "stealthbuild" },
   ];
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-popover)]">
-      {/* Window chrome */}
-      <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-4 py-2.5">
+      {/* Window chrome — tighter (py-2 vs py-2.5) */}
+      <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-3.5 py-2">
         <div className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
         </div>
         <div className="flex-1">
-          <div className="mx-auto flex max-w-md items-center gap-1.5 rounded-md bg-[var(--color-surface)] px-3 py-1 font-mono text-[11px] text-[var(--color-fg-muted)]">
+          <div className="mx-auto flex max-w-md items-center gap-1.5 rounded-md bg-[var(--color-surface)] px-3 py-0.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
             <Globe className="h-3 w-3 text-[var(--color-fg-subdued)]" />
             news.ycombinator.com
           </div>
@@ -509,26 +513,27 @@ function DemoStrip() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr]">
-        {/* Left: page with highlighted selectors */}
-        <div className="border-b border-[var(--color-border)] p-5 md:border-b-0 md:border-r">
-          <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+        {/* Left: page with highlighted selectors — tighter spacing,
+            only 2 rows shown + cleaner overflow indicator. */}
+        <div className="border-b border-[var(--color-border)] p-4 md:border-b-0 md:border-r">
+          <div className="mb-2.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
             Page · clicked fields
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {sample.map((row, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4, delay: 0.6 + i * 0.05, ease: APPLE_EASE }}
-                className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3"
+                className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5"
               >
-                <div className="text-[12px] leading-[1.45] text-[var(--color-fg)]">
+                <div className="text-[12px] leading-[1.4] text-[var(--color-fg)]">
                   <span className="rounded-sm bg-[var(--color-accent-soft)] px-0.5 py-px ring-1 ring-[var(--color-accent-line)]">
                     {row.title}
                   </span>
                 </div>
-                <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-[var(--color-fg-muted)]">
+                <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-[var(--color-fg-muted)]">
                   <span>
                     <span className="rounded-sm bg-[var(--color-info-soft)] px-0.5 py-px ring-1 ring-[color:var(--color-info)]/20">
                       {row.points}
@@ -545,15 +550,15 @@ function DemoStrip() {
                 </div>
               </motion.div>
             ))}
-            <div className="pt-1 text-center font-mono text-[10px] text-[var(--color-fg-subdued)]">
-              … 27 more rows
+            <div className="pt-0.5 text-center font-mono text-[10px] text-[var(--color-fg-subdued)]">
+              … 28 more
             </div>
           </div>
         </div>
 
         {/* Right: clean JSON */}
-        <div className="bg-[var(--color-ink-1)] p-5">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="bg-[var(--color-ink-1)] p-4">
+          <div className="mb-2.5 flex items-center justify-between">
             <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Output · clean JSON
             </div>
@@ -561,21 +566,15 @@ function DemoStrip() {
               <Check className="h-2.5 w-2.5" /> 200 OK · 1.2s
             </div>
           </div>
-          <pre className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-mono text-[10.5px] leading-[1.6] text-[var(--color-fg)]">
+          <pre className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 font-mono text-[10.5px] leading-[1.55] text-[var(--color-fg)]">
 {`[
   {
-    "title": "Show HN: A tool for AI agents to scrape any website",
+    "title": "Show HN: A tool for AI agents...",
     "points": 412,
     "comments": 87,
     "by": "rushi_k"
   },
-  {
-    "title": "Cloudflare's new bot defense is breaking the open web",
-    "points": 287,
-    "comments": 142,
-    "by": "datapunk"
-  },
-  …
+  … 29 more
 ]`}
           </pre>
         </div>
