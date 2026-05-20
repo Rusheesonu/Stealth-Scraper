@@ -77,11 +77,14 @@ def _resolve_model_chain() -> list[str]:
 _DEAD_MODELS: set[str] = set()
 
 
-# Trim defaults chosen so a noisy 1000-element page (Target product pages,
-# Amazon search results) lands under ~4k input tokens — safely inside the
-# tightest Groq free-tier TPM bucket.
-MAX_CATALOG_ELEMENTS = int(os.getenv("LLM_MAX_CATALOG_ELEMENTS", "70"))
-MAX_TEXT_LEN = int(os.getenv("LLM_MAX_TEXT_LEN", "50"))
+# Trim defaults. Previously 70 elements, tuned for gemma2-9b's tight TPM.
+# Now on llama-3.3-70b (30k TPM) we can send ~3× more context — the more
+# elements the LLM sees, the less it has to *guess*. Hallucination was the
+# top failure mode on the previous low-context setup (LLM filled gaps with
+# Target-style selectors on Amazon pages, because that's what its training
+# data primes it to produce for "ecommerce product page" requests).
+MAX_CATALOG_ELEMENTS = int(os.getenv("LLM_MAX_CATALOG_ELEMENTS", "200"))
+MAX_TEXT_LEN = int(os.getenv("LLM_MAX_TEXT_LEN", "80"))
 
 
 # Friendly exception for clear error UX. Carries an HTTP-style status hint
@@ -130,12 +133,36 @@ You build web-scraping schemas. Input: a JSON array of page elements
 
 Output ONLY this JSON object — no prose, no fences:
 
-{"template":[{"label":"snake_case","selector":"<copy from c>","kind":"text|attr|list|markdown","attr":"<only if kind=attr>"}]}
+{"template":[{"label":"snake_case","selector":"<verbatim from c>","kind":"text|attr|list|markdown","attr":"<only if kind=attr>"}]}
 
-Rules:
-- Pick selectors directly from `c`. Never invent.
-- `list` for repeating items, `text` for singles, `attr` for href/src etc, `markdown` for rich blocks.
-- Keep labels short snake_case."""
+CRITICAL RULES — violations cause silent extraction failures:
+
+1. SELECTORS MUST COME VERBATIM FROM THE `c` FIELD ABOVE.
+   Do NOT generate selectors from memory. Do NOT use selectors you
+   "expect" a site like Amazon/Target/etc to have (e.g. #productTitle,
+   #pdp-product-title-id, .a-price-whole) unless they literally appear
+   in the `c` field of an element you can see in the input array.
+
+2. IF YOU CAN'T FIND A FIELD, OMIT IT.
+   Returning a hallucinated selector means the user gets `null` back
+   and thinks the product is broken. Returning fewer fields with real
+   selectors is ALWAYS better than more fields with invented selectors.
+
+3. WHAT THE USER ASKED FOR IS A HINT, NOT A CONTRACT.
+   If the user says "get everything a user might check while buying"
+   and only 3 of those things are present in the catalog, return
+   exactly 3 fields. Do NOT pad with invented selectors to look helpful.
+
+4. KIND RULES:
+   - `list` for repeating items (e.g. every story on a feed). Pick ONE
+     representative element from the repeating pattern — its selector
+     shape works for the whole list.
+   - `text` for a single distinct value (h1 title, single price node).
+   - `attr` only when extracting an attribute (href, src, alt, datetime).
+     Set `attr` to the attribute name.
+   - `markdown` for rich content blocks (article body, comment thread).
+
+5. LABELS: short snake_case, descriptive, no spaces, no punctuation."""
 
 
 # ── Generation ───────────────────────────────────────────────────────────
@@ -280,11 +307,10 @@ async def generate_template(
 
         # Happy path
         if res.status_code < 400:
-            # Successful response — clear from dead cache in case it was
-            # marked wrongly (provider revived the model).
             _DEAD_MODELS.discard(model)
             log.info("LLM ok model=%s status=%d", model, res.status_code)
-            return _parse_response(res, model=model)
+            template = _parse_response(res, model=model)
+            return _validate_selectors(template, catalog=trimmed, all_elements=elements, model=model)
 
         # 413 — payload too large. Trim and retry on the SAME model
         # (not a model problem, don't waste a fallback hop).
@@ -297,7 +323,8 @@ async def generate_template(
             )
             if res is not None and res.status_code < 400:
                 _DEAD_MODELS.discard(model)
-                return _parse_response(res, model=model)
+                template = _parse_response(res, model=model)
+                return _validate_selectors(template, catalog=trimmed, all_elements=elements, model=model)
             # If retry still failed, fall through to non-model-error handling.
 
         body_text = res.text if res is not None else ""
@@ -459,6 +486,64 @@ def _parse_response(res: httpx.Response, *, model: str) -> list[dict[str, Any]]:
         valid.append(f)
 
     return valid
+
+
+def _validate_selectors(
+    template: list[dict[str, Any]],
+    *,
+    catalog: list[dict[str, Any]],
+    all_elements: list[dict[str, Any]],
+    model: str,
+) -> list[dict[str, Any]]:
+    """Drop fields whose selector wasn't actually in the catalog we sent.
+
+    This is the anti-hallucination guard rail. The LLM is *instructed* to
+    pick selectors verbatim from `c`, but instruction-following isn't 100%.
+    Models often pad responses with template-y selectors they learned
+    during training (#productTitle for Amazon, #pdp-product-title-id for
+    Target). When the actual page doesn't have those, the extraction
+    silently returns null and the user thinks the product is broken.
+
+    Rule: keep a field only if its selector matches one of:
+      a) The exact selector of some element we sent (`c` field).
+      b) The "shape" of some element's selector (nth-of-type stripped) —
+         this is the legitimate list-selector case, where the LLM
+         generalizes `.row:nth-of-type(3) .title` → `.row .title`.
+      c) The exact selector of some element NOT in the trimmed catalog
+         but present in the full element set (rare but valid: the LLM
+         saw a duplicate that the trim deduped, and copied the original).
+    """
+    if not template:
+        return template
+
+    catalog_selectors = {el.get("c", "") for el in catalog if el.get("c")}
+    catalog_shapes = {_NTH_OF_TYPE_RE.sub("", s) for s in catalog_selectors}
+    all_selectors = {el.get("css", "") for el in all_elements if el.get("css")}
+    all_shapes = {_NTH_OF_TYPE_RE.sub("", s) for s in all_selectors}
+
+    kept: list[dict[str, Any]] = []
+    dropped: list[str] = []
+    for f in template:
+        sel = f.get("selector", "")
+        if not sel:
+            continue
+        shape = _NTH_OF_TYPE_RE.sub("", sel)
+        if (
+            sel in catalog_selectors
+            or shape in catalog_shapes
+            or sel in all_selectors
+            or shape in all_shapes
+        ):
+            kept.append(f)
+        else:
+            dropped.append(f"{f.get('label','?')}={sel[:60]}")
+
+    if dropped:
+        log.warning(
+            "LLM hallucinated %d/%d selectors (model=%s): %s",
+            len(dropped), len(template), model, "; ".join(dropped),
+        )
+    return kept
 
 
 # ── Catalog trim helpers ─────────────────────────────────────────────────
