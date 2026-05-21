@@ -205,27 +205,117 @@ export function Nav() {
 }
 
 /**
- * Footer — narrow, mono, three-zone layout: brand · primary links · external.
- * Same on every page. No marketing fluff.
+ * Footer — four-column trust footer. Brand block on the left, then
+ * Product · Open source · Company · Social. Same on every page.
+ *
+ * Why we expanded from the previous single-row footer: launching on
+ * Product Hunt means anyone-can-arrive-anywhere — the footer needs to
+ * carry trust signals (Privacy, Terms, Refund) and prove we&apos;re a
+ * real OSS-friendly project, not a black box.
  */
+
+type FooterLink = {
+  href: string;
+  label: string;
+  external?: boolean;
+};
+
+const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { href: "/pricing", label: "Pricing" },
+      { href: "/marketplace", label: "Marketplace" },
+      { href: "/status", label: "Status" },
+      { href: "https://github.com/rushikeshsonu/Stealth-Scraper#readme", label: "Docs", external: true },
+      { href: "https://github.com/rushikeshsonu/Stealth-Scraper/tree/master/backend#api-reference", label: "API reference", external: true },
+    ],
+  },
+  {
+    title: "Open source",
+    links: [
+      { href: "https://github.com/rushikeshsonu/Stealth-Scraper", label: "GitHub", external: true },
+      { href: "https://github.com/rushikeshsonu/Stealth-Scraper/tree/master/oss/stealth-browser", label: "stealth-browser", external: true },
+      { href: "https://github.com/rushikeshsonu/Stealth-Scraper/tree/master/oss/mcp-server", label: "MCP server", external: true },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { href: "/privacy", label: "Privacy" },
+      { href: "/terms", label: "Terms" },
+      { href: "/refund-policy", label: "Refund" },
+      { href: "mailto:support@stealthscraper.dev", label: "Contact", external: true },
+    ],
+  },
+  {
+    title: "Social",
+    links: [
+      { href: "https://x.com/rushikeshsonu", label: "X (@rushikeshsonu)", external: true },
+      // Discord placeholder — switch to the real invite link once the server is live.
+      { href: "#", label: "Discord" },
+      { href: "https://news.ycombinator.com/user?id=rushikeshsonu", label: "HN profile", external: true },
+    ],
+  },
+];
+
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-[var(--color-border)]">
-      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 px-6 py-8 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3 text-[11px] text-[var(--color-fg-subdued)]">
-          <Brand showText={false} />
-          <span className="font-mono">© 2026 Stealth-Scraper</span>
+      <div className="mx-auto max-w-7xl px-6 py-12">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-2 md:grid-cols-5">
+          {/* Brand block — sits beside the four link columns on md+ */}
+          <div className="col-span-2 flex flex-col gap-3 md:col-span-1">
+            <Brand />
+            <p className="max-w-xs text-[12px] text-[var(--color-fg-muted)]">
+              Structured web data for AI agents. Point, click, extract — or
+              describe it in plain English.
+            </p>
+          </div>
+
+          {FOOTER_COLUMNS.map((col) => (
+            <div key={col.title} className="flex flex-col gap-3">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+                {col.title}
+              </div>
+              <ul className="flex flex-col gap-2 text-[12px]">
+                {col.links.map((link) => (
+                  <li key={link.label}>
+                    {link.external ? (
+                      <a
+                        href={link.href}
+                        target={link.href.startsWith("mailto:") ? undefined : "_blank"}
+                        rel={link.href.startsWith("mailto:") ? undefined : "noreferrer"}
+                        className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline"
+                      >
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={link.href}
+                        className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline"
+                      >
+                        {link.label}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
-        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px]">
-          {/* Keep the footer focused on first-party destinations. The OSS
-              engine has its own contextual link inside the OSS section on
-              the homepage — pulling visitors out to GitHub from the footer
-              mid-funnel was killing conversion. */}
-          <Link href="/pricing" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">Pricing</Link>
-          <Link href="/marketplace" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">Marketplace</Link>
-          <Link href="/status" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">Status</Link>
-          <Link href="/design" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">Design</Link>
-        </nav>
+
+        <div className="mt-10 flex flex-col items-start gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 text-[11px] text-[var(--color-fg-subdued)]">
+            <span className="font-mono">© 2026 Stealth-Scraper · Built in India</span>
+          </div>
+          <div className="flex items-center gap-4 text-[11px]">
+            <Link href="/privacy" className="text-[var(--color-fg-subdued)] hover:text-[var(--color-fg-muted)]">Privacy</Link>
+            <Link href="/terms" className="text-[var(--color-fg-subdued)] hover:text-[var(--color-fg-muted)]">Terms</Link>
+            <Link href="/refund-policy" className="text-[var(--color-fg-subdued)] hover:text-[var(--color-fg-muted)]">Refund</Link>
+            <Link href="/design" className="text-[var(--color-fg-subdued)] hover:text-[var(--color-fg-muted)]">Design</Link>
+          </div>
+        </div>
       </div>
     </footer>
   );

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Static SVG fallback. The canonical, dynamic OG image is the React
+       route at /app/opengraph-image.tsx — Next.js serves it as a PNG at
+       /opengraph-image. This file exists so that consumers that prefer
+       SVG (or that don't run the Next renderer) still get a brand-correct
+       preview. Mirrors the dark-mode token palette in globals.css. -->
+  <defs>
+    <pattern id="dots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#262626"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="#0a0a0a"/>
+  <rect width="1200" height="630" fill="url(#dots)"/>
+
+  <!-- Top: 3x3 brand grid + wordmark -->
+  <g transform="translate(72, 72)">
+    <g>
+      <rect x="0"  y="0"  width="12" height="12" rx="2" fill="#8a8a8a" opacity="0.25"/>
+      <rect x="16" y="0"  width="12" height="12" rx="2" fill="#8a8a8a" opacity="0.25"/>
+      <rect x="32" y="0"  width="12" height="12" rx="2" fill="#8a8a8a" opacity="0.25"/>
+      <rect x="0"  y="16" width="12" height="12" rx="2" fill="#8a8a8a" opacity="0.25"/>
+      <rect x="16" y="16" width="12" height="12" rx="2" fill="#10b981"/>
+      <rect x="32" y="16" width="12" height="12" rx="2" fill="#8a8a8a" opacity="0.25"/>
+      <rect x="0"  y="32" width="12" height="12" rx="2" fill="#8a8a8a" opacity="0.25"/>
+      <rect x="16" y="32" width="12" height="12" rx="2" fill="#8a8a8a" opacity="0.25"/>
+      <rect x="32" y="32" width="12" height="12" rx="2" fill="#8a8a8a" opacity="0.25"/>
+    </g>
+    <text x="62" y="33" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="600" fill="#ededed" letter-spacing="-0.3">Stealth-Scraper</text>
+  </g>
+
+  <!-- Middle: headline + sub -->
+  <text x="72" y="320" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="600" fill="#ededed" letter-spacing="-2.5">The reliable web-data layer</text>
+  <text x="72" y="400" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="600" fill="#ededed" letter-spacing="-2.5">for AI agents.</text>
+
+  <text x="72" y="468" font-family="Inter, system-ui, sans-serif" font-size="28" fill="#8a8a8a" letter-spacing="-0.3">Point, click, extract — or describe what you want in plain English.</text>
+
+  <!-- Footer: divider + URL + curl chip -->
+  <line x1="72" y1="540" x2="1128" y2="540" stroke="#262626" stroke-width="1"/>
+  <circle cx="84" cy="582" r="6" fill="#10b981"/>
+  <text x="102" y="589" font-family="JetBrains Mono, ui-monospace, monospace" font-size="22" fill="#8a8a8a">stealthscraper.dev</text>
+
+  <rect x="800" y="560" width="328" height="44" rx="10" fill="#111111" stroke="#262626"/>
+  <text x="818" y="589" font-family="JetBrains Mono, ui-monospace, monospace" font-size="18" fill="#8a8a8a">$ curl stealthscraper.dev/api/extract</text>
+</svg>
