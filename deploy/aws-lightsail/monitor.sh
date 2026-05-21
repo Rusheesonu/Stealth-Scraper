@@ -5,7 +5,7 @@
 # checks Caddy is up, and prints a one-line status to syslog.
 #
 # Install:
-#   sudo cp deploy/hetzner/monitor.sh /usr/local/bin/stealth-monitor.sh
+#   sudo cp deploy/aws-lightsail/monitor.sh /usr/local/bin/stealth-monitor.sh
 #   sudo chmod +x /usr/local/bin/stealth-monitor.sh
 #   sudo crontab -e
 #   # Add:
@@ -33,7 +33,7 @@ case "$HEALTH" in
     ;;
   missing)
     log "container MISSING — starting via compose"
-    cd /opt/stealth-scraper/src/deploy/hetzner
+    cd /opt/stealth-scraper/src/deploy/aws-lightsail
     docker compose --env-file /opt/stealth-scraper/.env.production up -d
     ;;
   *)

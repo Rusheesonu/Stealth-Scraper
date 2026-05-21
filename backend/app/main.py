@@ -275,8 +275,9 @@ async def snapshot_endpoint(
 # pin our snapshot pool.
 
 # Simple in-memory IP rate limiter. Resets on container restart, which is
-# fine — HF/Hetzner reboots roughly daily and the cap is intentionally
-# loose. Don't replace with Redis until traffic actually warrants it.
+# fine — the Lightsail box reboots ~weekly via apt-unattended-upgrades
+# and the cap is intentionally loose. Don't replace with Redis until
+# traffic actually warrants it.
 # {ip -> deque[timestamps]}  ; pruned on each access.
 _PUBLIC_SNAPSHOT_HITS: dict[str, deque] = defaultdict(deque)
 PUBLIC_SNAPSHOT_LIMIT = int(os.getenv("PUBLIC_SNAPSHOT_LIMIT", "3"))      # max requests

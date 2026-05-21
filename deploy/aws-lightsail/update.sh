@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Subsequent deploys. Run on the Hetzner server. ~30 seconds.
+# Subsequent deploys. Run on the AWS Lightsail instance. ~30 seconds.
 #
-#   ssh root@<hetzner-ip>
+#   ssh ubuntu@<lightsail-ip>
 #   cd /opt/stealth-scraper/src
-#   bash deploy/hetzner/update.sh
+#   bash deploy/aws-lightsail/update.sh
 #
 # What it does:
 #   1. Pulls latest master from GitHub
@@ -17,7 +17,7 @@ set -euo pipefail
 APP_ROOT="/opt/stealth-scraper"
 SRC_DIR="${APP_ROOT}/src"
 ENV_FILE="${APP_ROOT}/.env.production"
-COMPOSE_DIR="${SRC_DIR}/deploy/hetzner"
+COMPOSE_DIR="${SRC_DIR}/deploy/aws-lightsail"
 
 log() { printf "\n\033[1;36m▸ %s\033[0m\n" "$*"; }
 ok()  { printf "  \033[1;32m✓\033[0m %s\n" "$*"; }

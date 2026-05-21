@@ -1,4 +1,4 @@
-# Backend container definition for Hetzner production.
+# Backend container definition for AWS Lightsail production.
 #
 # Loaded by:
 #   docker compose --env-file /opt/stealth-scraper/.env.production up -d

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #
-# One-time Hetzner provisioning. Run as root on a fresh Ubuntu 24.04 box.
+# One-time AWS Lightsail provisioning. Run as root on a fresh Ubuntu 24.04 box.
 # Idempotent — safe to re-run if anything fails mid-way.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Rusheesonu/Stealth-Scraper/master/deploy/hetzner/setup.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Rusheesonu/Stealth-Scraper/master/deploy/aws-lightsail/setup.sh | bash
 # OR, after cloning:
-#   bash deploy/hetzner/setup.sh
+#   bash deploy/aws-lightsail/setup.sh
 #
 # Prereqs:
 #   - DNS A record api.stealthscraper.dev → this server's IPv4 (already
 #     propagated; setup.sh waits up to 60s for Caddy's first cert).
 #   - .env.production filled in (see .env.production.template).
 #   - Repo cloned at /opt/stealth-scraper/src (this script lives in
-#     /opt/stealth-scraper/src/deploy/hetzner/).
+#     /opt/stealth-scraper/src/deploy/aws-lightsail/).
 
 set -euo pipefail
 
@@ -20,8 +20,8 @@ set -euo pipefail
 APP_ROOT="/opt/stealth-scraper"
 SRC_DIR="${APP_ROOT}/src"
 ENV_FILE="${APP_ROOT}/.env.production"
-COMPOSE_FILE="${SRC_DIR}/deploy/hetzner/docker-compose.yml"
-CADDY_SRC="${SRC_DIR}/deploy/hetzner/Caddyfile"
+COMPOSE_FILE="${SRC_DIR}/deploy/aws-lightsail/docker-compose.yml"
+CADDY_SRC="${SRC_DIR}/deploy/aws-lightsail/Caddyfile"
 CADDY_DST="/etc/caddy/Caddyfile"
 DOMAIN="api.stealthscraper.dev"
 
@@ -104,7 +104,7 @@ docker build -t stealth-scraper-backend:latest .
 ok "image built"
 
 log "Starting backend container"
-cd "$SRC_DIR/deploy/hetzner"
+cd "$SRC_DIR/deploy/aws-lightsail"
 # Stop any previous instance (idempotent re-run)
 docker compose --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
 docker compose --env-file "$ENV_FILE" up -d
