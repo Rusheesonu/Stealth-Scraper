@@ -230,12 +230,25 @@ async def scrape_one(
     )
     result.blocked = block.blocked
     result.detected_vendor = block.vendor if block.blocked else None
-    # "success" = not blocked AND we got at least some elements.
-    # Note: 5 is the minimum-real-content threshold (a blocked CF page
-    # typically returns 1-3 elements: the challenge widget). Engines
-    # must return REAL elements — placeholder padding to satisfy this
-    # threshold is prohibited (see camoufox_engine.py).
-    result.success = (not block.blocked) and result.element_count >= 5
+    # "success" = block-detector didn't fire AND we got page content.
+    #
+    # Old threshold was `element_count >= 5` to distinguish a real page
+    # from a 1-3-element challenge widget. That false-failed on genuinely
+    # minimal pages: example.com (3 elements: h1+p+a), httpbin.org/ip
+    # (JSON endpoint with 1 wrapper element). New heuristic:
+    #
+    #   PASS if  (not blocked) AND (title present) AND elements >= 1
+    #   FAIL on the typical anti-bot challenge wall which has:
+    #     - empty/generic title ("Please wait", "Just a moment...")
+    #     - very few elements (the challenge widget alone)
+    #
+    # detect_block() already catches the named-vendor walls; this is
+    # a backstop for unbranded blocks (e.g. raw 403 HTML pages).
+    has_real_content = (
+        result.element_count >= 5
+        or (result.element_count >= 1 and bool(snap_result.title))
+    )
+    result.success = (not block.blocked) and has_real_content
     if block.blocked and not result.error:
         result.notes = f"{block.title}: {block.message[:120]}"
     return result

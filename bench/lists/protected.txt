@@ -13,7 +13,7 @@
 
 # ── CONTROL (should always pass — sanity check that the scraper works at all)
 https://example.com/                                                       none
-https://httpbin.org/ip                                                     none
+https://httpbin.org/html                                                   none
 https://news.ycombinator.com/                                              none
 https://quotes.toscrape.com/                                               none
 
