@@ -53,28 +53,32 @@ log = logging.getLogger(__name__)
 # list. Order = strongest first.
 #
 # Sourced from web research (May 2026) + bench data we'll accumulate.
-# Update as we learn.
+# Update as we learn. Only engines that actually exist in this codebase
+# go here — historic comments referenced "patchright" but that engine
+# isn't implemented yet; left out to avoid silent affinity-list filtering
+# that hid the absence.
 VENDOR_AFFINITY: dict[str, list[str]] = {
-    # Cloudflare: nodriver does fine on basic; patchright better on
-    # Turnstile (deeper Playwright patches); camoufox best on hard
-    # cases (Firefox engine evades chromium-targeted detection).
-    "cloudflare":           ["nodriver", "patchright", "camoufox"],
-    "cloudflare-turnstile": ["patchright", "nodriver", "camoufox"],
+    # Cloudflare: nodriver clears basic challenges; camoufox is the
+    # fallback when Chromium-targeted detection (cdc_, navigator.webdriver
+    # via Object.defineProperty introspection) kicks in.
+    "cloudflare":           ["nodriver", "camoufox"],
+    "cloudflare-turnstile": ["camoufox", "nodriver"],
     # DataDome: heavy on TLS fingerprint — curl_cffi (real-Chrome JA3)
-    # actually beats it on static content. Browser fallback otherwise.
-    "datadome":             ["curl_cffi", "patchright", "nodriver"],
+    # actually beats it on static content. Browser fallback for SPAs.
+    "datadome":             ["curl_cffi", "camoufox", "nodriver"],
     # PerimeterX: behavioral. Camoufox + humanize wins; 2captcha for hard.
-    "perimeterx":           ["camoufox", "patchright", "nodriver"],
+    "perimeterx":           ["camoufox", "nodriver"],
     # Akamai BMP: TLS + H2 fingerprint critical. curl_cffi on static,
-    # patchright (with TLS via curl-impersonate proxy) for JS.
-    "akamai":               ["curl_cffi", "patchright", "nodriver"],
+    # camoufox for JS-required pages.
+    "akamai":               ["curl_cffi", "camoufox", "nodriver"],
     # Imperva: IP-reputation heavy; engine matters less than proxy quality.
-    # nodriver works when nodriver isn't bugging out (the persistent
-    # ProtocolException bug — see LOOP_LOG iter 6); patchright as backup.
-    "imperva":              ["patchright", "nodriver", "curl_cffi"],
+    "imperva":              ["camoufox", "nodriver", "curl_cffi"],
     # Kasada: targets headless chromium specifically. Firefox via camoufox
     # is the canonical bypass.
-    "kasada":               ["camoufox", "patchright", "nodriver"],
+    "kasada":               ["camoufox", "nodriver"],
+    # Fingerprint test pages (creepjs, fingerprint.com, browserleaks):
+    # camoufox is the only engine that scores clean on creepjs.
+    "fingerprint-test":     ["camoufox", "nodriver"],
 }
 
 
@@ -140,6 +144,11 @@ class SuccessTracker:
             reverse=True,
         )
         return with_history[0][0]
+
+    def stats_for(self, host: str, engine_name: str) -> Optional[HostStats]:
+        """Public accessor — used by EngineRouter._explain_choice. Returns
+        None if no history exists yet so callers can branch on presence."""
+        return self._stats.get((host, engine_name))
 
     def dump(self) -> None:
         if not self._persist_path:
@@ -223,44 +232,44 @@ class EngineRouter:
         )
 
         # Try up to MAX_ESCALATIONS engines in ranked order.
+        # We dump tracker state once at the end — not on every record —
+        # to keep the hot path off synchronous file I/O. The dump-on-exit
+        # still survives crashes well enough for an in-process learner.
         last_err: Optional[Exception] = None
-        for attempt, engine in enumerate(ordered[: self.MAX_ESCALATIONS]):
-            try:
-                result = await engine.snapshot(url, requirements=req)
-                # Update tracker — success
-                self._tracker.record(host, engine.name, success=True)
-                self._tracker.dump()
-                if attempt > 0:
-                    decision.escalation_path.append(
-                        f"{ordered[attempt-1].name}→fail, {engine.name}→success"
-                    )
-                return result, decision
-            except EngineFailedError as e:
-                self._tracker.record(host, engine.name, success=False)
-                last_err = e
-                if not e.retriable_on_other_engine:
-                    # The engine itself says this URL won't work on any
-                    # engine — escalation is wasted. Give up early.
-                    decision.escalation_path.append(f"{engine.name}→non-retriable: {e}")
-                    self._tracker.dump()
-                    raise
-                decision.escalation_path.append(f"{engine.name}→fail: {str(e)[:80]}")
-                log.info("router: %s failed on %s — escalating", engine.name, url)
-                continue
-            except Exception as e:
-                # Unexpected — log + escalate anyway, but mark in decision
-                self._tracker.record(host, engine.name, success=False)
-                last_err = e
-                decision.escalation_path.append(f"{engine.name}→exception: {type(e).__name__}")
-                log.warning("router: %s raised %r on %s", engine.name, e, url)
-                continue
-        self._tracker.dump()
-        raise EngineFailedError(
-            f"all {len(ordered[: self.MAX_ESCALATIONS])} candidate engines failed: "
-            f"{decision.escalation_path}",
-            engine="router",
-            retriable_on_other_engine=False,
-        ) from last_err
+        try:
+            for attempt, engine in enumerate(ordered[: self.MAX_ESCALATIONS]):
+                try:
+                    result = await engine.snapshot(url, requirements=req)
+                    self._tracker.record(host, engine.name, success=True)
+                    if attempt > 0:
+                        decision.escalation_path.append(
+                            f"{ordered[attempt-1].name}→fail, {engine.name}→success"
+                        )
+                    return result, decision
+                except EngineFailedError as e:
+                    self._tracker.record(host, engine.name, success=False)
+                    last_err = e
+                    if not e.retriable_on_other_engine:
+                        decision.escalation_path.append(f"{engine.name}→non-retriable: {e}")
+                        raise
+                    decision.escalation_path.append(f"{engine.name}→fail: {str(e)[:80]}")
+                    log.info("router: %s failed on %s — escalating", engine.name, url)
+                    continue
+                except Exception as e:
+                    # Unexpected — log + escalate anyway, but mark in decision
+                    self._tracker.record(host, engine.name, success=False)
+                    last_err = e
+                    decision.escalation_path.append(f"{engine.name}→exception: {type(e).__name__}")
+                    log.warning("router: %s raised %r on %s", engine.name, e, url)
+                    continue
+            raise EngineFailedError(
+                f"all {len(ordered[: self.MAX_ESCALATIONS])} candidate engines failed: "
+                f"{decision.escalation_path}",
+                engine="router",
+                retriable_on_other_engine=False,
+            ) from last_err
+        finally:
+            self._tracker.dump()
 
     # ── Internals ────────────────────────────────────────────────────────
 
@@ -318,8 +327,8 @@ class EngineRouter:
     def _explain_choice(self, engine: Engine, host: str, req: Requirements) -> str:
         """Human-readable rationale for the decision. Goes on EngineDecision."""
         parts = [f"chose '{engine.name}'"]
-        if (host, engine.name) in self._tracker._stats:
-            s = self._tracker._stats[(host, engine.name)]
+        s = self._tracker.stats_for(host, engine.name)
+        if s is not None:
             parts.append(
                 f"per-host history: {s.success}/{s.success + s.failure} = {s.success_rate:.0%}"
             )

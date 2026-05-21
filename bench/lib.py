@@ -1,26 +1,40 @@
 """Shared benchmark utilities.
 
 The bench/ runners need three things from this module:
-  1. `scrape_one(url)` — actually drive the production stealth stack against a URL
-     and return a normalized result (block-detected? what vendor? how long?).
-  2. `BenchResult` / `BenchReport` dataclasses — the JSON shape we commit to
-     bench/results/. Stable so we can diff across iterations.
+  1. `scrape_one(url, vendor)` — drive ONE scrape through the production
+     engine router (not raw take_snapshot) so benchmarks measure the
+     full multi-engine pipeline.
+  2. `BenchResult` / `BenchReport` dataclasses — the JSON shape we commit
+     to bench/results/. Stable so we can diff across iterations.
   3. `write_report(name, payload)` — atomic JSON write with timestamp.
 
-We deliberately use the SAME stealth/snapshot/detect modules the production
-backend uses (via `from app import ...`). Benchmarking a separate copy would
-defeat the point. Run this module from within the backend's Python venv so
-the import path resolves.
+Why through the router (the historic bug this fixes): earlier bench
+versions called `app.snapshot.take_snapshot` directly, which means every
+benchmark only ever measured nodriver. The router/curl_cffi/camoufox
+existed but were never tested by any bench — they were dead code. Now
+every bench scrape runs through `engines.router.snapshot()`, which:
+  - filters engines by capability,
+  - picks the best one for the vendor (vendor_hint → VENDOR_AFFINITY),
+  - escalates on EngineFailedError up to MAX_ESCALATIONS engines,
+  - records per-host success rates for future runs to learn from.
+
+Each BenchResult now carries `engine_used` + `escalation_path` so the
+report shows which engine actually won on which URL.
+
+We deliberately use the SAME stealth/snapshot/detect modules the
+production backend uses (via `from app import ...`). Benchmarking a
+separate copy would defeat the point. Run from repo root — the path
+setup below adds backend/ to sys.path so `from app import ...` resolves.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
-import os
+import subprocess
 import sys
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -44,7 +58,13 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 @dataclass
 class BenchResult:
-    """One row of a benchmark run."""
+    """One row of a benchmark run.
+
+    Fields added since the multi-engine refactor:
+      engine_used       — which engine the router actually selected
+      escalation_path   — chain if the router had to fall through engines
+      router_reason     — human-readable reason from EngineDecision
+    """
     url: str
     expected_vendor: Optional[str] = None    # what we EXPECT to be there
     success: bool = False                     # got a usable page (not a wall)
@@ -56,6 +76,9 @@ class BenchResult:
     elapsed_s: float = 0.0
     error: Optional[str] = None               # exception message if scrape died
     notes: str = ""
+    engine_used: Optional[str] = None         # router's pick
+    escalation_path: list[str] = field(default_factory=list)
+    router_reason: str = ""
 
 
 @dataclass
@@ -69,6 +92,11 @@ class BenchReport:
     config: dict[str, Any]                    # mode, concurrency, proxy on/off, etc.
     summary: dict[str, Any]                   # aggregate stats (overall + per-vendor)
     results: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _utc_now_iso() -> str:
+    """Timezone-aware ISO timestamp. utcnow() is deprecated 3.12+."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def write_report(name: str, payload: BenchReport) -> Path:
@@ -85,7 +113,6 @@ def write_report(name: str, payload: BenchReport) -> Path:
 def git_sha() -> str:
     """Short HEAD sha for the report. Falls back to 'unknown' if outside a
     git repo or `git` isn't available."""
-    import subprocess
     try:
         out = subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"],
@@ -121,31 +148,64 @@ def load_url_list(name: str) -> list[tuple[str, str]]:
 
 
 # ── The actual scrape call ────────────────────────────────────────────────
-#
-# Imports app.snapshot and app.detect from the production backend code so
-# benchmarks measure the EXACT stealth stack production uses. Don't change
-# this to spawn a separate scraper — defeats the point.
 
 
-async def scrape_one(url: str, *, timeout_s: float = 45.0) -> BenchResult:
-    """Drive one scrape through production stealth + post-snapshot detect.
-    Returns a BenchResult with timing + block-detection verdict.
+async def scrape_one(
+    url: str,
+    *,
+    vendor_hint: Optional[str] = None,
+    timeout_s: float = 45.0,
+    needs_js: bool = True,
+    needs_screenshot: bool = True,
+) -> BenchResult:
+    """Drive one scrape through the engine router + post-snapshot detect.
+
+    The router picks the best engine for (vendor_hint, capabilities) and
+    escalates on EngineFailedError. Per-host history accumulates in
+    /tmp/stealth-scraper-router-history.json so repeated bench runs learn.
 
     Catches every exception so a broken proxy or a 500 doesn't kill the
-    whole batch run."""
-    from app.snapshot import take_snapshot
-    from app.detect import detect_block
+    whole batch run.
 
-    result = BenchResult(url=url)
+    Also gates each call through the safety rate-limiter (1 req/sec/host
+    default) so a bench run doesn't accidentally hammer the same domain
+    when multiple URLs share a host.
+    """
+    from app.engines import router, Requirements
+    from app.engines.base import EngineFailedError
+    from app.detect import detect_block
+    from app.safety import limiter
+
+    result = BenchResult(url=url, expected_vendor=vendor_hint)
+
+    # Per-host rate limit — safe default 1 rps/host so bench doesn't DDoS.
+    await limiter.acquire(url)
+
+    # Map our URL-list vendor tag to a router vendor_hint when meaningful.
+    # "unknown" and "none" (control) leave vendor_hint at None so the
+    # router falls back to cost-ordered candidate ranking.
+    rt_hint: Optional[str] = vendor_hint if vendor_hint and vendor_hint not in ("unknown", "none") else None
+
+    req = Requirements(
+        needs_js=needs_js,
+        needs_screenshot=needs_screenshot,
+        vendor_hint=rt_hint,
+        max_latency_s=timeout_s,
+    )
+
     t0 = time.perf_counter()
     try:
-        snap = await asyncio.wait_for(
-            take_snapshot(url, viewport_width=1280, viewport_height=900),
+        snap_result, decision = await asyncio.wait_for(
+            router.snapshot(url, requirements=req),
             timeout=timeout_s,
         )
     except asyncio.TimeoutError:
         result.elapsed_s = round(time.perf_counter() - t0, 2)
         result.error = f"timeout after {timeout_s}s"
+        return result
+    except EngineFailedError as e:
+        result.elapsed_s = round(time.perf_counter() - t0, 2)
+        result.error = f"router gave up: {e}"
         return result
     except Exception as e:
         result.elapsed_s = round(time.perf_counter() - t0, 2)
@@ -153,18 +213,28 @@ async def scrape_one(url: str, *, timeout_s: float = 45.0) -> BenchResult:
         return result
 
     result.elapsed_s = round(time.perf_counter() - t0, 2)
-    result.title = (snap.title or "")[:120]
-    result.element_count = len(snap.elements or [])
+    result.title = (snap_result.title or "")[:120]
+    result.element_count = len(snap_result.elements or [])
+    result.engine_used = snap_result.engine_name
+    result.escalation_path = list(decision.escalation_path)
+    result.router_reason = decision.reason
 
     # Run detect against element-text haystack (same as production endpoint).
     block = detect_block(
-        title=snap.title or "",
-        html=" ".join((el.get("text") or "")[:200] for el in (snap.elements or [])[:40]),
-        url=snap.url,
+        title=snap_result.title or "",
+        html=" ".join(
+            (el.get("text") or "")[:200]
+            for el in (snap_result.elements or [])[:40]
+        ),
+        url=snap_result.url,
     )
     result.blocked = block.blocked
     result.detected_vendor = block.vendor if block.blocked else None
-    # "success" = not blocked AND we got at least some elements
+    # "success" = not blocked AND we got at least some elements.
+    # Note: 5 is the minimum-real-content threshold (a blocked CF page
+    # typically returns 1-3 elements: the challenge widget). Engines
+    # must return REAL elements — placeholder padding to satisfy this
+    # threshold is prohibited (see camoufox_engine.py).
     result.success = (not block.blocked) and result.element_count >= 5
     if block.blocked and not result.error:
         result.notes = f"{block.title}: {block.message[:120]}"
@@ -174,27 +244,22 @@ async def scrape_one(url: str, *, timeout_s: float = 45.0) -> BenchResult:
 async def scrape_many(
     urls: list[tuple[str, str]],
     *,
-    concurrency: int = 1,
     on_done=None,
 ) -> list[BenchResult]:
-    """Run scrape_one across a list with bounded concurrency. Yields results
-    via the optional `on_done(result)` callback for progress logging.
+    """Run scrape_one across a list, serially.
 
-    Concurrency=1 by default — the production BrowserPool serializes via
-    asyncio.Lock anyway, so higher values won't help on a single backend.
-    Throughput benchmarks should run multiple processes for real parallelism.
+    Concurrency removed because production BrowserPool serializes via
+    asyncio.Lock anyway — running >1 coroutine just queues them on the
+    lock without speedup. Throughput benchmarks should run multiple
+    PROCESSES for real parallelism (see bench/throughput.py docs).
+
+    Each URL's vendor tag is passed as the router's vendor_hint so the
+    right engine wins per vendor.
     """
-    sem = asyncio.Semaphore(concurrency)
     results: list[BenchResult] = []
-
-    async def _one(url: str, vendor: str) -> BenchResult:
-        async with sem:
-            r = await scrape_one(url)
-            r.expected_vendor = vendor
-            results.append(r)
-            if on_done:
-                on_done(r)
-            return r
-
-    await asyncio.gather(*[_one(u, v) for u, v in urls])
+    for url, vendor in urls:
+        r = await scrape_one(url, vendor_hint=vendor)
+        results.append(r)
+        if on_done:
+            on_done(r)
     return results

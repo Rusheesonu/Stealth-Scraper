@@ -1,8 +1,9 @@
 """nodriver-based engine — wraps the existing take_snapshot.
 
-This is the BASELINE engine that already powers production. The router
-treats it as one option among many; for now it's also the only option
-registered (next iters add curl_cffi, patchright, camoufox).
+This is the BASELINE engine that powers production today. The router
+treats it as one option among many; it's also the only engine production
+currently calls directly (main.py imports take_snapshot, not router).
+The bench is the first caller that actually goes through the router.
 
 Capabilities declared honestly:
   ✓ JS_EXEC                  — Chromium runs page JS
@@ -18,17 +19,19 @@ Capabilities declared honestly:
   ✗ HEADED                   — runs --headless=new
   ✗ MOBILE_EMULATION         — could add via CDP Emulation but not exposed here
 
-Cost: ~0.5¢/page on AWS Lightsail (compute) + ~0.001¢ proxy.
+Cost: 1¢/page bucket. Actual compute cost on Lightsail is ~0.0001¢ but
+the cents-int unit doesn't represent fractions; 1 is the smallest
+ranking unit and reserves room for free engines (curl_cffi=0) to rank
+strictly cheaper. Don't read absolute values; the router only uses
+these for ordinal comparison.
 """
 
 from __future__ import annotations
 
 import time
-from typing import Optional
 
 from .base import (
     Capability,
-    Engine,
     EngineFailedError,
     EngineSnapshotResult,
     Requirements,
@@ -47,7 +50,7 @@ class NodriverEngine:
         | Capability.PROXY_SUPPORT
         | Capability.COOKIE_PERSISTENCE
     )
-    cost_per_request_cents = 1  # rough — ~$0.0001/page on Lightsail = 0.01¢, round up
+    cost_per_request_cents = 1  # ordinal rank — see module docstring
 
     async def is_available(self) -> bool:
         """Import-check: if nodriver itself isn't installed, return False
@@ -69,12 +72,15 @@ class NodriverEngine:
         # heavy deps not needed by other engines.
         from app.snapshot import take_snapshot
 
+        viewport_w = 390 if requirements.needs_mobile_ui else 1440
+        viewport_h = 844 if requirements.needs_mobile_ui else 900
+
         t0 = time.perf_counter()
         try:
             snap = await take_snapshot(
                 url,
-                viewport_width=1440 if not requirements.needs_mobile_ui else 390,
-                viewport_height=900 if not requirements.needs_mobile_ui else 844,
+                viewport_width=viewport_w,
+                viewport_height=viewport_h,
             )
         except Exception as e:
             raise EngineFailedError(
@@ -106,5 +112,6 @@ class NodriverEngine:
             elapsed_s=round(time.perf_counter() - t0, 3),
             cost_cents=self.cost_per_request_cents,
             proxy_used=proxy_label,
-            cookies_carried=0,  # nodriver pool doesn't yet track this
+            cookies_carried=0,  # browser pool doesn't track per-call cookies yet
+            notes=f"chromium, elements={len(snap.elements or [])}",
         )

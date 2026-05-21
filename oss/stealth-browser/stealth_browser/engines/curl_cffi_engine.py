@@ -20,11 +20,12 @@ What this engine CAN'T do:
   - Execute JavaScript (the page DOM is what the server returns)
   - Run anti-bot challenge JS (so won't pass Turnstile, PerimeterX, etc.)
   - Capture client-rendered SPAs (React/Vue/Angular apps)
-  - Get a real screenshot (we render a placeholder PNG since the engine
-    contract requires one — for screenshot-required cases, use a browser)
+  - Take a screenshot — we don't advertise the SCREENSHOT capability,
+    so the router won't pick us when the caller needs a real PNG.
 
 Router strategy:
   - JS_EXEC capability NOT advertised → caller must opt in to non-JS path
+  - SCREENSHOT NOT advertised — we have no rendering pipeline
   - LIGHTWEIGHT capability YES → router picks this when prefer_lightweight=True
   - TLS_IMPERSONATION + HTTP2_FINGERPRINT YES → wins on those vendors
   - Cost: 0 cents/page (pure HTTP, no compute beyond the request itself)
@@ -38,47 +39,48 @@ Failure escalation:
 
 from __future__ import annotations
 
-import asyncio
-import base64
+import re
 import time
 from typing import Optional
 
 from .base import (
     Capability,
-    Engine,
     EngineFailedError,
     EngineSnapshotResult,
     Requirements,
 )
 
 
-# 1x1 transparent PNG — placeholder for the screenshot field since the
-# engine contract requires one but we can't actually render a page.
-_BLANK_PNG_B64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjC"
-    "B0C8AAAAASUVORK5CYII="
-)
-
-
-# Chrome impersonation profiles supported by curl_cffi. We pick the
-# newest stable that matches our --user-agent flag (Chrome 131).
+# Chrome impersonation profile supported by curl_cffi. We pick the
+# newest stable that matches our --user-agent (Chrome 131).
 # If a future curl_cffi version drops chrome131 support, fall back to
-# the closest available.
+# the closest available via _IMPERSONATE_FALLBACKS.
 _IMPERSONATE_PROFILE = "chrome131"
+_IMPERSONATE_FALLBACKS = ("chrome124", "chrome120", "chrome116")
+
+# Compiled once at module load — title extraction is hot path.
+_TITLE_RE = re.compile(r"<title[^>]*>([^<]+)</title>", re.IGNORECASE)
+
+# HTTP statuses that strongly indicate anti-bot block (not server fault).
+_BLOCK_STATUSES = frozenset({403, 429, 503, 520, 521, 522, 525})
+
+# Body text cap. Pure sanity bound — keeps a runaway response (huge
+# HTML download) from bloating result JSON / log files. NOT a memory
+# budget; curl_cffi already streamed the bytes into RAM by this point.
+_BODY_TEXT_CAP = 200_000
 
 
 class CurlCffiEngine:
-    """TLS-impersonating HTTP client. No JS execution."""
+    """TLS-impersonating HTTP client. No JS execution, no screenshot."""
 
     name = "curl_cffi"
     capabilities = (
-        Capability.SCREENSHOT          # (placeholder PNG — see module docstring)
-        | Capability.DOM_QUERY         # we return raw HTML; caller parses
+        Capability.DOM_QUERY           # we return raw HTML; caller parses
         | Capability.TLS_IMPERSONATION # the whole point
         | Capability.HTTP2_FINGERPRINT # curl-impersonate matches Chrome H2 SETTINGS
         | Capability.LIGHTWEIGHT       # ~10MB RAM, <500ms typical
         | Capability.PROXY_SUPPORT     # honors proxy URL
-        # NOT JS_EXEC — caller must accept static content
+        # NOT advertising: JS_EXEC (no JS), SCREENSHOT (no rendering).
     )
     cost_per_request_cents = 0  # essentially free — pure HTTP
 
@@ -104,6 +106,8 @@ class CurlCffiEngine:
         """
         # If caller requires JS execution, we can't help — escalate immediately
         # rather than returning empty HTML the caller will assume is real.
+        # (Defensive: the router shouldn't even pick us when needs_js=True
+        # because JS_EXEC isn't in our capabilities, but check anyway.)
         if requirements.needs_js:
             raise EngineFailedError(
                 "curl_cffi can't execute JS; escalate to a browser engine",
@@ -135,54 +139,61 @@ class CurlCffiEngine:
         elapsed = round(time.perf_counter() - t0, 3)
 
         # Anti-bot-style HTTP statuses: escalate to a browser engine
-        if resp.status_code in (403, 429, 503, 520, 521, 522, 525):
+        if resp.status_code in _BLOCK_STATUSES:
             raise EngineFailedError(
                 f"curl_cffi got HTTP {resp.status_code} — likely anti-bot block, escalate",
                 engine=self.name,
                 retriable_on_other_engine=True,
             )
 
-        # Parse out the title quickly without lxml dep here — engine should
-        # stay lightweight. Caller can do full parsing on the html field.
         html = resp.text or ""
         title = ""
-        try:
-            import re
-            m = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
-            if m:
-                title = m.group(1).strip()[:200]
-        except Exception:
-            pass
+        m = _TITLE_RE.search(html)
+        if m:
+            title = m.group(1).strip()[:200]
 
         # Wrap the raw HTML in a single "element" so downstream code that
-        # iterates result.elements still works. Tag it specially so the
-        # extract pipeline (which is selector-based) knows this is the
-        # whole document body, not a per-element catalog.
+        # iterates result.elements still works. Tag it as 'html' (not a
+        # real DOM node — caller checks attrs['x-engine'] to know).
+        # bbox is intentionally null: we have no rendered geometry, so
+        # honest is better than fabricating viewport-shaped coords.
         elements = [
             {
                 "tag": "html",
-                "text": html[:200000],   # cap to 200KB to match in-browser memory budgets
+                "text": html[:_BODY_TEXT_CAP],
                 "css": "html",
                 "xpath": "/html",
-                "attrs": {"x-engine": "curl_cffi", "x-status": str(resp.status_code)},
-                "bbox": {"x": 0, "y": 0, "w": 1440, "h": 900},
+                "attrs": {
+                    "x-engine": "curl_cffi",
+                    "x-status": str(resp.status_code),
+                    "x-final-url": str(resp.url),
+                },
+                "bbox": None,  # no rendered geometry — see module docstring
             }
         ]
 
         return EngineSnapshotResult(
             url=str(resp.url),
             title=title,
-            screenshot_base64=_BLANK_PNG_B64,
+            screenshot_base64="",     # honest: no screenshot capability
             elements=elements,
-            viewport={"width": 1440, "height": 900},
-            page={"width": 1440, "height": 900},
+            viewport={"width": 0, "height": 0},  # no rendering
+            page={"width": 0, "height": 0},
             engine_name=self.name,
             elapsed_s=elapsed,
             cost_cents=self.cost_per_request_cents,
-            proxy_used=proxy_url.split("@")[-1] if proxy_url else None,
+            proxy_used=self._proxy_label(proxy_url),
             cookies_carried=len(resp.cookies),
             notes=f"http {resp.status_code}, {len(html)} bytes",
         )
+
+    @staticmethod
+    def _proxy_label(proxy_url: Optional[str]) -> Optional[str]:
+        """Credential-stripped proxy label for telemetry."""
+        if not proxy_url:
+            return None
+        # Strip userinfo: http://user:pass@host:port → host:port
+        return proxy_url.split("@", 1)[-1] if "@" in proxy_url else proxy_url
 
     @staticmethod
     def _maybe_proxy_url() -> Optional[str]:

@@ -11,21 +11,27 @@ engine per (URL, vendor, requirements) and ESCALATES on failure.
 
 Layout:
     engines/
-    ├── __init__.py        ← public surface (Engine, Router, Capability)
-    ├── base.py            ← Engine ABC, SnapshotResult dataclass shared
-    ├── nodriver_engine.py ← wraps existing app.snapshot.take_snapshot
-    ├── curl_cffi_engine.py← TLS-impersonating HTTP (no JS execution)  (next iter)
-    ├── patchright_engine.py  ← Playwright fork w/ deep patches        (next iter)
-    ├── camoufox_engine.py    ← patched Firefox for fingerprint        (next iter)
-    └── router.py          ← rule-based + learning-augmented dispatcher
+    ├── __init__.py         ← public surface (Engine, Router, Capability)
+    ├── base.py             ← Engine Protocol, Requirements + EngineSnapshotResult
+    ├── nodriver_engine.py  ← wraps existing app.snapshot.take_snapshot
+    ├── curl_cffi_engine.py ← TLS-impersonating HTTP (no JS execution)
+    ├── camoufox_engine.py  ← patched Firefox — beats CreepJS, Kasada
+    └── router.py           ← rule-based + learning-augmented dispatcher
 
-Usage from the production endpoint:
-    from app.engines import router
-    result = await router.snapshot(url, requirements=Requirements(
+Usage:
+    from app.engines import router, Requirements
+    result, decision = await router.snapshot(url, requirements=Requirements(
         needs_js=True, vendor_hint="cloudflare",
     ))
     # router picks the cheapest engine satisfying requirements + with
     # historical track record on this URL/vendor, escalates on failure.
+
+Current call sites:
+    bench/lib.py:scrape_one — every benchmark scrape goes through the router.
+    bench/fingerprint.py    — uses vendor_hint="fingerprint-test" → camoufox first.
+    main.py                 — NOT yet wired (still calls take_snapshot directly).
+                              When we wire production, the rollout is gated so
+                              we don't risk regression. See AUDIT.md.
 
 Why a Protocol not an ABC: keeps duck-typing flexible, makes mocking
 easier in tests, lets us add engines from external packages without
@@ -71,9 +77,14 @@ def _register_default_engines() -> None:
     # TLS-fingerprint-checked vendors (DataDome, Akamai).
     from .curl_cffi_engine import CurlCffiEngine
     router.register(CurlCffiEngine())
+    # camoufox: patched Firefox. The only engine that beats CreepJS and
+    # Chromium-specific runtime sensors (Kasada, PerimeterX behavioral).
+    # Skipped silently if camoufox package or its Firefox binary aren't
+    # installed (is_available() probes both).
+    from .camoufox_engine import CamoufoxEngine
+    router.register(CamoufoxEngine())
     # Future iters:
     # from .patchright_engine import PatchrightEngine; router.register(PatchrightEngine())
-    # from .camoufox_engine import CamoufoxEngine; router.register(CamoufoxEngine())
 
 
 _register_default_engines()

@@ -4,34 +4,57 @@ fastapi>=0.115,<0.200
 uvicorn[standard]>=0.32
 pydantic>=2.11,<3
 
-# Browser engine — nodriver patches Chromium at the flag/CDP level to
-# close automation leaks that Playwright + stealth-JS can't reach.
-# Passes soft Cloudflare / Turnstile invisible mode out of the box.
-# Needs a real Chrome/Chromium installed locally (brew install --cask google-chrome).
-nodriver>=0.48
+# ── Browser engines ──────────────────────────────────────────────────────
+# Three engines, three different bypass strategies. The router picks per
+# (vendor_hint, capabilities). See backend/app/engines/__init__.py.
+#
+# nodriver: patches Chromium at the flag/CDP level to close automation
+#   leaks Playwright + stealth-JS can't reach. Passes soft Cloudflare /
+#   Turnstile invisible mode out of the box. Needs a real Chrome installed
+#   locally (brew install --cask google-chrome). Upper bound pinned because
+#   0.45+ shipped a ProtocolException regression (see browser.py retry
+#   markers) and 0.50.x changed proxy APIs; treat minor bumps as breaking.
+nodriver>=0.48,<0.51
+#
+# curl_cffi: real-Chrome JA3/JA4 TLS impersonation via curl-impersonate.
+#   Beats DataDome / Akamai TLS-fingerprint checks on static HTML at
+#   ~200ms per request. No JS execution. 0.x → upper bound pinned.
+curl-cffi>=0.7,<1
+#
+# camoufox: patched Firefox + Playwright async API. The only engine that
+#   scores clean on creepjs ("0% like headless" vs nodriver's 31%) and
+#   the bypass of choice for Kasada / PerimeterX. ~350MB Firefox binary
+#   downloaded on first run to user cache dir. MIT-licensed.
+camoufox>=0.4,<1
+#
+# camoufox uses platformdirs to find its binary cache dir. Transitive
+# via fastapi/uvicorn today but declared explicitly so engine init never
+# breaks if those drop the transitive dep.
+platformdirs>=4.0
 
+# ── Parsing / output ─────────────────────────────────────────────────────
 lxml>=5.3
 cssselect>=1.2
 beautifulsoup4>=4.12
+markdownify>=0.13       # HTML → Markdown for RAG ingestion + md field kind
+
+# ── HTTP + multipart ─────────────────────────────────────────────────────
 python-multipart>=0.0.9
-asyncpg>=0.30          # primary persistent store (Supabase Postgres via pooler)
-aiosqlite>=0.20         # kept for legacy / migration scripts only
 httpx>=0.28
 
-# Supabase JWT verification (ES256 via JWKS endpoint).
-pyjwt[crypto]>=2.9
+# ── Persistence ──────────────────────────────────────────────────────────
+asyncpg>=0.30           # primary persistent store (Supabase Postgres via pooler)
+aiosqlite>=0.20         # kept for legacy / migration scripts only
+
+# ── Auth + scheduling ────────────────────────────────────────────────────
+pyjwt[crypto]>=2.9      # Supabase JWT verification (ES256 via JWKS endpoint)
 python-dotenv>=1.0
+apscheduler>=3.10       # cron'd scrapes + webhook delivery retries
 
-# HTML → Markdown for RAG ingestion output mode + markdown field kind.
-markdownify>=0.13
+# ── AI-assisted schema generation ────────────────────────────────────────
+# Any OpenAI-compatible endpoint via raw httpx (Groq is the default —
+# free tier). No SDK lock-in.
 
-# AI-assisted schema generation uses any OpenAI-compatible endpoint via
-# raw httpx (Groq is the default — free tier). No SDK lock-in.
-
-# Background scheduler for cron'd scrapes + webhook delivery retries.
-apscheduler>=3.10
-
-# Dev / test
+# ── Dev / test ───────────────────────────────────────────────────────────
 pytest>=8.3
 pytest-asyncio>=0.24
-curl-cffi>=0.7
