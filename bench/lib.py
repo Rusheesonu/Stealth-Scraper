@@ -154,7 +154,7 @@ async def scrape_one(
     url: str,
     *,
     vendor_hint: Optional[str] = None,
-    timeout_s: float = 45.0,
+    timeout_s: float = 90.0,
     needs_js: bool = True,
     needs_screenshot: bool = True,
 ) -> BenchResult:

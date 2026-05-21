@@ -1,0 +1,112 @@
+{
+  "name": "antibot",
+  "iso_timestamp": "2026-05-21T14:20:16.594614Z",
+  "commit_sha": "e153953",
+  "backend_endpoint": "local-router (nodriver + curl_cffi + camoufox)",
+  "duration_s": 35.48,
+  "config": {
+    "filter_vendor": "none",
+    "max_n": null,
+    "url_count": 4
+  },
+  "summary": {
+    "overall": {
+      "total": 0,
+      "success": 0,
+      "blocked": 0,
+      "error": 0,
+      "pass_rate": 0.0,
+      "comment": "excludes vendor=none control URLs"
+    },
+    "by_vendor": {
+      "none": {
+        "total": 4,
+        "success": 3,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 0.75
+      }
+    },
+    "by_engine": {
+      "nodriver": {
+        "total": 4,
+        "success": 3,
+        "pass_rate": 0.75
+      }
+    },
+    "control": {
+      "total": 4,
+      "success": 3
+    },
+    "router": {
+      "scrapes_with_escalation": 0,
+      "escalation_rate": 0.0
+    }
+  },
+  "results": [
+    {
+      "url": "https://example.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 3,
+      "title": "Example Domain",
+      "elapsed_s": 4.15,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; per-host history: 2/2 = 100%; cost 1c"
+    },
+    {
+      "url": "https://httpbin.org/ip",
+      "expected_vendor": "none",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 1,
+      "title": "",
+      "elapsed_s": 10.42,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; per-host history: 1/1 = 100%; cost 1c"
+    },
+    {
+      "url": "https://news.ycombinator.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 380,
+      "title": "Hacker News",
+      "elapsed_s": 10.11,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; per-host history: 1/1 = 100%; cost 1c"
+    },
+    {
+      "url": "https://quotes.toscrape.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 100,
+      "title": "Quotes to Scrape",
+      "elapsed_s": 10.74,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; per-host history: 1/1 = 100%; cost 1c"
+    }
+  ]
+}

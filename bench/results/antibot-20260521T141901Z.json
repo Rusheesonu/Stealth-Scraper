@@ -1,0 +1,195 @@
+{
+  "name": "antibot",
+  "iso_timestamp": "2026-05-21T14:19:01.938274Z",
+  "commit_sha": "e153953",
+  "backend_endpoint": "local-router (nodriver + curl_cffi + camoufox)",
+  "duration_s": 104.3,
+  "config": {
+    "filter_vendor": null,
+    "max_n": 8,
+    "url_count": 8
+  },
+  "summary": {
+    "overall": {
+      "total": 4,
+      "success": 3,
+      "blocked": 0,
+      "error": 1,
+      "pass_rate": 0.75,
+      "comment": "excludes vendor=none control URLs"
+    },
+    "by_vendor": {
+      "none": {
+        "total": 4,
+        "success": 2,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 0.5
+      },
+      "cloudflare": {
+        "total": 3,
+        "success": 2,
+        "blocked": 0,
+        "error": 1,
+        "pass_rate": 0.667
+      },
+      "cloudflare-turnstile": {
+        "total": 1,
+        "success": 1,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 1.0
+      }
+    },
+    "by_engine": {
+      "nodriver": {
+        "total": 6,
+        "success": 4,
+        "pass_rate": 0.667
+      },
+      "camoufox": {
+        "total": 1,
+        "success": 1,
+        "pass_rate": 1.0
+      }
+    },
+    "control": {
+      "total": 4,
+      "success": 2
+    },
+    "router": {
+      "scrapes_with_escalation": 0,
+      "escalation_rate": 0.0
+    }
+  },
+  "results": [
+    {
+      "url": "https://example.com/",
+      "expected_vendor": "none",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 3,
+      "title": "Example Domain",
+      "elapsed_s": 4.59,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; per-host history: 1/1 = 100%; cost 1c"
+    },
+    {
+      "url": "https://httpbin.org/ip",
+      "expected_vendor": "none",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 1,
+      "title": "",
+      "elapsed_s": 9.69,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; cost 1c"
+    },
+    {
+      "url": "https://news.ycombinator.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 380,
+      "title": "Hacker News",
+      "elapsed_s": 10.13,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; cost 1c"
+    },
+    {
+      "url": "https://quotes.toscrape.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 100,
+      "title": "Quotes to Scrape",
+      "elapsed_s": 10.34,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; cost 1c"
+    },
+    {
+      "url": "https://nowsecure.nl/",
+      "expected_vendor": "cloudflare",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 6,
+      "title": "nowsecure.nl",
+      "elapsed_s": 10.47,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; vendor-affinity rank 1/2 for cloudflare; cost 1c"
+    },
+    {
+      "url": "https://www.g2.com/",
+      "expected_vendor": "cloudflare",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 0,
+      "title": "",
+      "elapsed_s": 45.0,
+      "error": "timeout after 45.0s",
+      "notes": "",
+      "engine_used": null,
+      "escalation_path": [],
+      "router_reason": ""
+    },
+    {
+      "url": "https://www.crunchbase.com/",
+      "expected_vendor": "cloudflare",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 717,
+      "title": "Crunchbase",
+      "elapsed_s": 6.92,
+      "error": null,
+      "notes": "",
+      "engine_used": "nodriver",
+      "escalation_path": [],
+      "router_reason": "chose 'nodriver'; vendor-affinity rank 1/2 for cloudflare; cost 1c"
+    },
+    {
+      "url": "https://2captcha.com/demo/cloudflare-turnstile",
+      "expected_vendor": "cloudflare-turnstile",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 100,
+      "title": "Cloudflare Turnstile demo: Sample Form with Cloudflare Turnstile",
+      "elapsed_s": 7.1,
+      "error": null,
+      "notes": "",
+      "engine_used": "camoufox",
+      "escalation_path": [],
+      "router_reason": "chose 'camoufox'; vendor-affinity rank 1/2 for cloudflare-turnstile; cost 2c"
+    }
+  ]
+}
