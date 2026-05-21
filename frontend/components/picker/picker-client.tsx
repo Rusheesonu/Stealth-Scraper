@@ -18,6 +18,7 @@ import { FieldSidebar } from "@/components/picker/field-sidebar";
 import { ResultsPanel } from "@/components/picker/results-panel";
 import { BatchModal } from "@/components/picker/batch-modal";
 import { FieldDetailDrawer } from "@/components/picker/field-detail";
+import { MobileFallback } from "@/components/picker/mobile-fallback";
 import { PlanLimitText } from "@/components/plan-limit-text";
 import { downloadBlob, toCsv } from "@/lib/utils";
 import {
@@ -55,6 +56,34 @@ const COLORS = [
 ];
 
 export function PickerClient() {
+  // Touch-primary devices can't drive the picker — click + drag is the
+  // core interaction. Detect via the `(pointer: coarse)` media query
+  // (covers iOS, Android, most tablets) and render the friendly mobile
+  // fallback instead of a broken picker. Detection happens client-side
+  // so SSR doesn't ship the wrong tree.
+  //
+  // We start as `null` (unknown), then resolve on mount. During that
+  // brief window we render nothing visible — keeps the shell from
+  // flashing a desktop layout that immediately swaps to mobile.
+  const [isCoarsePointer, setIsCoarsePointer] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      setIsCoarsePointer(false);
+      return;
+    }
+    const mq = window.matchMedia("(pointer: coarse)");
+    setIsCoarsePointer(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsCoarsePointer(e.matches);
+    // addEventListener available on modern Safari; older Safari only
+    // exposes addListener. Cover both.
+    if ("addEventListener" in mq) mq.addEventListener("change", handler);
+    else (mq as MediaQueryList).addListener(handler);
+    return () => {
+      if ("removeEventListener" in mq) mq.removeEventListener("change", handler);
+      else (mq as MediaQueryList).removeListener(handler);
+    };
+  }, []);
+
   const router = useRouter();
   const search = useSearchParams();
   const url = search.get("url") ?? "";
@@ -385,6 +414,20 @@ export function PickerClient() {
       }),
     [fields, colorForIndex]
   );
+
+  // Coarse pointer detected → render the mobile fallback before any
+  // picker chrome mounts. Even though snapshot-canvas is pointer-event
+  // based now and works on touch in theory, drag-select on a phone
+  // screen is bad UX — the affordance is so different that we'd rather
+  // capture intent + push to the demo than ship a half-working flow.
+  if (isCoarsePointer === true) {
+    return <MobileFallback />;
+  }
+  // Detection pending — render nothing rather than flash desktop layout
+  // on mobile. Resolves on first useEffect tick (<16ms).
+  if (isCoarsePointer === null) {
+    return null;
+  }
 
   if (!url) {
     return (

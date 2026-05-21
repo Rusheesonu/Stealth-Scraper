@@ -9,6 +9,39 @@
 
 import { createClient } from "@/lib/supabase/client";
 
+/**
+ * Structured anti-bot block detail. Sent by /public/snapshot-and-suggest
+ * (status 422) when the page is a Cloudflare/PerimeterX/etc. challenge
+ * instead of real content. We surface this in the UI so visitors see
+ * "Cloudflare blocked this — try residential proxies" instead of a
+ * generic failure.
+ */
+export type AntiBotBlockDetail = {
+  kind: "anti_bot_block";
+  vendor: string;
+  title: string;
+  message: string;
+  suggestion: string;
+  is_behavioral: boolean;
+};
+
+/**
+ * Error thrown by the API client. Preserves the HTTP status + the
+ * parsed `detail` field from the backend response (which may be an
+ * object — e.g. anti_bot_block — not just a string). Lets call sites
+ * branch on shape without re-parsing message text.
+ */
+export class ApiError extends Error {
+  status: number;
+  detail: unknown;
+  constructor(status: number, detail: unknown, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
 export type ElementBbox = { x: number; y: number; w: number; h: number };
 
 export type DetectedElement = {
@@ -105,10 +138,10 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    let detail = body;
+    let detail: unknown = body;
     try {
       const parsed = JSON.parse(body);
-      if (parsed?.detail) detail = parsed.detail;
+      if (parsed && "detail" in parsed) detail = parsed.detail;
     } catch {
       // body wasn't JSON — leave as-is
     }
@@ -118,12 +151,22 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
         const next = encodeURIComponent(window.location.pathname);
         window.location.href = `/login?next=${next}`;
       }
-      throw new Error("Not signed in. Redirecting…");
+      throw new ApiError(401, detail, "Not signed in. Redirecting…");
     }
+    // Build a readable fallback `message`. If detail is an object we use
+    // its `.message` (anti-bot shape) or stringify it; if it's a string,
+    // use it directly. This keeps `.message` useful for legacy string-
+    // based heuristics while `.detail` carries the structured payload.
+    const detailStr =
+      typeof detail === "string"
+        ? detail
+        : detail && typeof detail === "object" && "message" in detail
+          ? String((detail as { message?: unknown }).message ?? "")
+          : JSON.stringify(detail);
     if (res.status === 403) {
-      throw new Error(`Plan limit: ${detail}`);
+      throw new ApiError(403, detail, `Plan limit: ${detailStr}`);
     }
-    throw new Error(`${res.status}: ${detail || path}`);
+    throw new ApiError(res.status, detail, `${res.status}: ${detailStr || path}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json();

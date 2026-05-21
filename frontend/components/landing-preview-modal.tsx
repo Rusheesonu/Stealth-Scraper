@@ -6,11 +6,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Check, Copy, ExternalLink, Edit3, Save, Globe, X,
   Loader2, Sparkles, Lock, AlertTriangle, Cpu, Search, Shield, Wand2,
+  ShieldAlert, ArrowUpRight, RotateCcw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PlanLimitText } from "@/components/plan-limit-text";
 import { cn, truncate } from "@/lib/utils";
-import type { PublicSnapshotResponse } from "@/lib/api";
+import type { AntiBotBlockDetail, PublicSnapshotResponse } from "@/lib/api";
 
 const APPLE_EASE = [0.32, 0.72, 0, 1] as const;
 
@@ -44,6 +45,13 @@ type Props = {
   /** Friendly error to show inside the modal (so we don't kick the user
    *  back to the form and lose context). Null = no error. */
   error: string | null;
+  /** Structured anti-bot 422 detail. When set, takes precedence over
+   *  `error` and renders the dedicated AntiBotBlock card. */
+  antiBotBlock?: AntiBotBlockDetail | null;
+  /** Optional handler for the anti-bot card's "Try a different URL"
+   *  button. When provided, the button clears the form + closes the
+   *  modal; otherwise it just closes. */
+  onTryDifferentUrl?: () => void;
   onClose: () => void;
 };
 
@@ -55,7 +63,15 @@ const PAGE_TYPE_LABELS: Record<PublicSnapshotResponse["page_type"], string> = {
   generic: "page",
 };
 
-export function LandingPreviewModal({ open, url, preview, error, onClose }: Props) {
+export function LandingPreviewModal({
+  open,
+  url,
+  preview,
+  error,
+  antiBotBlock,
+  onTryDifferentUrl,
+  onClose,
+}: Props) {
   // Lock body scroll while open + ESC to close. (Same pattern as the
   // generic Modal primitive in motion-primitives.tsx — but reimplemented
   // here so we can size the modal differently and host the two-phase UI.)
@@ -118,7 +134,13 @@ export function LandingPreviewModal({ open, url, preview, error, onClose }: Prop
             </button>
 
             <AnimatePresence mode="wait">
-              {error ? (
+              {antiBotBlock ? (
+                <AntiBotBlockPhase
+                  key="anti-bot"
+                  block={antiBotBlock}
+                  onTryDifferentUrl={onTryDifferentUrl ?? onClose}
+                />
+              ) : error ? (
                 <ErrorPhase key="error" error={error} onClose={onClose} />
               ) : !preview ? (
                 <LoadingPhase key="loading" url={url} />
@@ -946,6 +968,133 @@ function BigValueDisplay({ value }: { value: unknown }) {
     <div className="break-words font-mono text-[13.5px] leading-[1.6] text-[var(--color-fg)]">
       {truncate(String(value), 340)}
     </div>
+  );
+}
+
+// ─── Anti-bot block phase ───────────────────────────────────────────────
+//
+// Renders the structured 422 anti_bot_block detail returned by
+// /public/snapshot-and-suggest when a vendor (Cloudflare, DataDome,
+// PerimeterX…) intercepted us before the real page loaded. We get a
+// vendor name, a human message and a remediation suggestion from the
+// backend — surface them as a designed card, not raw JSON.
+//
+// Visual: feels like part of the product (matches LoadingPhase ambient
+// backdrop + card primitives), not an OS-level alert. Headline is
+// vendor-specific so it reads like a diagnosis, not an error.
+
+/** Capitalize vendor strings like "cloudflare" → "Cloudflare". Leaves
+ *  acronyms / mixed-case vendors alone. */
+function formatVendor(vendor: string): string {
+  if (!vendor) return "A bot manager";
+  if (vendor.length <= 3) return vendor.toUpperCase();
+  return vendor.charAt(0).toUpperCase() + vendor.slice(1);
+}
+
+function AntiBotBlockPhase({
+  block,
+  onTryDifferentUrl,
+}: {
+  block: AntiBotBlockDetail;
+  onTryDifferentUrl: () => void;
+}) {
+  const vendorLabel = formatVendor(block.vendor);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.22, ease: APPLE_EASE }}
+      className="relative flex min-h-[420px] flex-col items-center justify-center p-8 md:p-10"
+    >
+      {/* Ambient backdrop — same pattern as LoadingPhase, but with a
+          warning-tinted wash instead of accent so the card reads as
+          "heads up" without screaming "error". */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]"
+        style={{
+          backgroundImage: `radial-gradient(circle, color-mix(in srgb, var(--color-fg-subdued) 30%, transparent) 0.8px, transparent 0.8px)`,
+          backgroundSize: "22px 22px",
+        }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-40"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, color-mix(in srgb, var(--color-warning) 12%, transparent) 0%, transparent 60%)",
+        }}
+        aria-hidden
+      />
+
+      <div className="relative mx-auto flex w-full max-w-lg flex-col items-center text-center">
+        {/* Icon — bordered tile, warning palette. Matches the Loading
+            stage indicator visual language so the modal feels coherent
+            between phases. */}
+        <span className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-warning-soft)] ring-1 ring-inset ring-[color:var(--color-warning)]/30">
+          <ShieldAlert className="h-6 w-6 text-[var(--color-warning)]" />
+        </span>
+
+        <Badge tone="muted" size="sm" className="mb-3">
+          <span className="font-mono uppercase tracking-wider">
+            {block.is_behavioral ? "behavioral challenge" : "bot wall"}
+          </span>
+          {" · "}
+          <span className="font-mono">{block.vendor}</span>
+        </Badge>
+
+        <h3 className="text-[20px] font-semibold leading-[1.2] tracking-[-0.012em] text-[var(--color-fg-display)]">
+          {vendorLabel} blocked this site
+        </h3>
+
+        <p className="mt-2 max-w-md text-[13.5px] leading-[1.6] text-[var(--color-fg-muted)]">
+          {block.message ||
+            `${vendorLabel}'s bot manager intercepted the request before the real page loaded.`}
+        </p>
+
+        {/* Suggestion callout — accent-tinted card, distinct from the
+            message paragraph so the actionable advice doesn't blur with
+            the diagnosis. */}
+        {block.suggestion && (
+          <div className="mt-5 w-full rounded-lg border border-[var(--color-accent-line)] bg-[var(--color-accent-faint)] p-3.5 text-left">
+            <div className="mb-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent)]">
+              <Sparkles className="h-3 w-3" />
+              How to get past this
+            </div>
+            <p className="text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
+              {block.suggestion}
+            </p>
+          </div>
+        )}
+
+        {/* Action row — primary "Try a different URL" (clears form +
+            closes), secondary "Upgrade to Pro" (residential proxies are
+            paywalled). Both buttons feel like product, not alert. */}
+        <div className="mt-6 flex w-full flex-col gap-2 sm:flex-row">
+          <button
+            onClick={onTryDifferentUrl}
+            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[13px] font-medium text-[var(--color-fg)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Try a different URL
+          </button>
+          <Link
+            href="/pricing?reason=anti-bot"
+            className="group inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-4 text-[13px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Upgrade to Pro
+            <ArrowUpRight className="h-3.5 w-3.5 opacity-70 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </Link>
+        </div>
+
+        <p className="mt-3 text-[11px] leading-[1.5] text-[var(--color-fg-subdued)]">
+          Pro plans include residential proxies that solve most anti-bot
+          walls automatically.
+        </p>
+      </div>
+    </motion.div>
   );
 }
 
