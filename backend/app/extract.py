@@ -19,6 +19,7 @@ from lxml import html as lxml_html
 
 from app.actions import run_actions, BrowserAction
 from app.browser import pool, with_transient_retry
+from app.snapshot import _is_safe_url
 
 
 class Transform(TypedDict, total=False):
@@ -93,6 +94,13 @@ async def _extract_inner(
     """Uses the shared stealth browser, then runs selectors against the
     rendered HTML via lxml — faster than round-tripping every selector
     through CDP."""
+    # SSRF gate — extract.py opens its own tab (doesn't go through
+    # take_snapshot), so we re-check the URL here. Without this, /extract
+    # would let a visitor hit AWS IMDS even though /snapshot blocks it.
+    ok, reason = _is_safe_url(url)
+    if not ok:
+        raise ValueError(f"unsafe URL: {reason}")
+
     tab = await pool.open_tab("about:blank")
     result: dict[str, Any] = {"url": url, "fields": {}, "errors": {}, "title": ""}
     try:

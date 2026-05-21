@@ -16,13 +16,40 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import os
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from app import db
 from app.auth import get_current_user
+
+
+log = logging.getLogger(__name__)
+
+# Reject webhook events older than this. LS doesn't sign timestamps, so
+# even with a valid HMAC an attacker who captured a payload off the wire
+# (or from logs) could replay it forever — combined with the idempotency
+# table this is the second layer that limits replay attacks to a tight
+# window. 10 minutes is generous enough for retries from LS's queue but
+# tight enough that captured payloads expire quickly.
+WEBHOOK_MAX_AGE_SECONDS = 600
+
+
+def _parse_event_created_at(raw: str) -> datetime | None:
+    """Parse an ISO-8601 timestamp from `attributes.created_at`. Returns
+    None on any parse failure — the caller treats None as 'no timestamp,
+    skip the freshness check'."""
+    if not raw:
+        return None
+    try:
+        # LS sends 'Z' for UTC; Python <3.11 needs +00:00.
+        normalized = raw.replace("Z", "+00:00")
+        return datetime.fromisoformat(normalized)
+    except (ValueError, TypeError):
+        return None
 
 
 LS_WEBHOOK_SECRET = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
@@ -98,6 +125,58 @@ async def lemonsqueezy_webhook(
     ls_subscription_id = str(data.get("id", ""))
     ls_variant_id = str(attributes.get("variant_id", ""))
 
+    # ── Replay protection ──────────────────────────────────────────────
+    # Two layers below the HMAC check:
+    #   1. Freshness window — reject events whose `created_at` is more
+    #      than WEBHOOK_MAX_AGE_SECONDS in the past. Limits how long a
+    #      captured payload remains useful to an attacker who got hold
+    #      of the raw HMAC-signed body (e.g. via a log scrape).
+    #   2. Idempotency table — `processed_webhook_events.event_id` is
+    #      a PRIMARY KEY. A duplicate INSERT returns False and we exit
+    #      without re-applying. Catches both LS retry-storms (legit) and
+    #      replays within the freshness window (malicious).
+    event_id = ls_subscription_id or str(body.get("id", "")) or ""
+    if not event_id:
+        # No id to dedupe on. Refuse rather than risk re-applying — LS
+        # always sends a data.id, so missing one means malformed payload
+        # or non-LS sender.
+        log.warning("webhook.missing_event_id", extra={"event_name": x_event_name})
+        raise HTTPException(status_code=400, detail="missing event id")
+
+    created_at = _parse_event_created_at(attributes.get("created_at", ""))
+    if created_at is not None:
+        age = (datetime.now(timezone.utc) - created_at).total_seconds()
+        if age > WEBHOOK_MAX_AGE_SECONDS:
+            log.warning(
+                "webhook.stale",
+                extra={
+                    "event_id": event_id,
+                    "event_name": x_event_name,
+                    "age_seconds": int(age),
+                },
+            )
+            raise HTTPException(status_code=400, detail="stale webhook (replay)")
+
+    # Log the raw payload BEFORE attempting to persist. If processing
+    # crashes downstream we still have the payload in stdout / journald
+    # for manual replay. The HMAC secret is the only sensitive field
+    # the request carries, and it's in the header — never in the body.
+    log.info(
+        "webhook.received",
+        extra={
+            "event_id": event_id,
+            "event_name": x_event_name,
+            "user_id": user_id,
+            "variant_id": ls_variant_id,
+        },
+    )
+
+    fresh = await db.record_processed_webhook(event_id, body)
+    if not fresh:
+        # Already processed — return 200 so LS doesn't keep retrying.
+        log.info("webhook.duplicate", extra={"event_id": event_id, "event_name": x_event_name})
+        return {"status": "duplicate", "event_id": event_id}
+
     if x_event_name == "subscription_created":
         if not user_id:
             return {"received": True, "warn": "no user_id in custom_data — sub not linked"}
@@ -137,7 +216,7 @@ async def lemonsqueezy_webhook(
             status="expired",
         )
 
-    return {"received": True, "event": x_event_name}
+    return {"received": True, "status": "processed", "event": x_event_name, "event_id": event_id}
 
 
 # ── Checkout session creation ─────────────────────────────────────────────

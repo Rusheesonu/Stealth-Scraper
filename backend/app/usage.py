@@ -97,22 +97,35 @@ def _over_limit_message(current: int, limit: int, plan: str, requested: int = 1)
     )
 
 
+async def try_increment_usage(user_id: str, max_allowed: int, by: int = 1) -> tuple[bool, int]:
+    """Thin re-export of `db.try_increment_usage` keyed on the current
+    UTC year-month. Returns (allowed, count_after_increment).
+
+    Importing modules can call this directly without round-tripping through
+    a route — useful for the scheduler that runs scheduled scrapes
+    out-of-band of any HTTP request."""
+    return await db.try_increment_usage(
+        user_id, current_year_month(), max_allowed, by=by,
+    )
+
+
 async def enforce_plan(user_id: str = Depends(get_current_user)) -> str:
     """FastAPI dependency: gate a single-scrape route. Raises 403 if over
     limit; otherwise atomically increments the usage count and returns the
-    user_id."""
+    user_id.
+
+    Uses a single UPDATE...RETURNING under the hood so 10 concurrent
+    requests against the same user_id can't all observe a stale `current`
+    and race past the cap (was the old read-then-write pattern's failure
+    mode at scale)."""
     plan = await db.get_user_plan(user_id)
     limit = plan_limit(plan)
-    year_month = current_year_month()
-    current = await db.get_usage_count(user_id, year_month)
-
-    if current >= limit:
+    allowed, current = await try_increment_usage(user_id, limit, by=1)
+    if not allowed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=_over_limit_message(current, limit, plan),
         )
-
-    await db.increment_usage_count(user_id, year_month, by=1)
     return user_id
 
 
@@ -125,13 +138,9 @@ async def enforce_plan_bulk(user_id: str, n: int) -> None:
     `n` depends on request body."""
     plan = await db.get_user_plan(user_id)
     limit = plan_limit(plan)
-    year_month = current_year_month()
-    current = await db.get_usage_count(user_id, year_month)
-
-    if current + n > limit:
+    allowed, current = await try_increment_usage(user_id, limit, by=n)
+    if not allowed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=_over_limit_message(current, limit, plan, requested=n),
         )
-
-    await db.increment_usage_count(user_id, year_month, by=n)

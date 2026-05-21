@@ -17,20 +17,29 @@ Supabase user JWT in `Authorization: Bearer <token>`.
 # ruff: noqa: E402  — load_dotenv must run before any submodule that reads env.
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 import time
 from collections import defaultdict, deque
+from contextlib import asynccontextmanager
+from typing import Any
 
 from dotenv import load_dotenv
 
 load_dotenv()  # app.auth needs SUPABASE_URL at import time.
 
-from contextlib import asynccontextmanager
-from typing import Any
-
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, HttpUrl
+
+# Sentry — best-effort. Imported in a try/except so a stripped-down dev
+# install (no sentry-sdk) still boots. In production both SENTRY_DSN and
+# the package must be present.
+try:
+    import sentry_sdk  # type: ignore[import-not-found]
+except ImportError:  # pragma: no cover
+    sentry_sdk = None  # type: ignore[assignment]
 
 from app import assist, db, scheduler as job_scheduler
 from app.actions import BrowserAction
@@ -39,6 +48,93 @@ from app.browser import pool
 from app.extract import extract as extract_fields
 from app.snapshot import take_snapshot
 from app.usage import enforce_plan, enforce_plan_bulk, plan_limit, current_year_month
+
+
+log = logging.getLogger(__name__)
+
+
+# ── Sentry ────────────────────────────────────────────────────────────────
+# Init early — before lifespan — so any startup error during db.init() or
+# browser pool setup gets captured. send_default_pii=False because URLs we
+# scrape can carry API tokens in querystrings; `before_send` strips
+# querystrings from breadcrumbs as a second layer.
+
+def _scrub_event(event: dict[str, Any], _hint: dict[str, Any]) -> dict[str, Any]:
+    """Strip URL query strings from breadcrumbs + request data so we don't
+    leak auth tokens that visitors paste into the scraper. Keeps the path
+    so we still know WHAT failed, not WHERE the secret was."""
+    try:
+        for crumb in event.get("breadcrumbs", {}).get("values", []) or []:
+            url = (crumb.get("data") or {}).get("url")
+            if isinstance(url, str) and "?" in url:
+                crumb["data"]["url"] = url.split("?", 1)[0] + "?[redacted]"
+        req = event.get("request") or {}
+        url = req.get("url")
+        if isinstance(url, str) and "?" in url:
+            req["url"] = url.split("?", 1)[0] + "?[redacted]"
+        # Strip Authorization header content too — never want raw bearers
+        # in Sentry events even though SDK should already redact common ones.
+        headers = req.get("headers") or {}
+        for k in list(headers.keys()):
+            if k.lower() in ("authorization", "cookie", "x-signature"):
+                headers[k] = "[redacted]"
+    except Exception:
+        # Scrubbing must NEVER swallow the original event — return as-is
+        # on any failure rather than dropping the error report.
+        pass
+    return event
+
+
+if sentry_sdk is not None and os.getenv("SENTRY_DSN"):
+    sentry_sdk.init(
+        dsn=os.getenv("SENTRY_DSN"),
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        environment=os.getenv("ENV", "production"),
+        send_default_pii=False,
+        before_send=_scrub_event,
+    )
+
+
+# ── Concurrency cap ───────────────────────────────────────────────────────
+# Chrome is RAM-hungry — a single tab eats ~150MB and the Lightsail box
+# we're launching on has ~2GB usable. 8 concurrent scrapes ≈ ~1.2GB
+# resident; anything higher and the OOM killer reaps the container right
+# when traffic peaks (HN front page, PH launch).
+#
+# Acquire is bounded to 5s — if we can't get a slot in that window the
+# caller already gave up or the user-facing UI has spun far longer than
+# a healthy preview should. Return 503 with retry_after_s so the
+# frontend can show "we're busy, try again in 10s" instead of timing out.
+SCRAPE_SEMAPHORE = asyncio.Semaphore(int(os.getenv("MAX_CONCURRENT_SCRAPES", "8")))
+SCRAPE_ACQUIRE_TIMEOUT_S = float(os.getenv("SCRAPE_ACQUIRE_TIMEOUT_S", "5.0"))
+
+
+@asynccontextmanager
+async def scrape_slot():
+    """Async context manager: acquire one of the bounded scrape slots, or
+    raise 503 if we couldn't grab one within SCRAPE_ACQUIRE_TIMEOUT_S.
+
+    Use around every endpoint that drives the browser pool. Release is
+    guaranteed via `finally` even when the body raises."""
+    try:
+        await asyncio.wait_for(SCRAPE_SEMAPHORE.acquire(), timeout=SCRAPE_ACQUIRE_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=503,
+            detail={"kind": "overloaded", "retry_after_s": 10},
+        )
+    try:
+        yield
+    finally:
+        SCRAPE_SEMAPHORE.release()
+
+
+def _unsafe_url_http422(reason: str) -> HTTPException:
+    """Build the structured 422 we surface when the SSRF guard rejects."""
+    return HTTPException(
+        status_code=422,
+        detail={"kind": "unsafe_url", "message": reason},
+    )
 
 
 @asynccontextmanager
@@ -62,14 +158,38 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — in production the Next.js frontend proxies server-to-server
-# via rewrites, so the browser never sees the backend origin and CORS
-# doesn't apply. We still allow all origins here so anyone can hit the
-# API directly (curl, Postman, or embedding from other frontends).
-# Auth happens via the Bearer header, not cookies.
+# CORS — locked down for production. The Next.js frontend on Vercel
+# proxies server-to-server via rewrites, so the browser never sees the
+# backend origin and CORS doesn't apply for the main app. The explicit
+# allowlist below covers:
+#   - the canonical production host
+#   - the www subdomain
+#   - the Vercel preview URL (so PR preview deployments work)
+#   - localhost in non-prod for the dev loop
+#
+# Direct curl/Postman use isn't affected by CORS (no Origin header).
+# Third parties wanting to hit the API directly from their own browser
+# would need to add their origin — but that's a feature request, not
+# something we should grant by default.
+_CORS_ORIGINS: list[str] = [
+    "https://stealthscraper.dev",
+    "https://www.stealthscraper.dev",
+    "https://stealth-scraper.vercel.app",
+]
+if os.getenv("ENV") != "production":
+    _CORS_ORIGINS.extend(["http://localhost:3000", "http://127.0.0.1:3000"])
+# Additional origins from env (comma-separated). Used for PR preview
+# subdomains under stealth-scraper-*.vercel.app — we add the regex too.
+for extra in (os.getenv("CORS_EXTRA_ORIGINS", "") or "").split(","):
+    if extra.strip():
+        _CORS_ORIGINS.append(extra.strip())
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ORIGINS,
+    # Match any Vercel preview branch deployment for this project.
+    # Pattern: https://stealth-scraper-<hash>-<team>.vercel.app
+    allow_origin_regex=r"^https://stealth-scraper-[a-z0-9-]+\.vercel\.app$",
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -244,18 +364,23 @@ async def snapshot_endpoint(
     req: SnapshotRequest,
     user_id: str = Depends(enforce_plan),
 ) -> dict[str, Any]:
-    try:
+    async with scrape_slot():
         actions_payload: list[BrowserAction] | None = None
         if req.actions:
             actions_payload = [a.model_dump() for a in req.actions]  # type: ignore[misc]
-        snap = await take_snapshot(
-            str(req.url),
-            viewport_width=req.viewport_width,
-            viewport_height=req.viewport_height,
-            actions=actions_payload,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
+        try:
+            snap = await take_snapshot(
+                str(req.url),
+                viewport_width=req.viewport_width,
+                viewport_height=req.viewport_height,
+                actions=actions_payload,
+            )
+        except ValueError as e:
+            # SSRF guard refused the URL — surface as a structured 422 the
+            # frontend can show ("we don't allow private/internal hosts").
+            raise _unsafe_url_http422(str(e)) from e
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
     return {
         "url": snap.url,
         "title": snap.title,
@@ -280,8 +405,20 @@ async def snapshot_endpoint(
 # traffic actually warrants it.
 # {ip -> deque[timestamps]}  ; pruned on each access.
 _PUBLIC_SNAPSHOT_HITS: dict[str, deque] = defaultdict(deque)
-PUBLIC_SNAPSHOT_LIMIT = int(os.getenv("PUBLIC_SNAPSHOT_LIMIT", "3"))      # max requests
+# Default raised from 3 → 10 ahead of the launch. HN / Product Hunt
+# share NAT egress IPs (corporate networks, ISPs with CGNAT) so visitors
+# trip each other's caps. 10/hour/IP gives a single shared-NAT pool
+# enough headroom for legit demo traffic while still capping a single
+# bad actor's ability to pin our snapshot pool.
+PUBLIC_SNAPSHOT_LIMIT = int(os.getenv("PUBLIC_SNAPSHOT_LIMIT", "10"))     # max requests
 PUBLIC_SNAPSHOT_WINDOW = int(os.getenv("PUBLIC_SNAPSHOT_WINDOW", "3600")) # in seconds (1h)
+# The rate-limit dict + deques were touched without a lock. Under
+# uvicorn's async event loop this is mostly safe (single thread), but
+# the moment a synchronous prune/append happens mid-async-switch we
+# can lose counts or double-count. Cheap fix: a single asyncio.Lock
+# around the read-modify-write. Contention is bounded to the public
+# endpoint, which is itself rate-limited.
+_PUBLIC_SNAPSHOT_LOCK = asyncio.Lock()
 
 
 def _client_ip(req: Request) -> str:
@@ -303,27 +440,33 @@ def _client_ip(req: Request) -> str:
     return "unknown"
 
 
-def _check_public_rate_limit(ip: str) -> tuple[bool, int, int]:
+async def _check_public_rate_limit(ip: str) -> tuple[bool, int, int]:
     """Sliding-window rate limit. Returns (allowed, used_count, reset_seconds).
 
     `used_count` is how many requests have landed in the current window
-    (useful for the UI "1 of 3 free previews used this hour" microcopy).
-    `reset_seconds` is when the OLDEST hit in the window expires."""
-    now = time.time()
-    window_start = now - PUBLIC_SNAPSHOT_WINDOW
-    hits = _PUBLIC_SNAPSHOT_HITS[ip]
+    (useful for the UI "1 of 10 free previews used this hour" microcopy).
+    `reset_seconds` is when the OLDEST hit in the window expires.
 
-    # Prune expired hits (cheap, deque from the left).
-    while hits and hits[0] < window_start:
-        hits.popleft()
+    Lock-protected: prune + append must be atomic relative to other
+    callers or two near-simultaneous requests can both see used < limit
+    and both append, blowing through the cap by 1. Cheap fix; lock is
+    held for microseconds."""
+    async with _PUBLIC_SNAPSHOT_LOCK:
+        now = time.time()
+        window_start = now - PUBLIC_SNAPSHOT_WINDOW
+        hits = _PUBLIC_SNAPSHOT_HITS[ip]
 
-    used = len(hits)
-    if used >= PUBLIC_SNAPSHOT_LIMIT:
-        reset = int(hits[0] + PUBLIC_SNAPSHOT_WINDOW - now)
-        return False, used, max(reset, 1)
+        # Prune expired hits (cheap, deque from the left).
+        while hits and hits[0] < window_start:
+            hits.popleft()
 
-    hits.append(now)
-    return True, used + 1, PUBLIC_SNAPSHOT_WINDOW
+        used = len(hits)
+        if used >= PUBLIC_SNAPSHOT_LIMIT:
+            reset = int(hits[0] + PUBLIC_SNAPSHOT_WINDOW - now)
+            return False, used, max(reset, 1)
+
+        hits.append(now)
+        return True, used + 1, PUBLIC_SNAPSHOT_WINDOW
 
 
 class PublicSnapshotRequest(BaseModel):
@@ -381,7 +524,7 @@ async def public_snapshot_and_suggest(
         # values) so the frontend doesn't have to care.
         used, reset = 0, PUBLIC_SNAPSHOT_WINDOW
     else:
-        allowed, used, reset = _check_public_rate_limit(ip)
+        allowed, used, reset = await _check_public_rate_limit(ip)
         if not allowed:
             raise HTTPException(
                 status_code=429,
@@ -399,14 +542,18 @@ async def public_snapshot_and_suggest(
     # 1. Snapshot the page. Tighter viewport than logged-in /snapshot so
     # this stays fast even on lazy-loaded pages (we don't need the full
     # 24k px capture for a preview).
-    try:
-        snap = await take_snapshot(
-            str(req.url),
-            viewport_width=1280,
-            viewport_height=900,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
+    async with scrape_slot():
+        try:
+            snap = await take_snapshot(
+                str(req.url),
+                viewport_width=1280,
+                viewport_height=900,
+            )
+        except ValueError as e:
+            # SSRF guard refused the URL.
+            raise _unsafe_url_http422(str(e)) from e
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
 
     # 1b. Anti-bot wall detection. If the page is a Cloudflare/PerimeterX/
     # DataDome/Akamai challenge we caught instead of the real content,
@@ -466,23 +613,30 @@ async def public_snapshot_and_suggest(
             # Soft-fail: the snapshot worked, only the AI suggest part failed.
             # Caller still gets the screenshot + can sign up to use the
             # picker manually. Log so we notice if it keeps happening.
-            print(f"[public/snapshot] LLM suggest failed (kind={e.kind}): {e}")
+            log.warning(
+                "public_snapshot.llm_suggest_failed",
+                extra={"kind": e.kind, "error": str(e)},
+            )
         except Exception as e:  # defensive — never break the preview
-            print(f"[public/snapshot] LLM suggest unexpected error: {e!r}")
+            log.warning(
+                "public_snapshot.llm_suggest_unexpected",
+                extra={"error": repr(e)},
+            )
 
     # 3. If we got a template, run extraction so the visitor sees live
     # values, not just selectors. Cap at 5 fields for the preview.
     sample_values: dict[str, Any] = {}
     if template:
         from app.extract import extract as extract_fields  # local import keeps cold-start light
-        try:
-            preview_template = template[:3]
-            res = await extract_fields(snap.url, preview_template)  # type: ignore[arg-type]
-            sample_values = res.get("fields", {}) if isinstance(res, dict) else {}
-        except Exception as e:
-            # Same logic as suggest — extraction failure shouldn't kill the
-            # preview. We at least show the suggested schema.
-            print(f"[public/snapshot] preview extraction failed: {e!r}")
+        async with scrape_slot():
+            try:
+                preview_template = template[:3]
+                res = await extract_fields(snap.url, preview_template)  # type: ignore[arg-type]
+                sample_values = res.get("fields", {}) if isinstance(res, dict) else {}
+            except Exception as e:
+                # Same logic as suggest — extraction failure shouldn't kill the
+                # preview. We at least show the suggested schema.
+                log.warning("public_snapshot.preview_extract_failed", extra={"error": repr(e)})
 
     return {
         "url": snap.url,
@@ -513,17 +667,20 @@ async def extract_endpoint(
     # Pagination > 1 counts as N scrapes; charge the extra now.
     if req.max_pages > 1:
         await enforce_plan_bulk(user_id, n=req.max_pages - 1)
-    try:
-        return await extract_fields(
-            str(req.url),
-            template,
-            output_format=req.output_format,  # type: ignore[arg-type]
-            pagination_selector=req.pagination_selector,
-            max_pages=req.max_pages,
-            actions=actions_payload,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"extract failed: {e}") from e
+    async with scrape_slot():
+        try:
+            return await extract_fields(
+                str(req.url),
+                template,
+                output_format=req.output_format,  # type: ignore[arg-type]
+                pagination_selector=req.pagination_selector,
+                max_pages=req.max_pages,
+                actions=actions_payload,
+            )
+        except ValueError as e:
+            raise _unsafe_url_http422(str(e)) from e
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"extract failed: {e}") from e
 
 
 @app.post("/extract/batch")
@@ -583,14 +740,17 @@ async def assist_schema(
             status_code=503,
             detail="AI schema generation not configured on this instance (LLM_API_KEY missing).",
         )
-    try:
-        snap = await take_snapshot(
-            str(req.url),
-            viewport_width=req.viewport_width,
-            viewport_height=req.viewport_height,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
+    async with scrape_slot():
+        try:
+            snap = await take_snapshot(
+                str(req.url),
+                viewport_width=req.viewport_width,
+                viewport_height=req.viewport_height,
+            )
+        except ValueError as e:
+            raise _unsafe_url_http422(str(e)) from e
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
 
     try:
         template = await assist.generate_template(

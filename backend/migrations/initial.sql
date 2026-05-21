@@ -55,6 +55,16 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys (user_id);
 
+-- Processed Lemon Squeezy webhook events. We dedupe on `event_id` (the
+-- top-level `data.id` from the webhook payload) so a replayed delivery
+-- can't double-apply a subscription change. `payload` is kept verbatim
+-- so we can replay manually if we hit a processing bug post-receive.
+CREATE TABLE IF NOT EXISTS processed_webhook_events (
+    event_id      TEXT PRIMARY KEY,
+    received_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    payload       JSONB
+);
+
 CREATE TABLE IF NOT EXISTS scheduled_jobs (
     id               SERIAL PRIMARY KEY,
     user_id          TEXT NOT NULL,
