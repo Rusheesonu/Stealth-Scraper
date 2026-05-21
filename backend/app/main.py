@@ -407,6 +407,41 @@ async def public_snapshot_and_suggest(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
 
+    # 1b. Anti-bot wall detection. If the page is a Cloudflare/PerimeterX/
+    # DataDome/Akamai challenge we caught instead of the real content,
+    # extraction will produce garbage. Surface that to the visitor as a
+    # structured error so they understand why ("Cloudflare blocked this,
+    # try residential proxies") rather than seeing 0 fields and assuming
+    # we're broken. See app/detect.py for the signature library.
+    from app.detect import detect_block as _detect_block
+    block = _detect_block(
+        title=snap.title or "",
+        # We don't capture full HTML in the snapshot (it'd bloat memory),
+        # but element text content is a good-enough proxy for signature
+        # matching. Join first ~40 element texts as a haystack.
+        html=" ".join(
+            (el.get("text") or "")[:200] for el in (snap.elements or [])[:40]
+        ),
+        url=snap.url,
+    )
+    if block.blocked:
+        # Soft-block (Cloudflare interstitial, DataDome JS challenge) —
+        # return a structured warning so the modal can show "Cloudflare
+        # is blocking us, want to try a different URL?" instead of
+        # silently returning a useless preview. Frontend treats
+        # status_code 422 as a "soft block" and renders our message.
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "kind": "anti_bot_block",
+                "vendor": block.vendor,
+                "title": block.title,
+                "message": block.message,
+                "suggestion": block.suggestion,
+                "is_behavioral": block.is_behavioral,
+            },
+        )
+
     # 2. Auto-suggest a template if the LLM is configured. If not, we
     # still return the snapshot + a hint so the visitor can keep going
     # by signing up (where they get the visual picker).
