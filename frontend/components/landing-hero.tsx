@@ -8,6 +8,7 @@ import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick, AlertTr
 import { Badge } from "@/components/ui/badge";
 import { LandingPreviewModal } from "@/components/landing-preview-modal";
 import { api, type PublicSnapshotResponse } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const TRY_LINKS = [
@@ -202,11 +203,21 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
 }
 
 /**
- * URL mode — single mono input. Magic First Snapshot (Jobs J1):
- * paste URL → see live preview inline without signup → only the
- * "save/export/edit" CTAs trigger the signup flow.
+ * URL mode — single mono input.
+ *
+ * Behavior depends on auth state:
+ *   - LOGGED OUT visitors → "Magic First Snapshot" (Jobs J1). Submit
+ *     opens the dramatic preview modal which fires the public
+ *     no-auth endpoint, shows live extraction inline, and only the
+ *     follow-up CTAs (Edit / Save / Get code) push to signup. This is
+ *     the wow moment for first-time landers.
+ *   - LOGGED IN users → straight to the picker. The modal is the
+ *     unlocking-the-product moment, not the daily flow. Once you're
+ *     signed in we get out of your way — submit hops directly to
+ *     /pick?url=... and you keep your scrape budget. Old flow.
  */
 function UrlMode() {
+  const router = useRouter();
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -214,6 +225,25 @@ function UrlMode() {
   const [submittedUrl, setSubmittedUrl] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [modalOpen, setModalOpen] = useState(false);
+  // null while we resolve the session on mount; bool thereafter. We
+  // disable submit during the resolve window (tiny — usually <50ms) so
+  // we don't accidentally fire the wrong flow.
+  const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
+
+  // Resolve auth state once on mount, and subscribe so logging in
+  // mid-session (e.g. via another tab) flips us to the direct flow
+  // without a refresh.
+  useEffect(() => {
+    const supabase = createClient();
+    let mounted = true;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (mounted) setIsSignedIn(!!user);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => { if (mounted) setIsSignedIn(!!session?.user); },
+    );
+    return () => { mounted = false; subscription.unsubscribe(); };
+  }, []);
 
   // Listen for prefill events from the featured-templates strip below.
   // When a user clicks a template card, that card scrolls to top and
@@ -229,6 +259,9 @@ function UrlMode() {
   }, []);
 
   const valid = url.trim().length > 0;
+  // Disable while we don't yet know auth — prevents a brief "fire the
+  // wrong flow" window during the initial getUser() resolution.
+  const canSubmit = valid && isSignedIn !== null;
   const normalizedUrl = (() => {
     const t = url.trim();
     if (!t) return "";
@@ -237,10 +270,20 @@ function UrlMode() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid) return;
-    // Open the modal IMMEDIATELY — visitor sees the loading animation
-    // start, not a frozen button. The actual snapshot request fires in
-    // parallel; modal swaps loader → result when it resolves.
+    if (!canSubmit) return;
+
+    // Logged-in users: skip the modal entirely. They already get the
+    // wow moment every day — give them the fast path. Direct push to
+    // the picker, where they have the full toolset + plan-aware UX.
+    if (isSignedIn) {
+      setBusy(true);
+      router.push(`/pick?url=${encodeURIComponent(normalizedUrl)}`);
+      return;
+    }
+
+    // Logged-out: open the modal IMMEDIATELY — visitor sees the loading
+    // animation start, not a frozen button. The snapshot request fires
+    // in parallel; modal swaps loader → result when it resolves.
     setBusy(true);
     setError("");
     setPreview(null);
@@ -253,6 +296,10 @@ function UrlMode() {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("429")) {
         setError("You've used your free previews for this hour. Sign up free for unlimited.");
+      } else if (msg.toLowerCase().includes("plan limit")) {
+        // Surface the backend's plain-text message; the modal turns
+        // /pricing into a real link via PlanLimitText.
+        setError(msg.replace(/^Plan limit:\s*/i, ""));
       } else if (msg.includes("502") || msg.toLowerCase().includes("snapshot failed")) {
         setError("Couldn't reach that page. Either the site is blocking bots, or the URL is wrong.");
       } else {
@@ -302,17 +349,20 @@ function UrlMode() {
         />
         <motion.button
           type="submit"
-          disabled={busy || !valid}
-          whileTap={valid && !busy ? { scale: 0.96 } : undefined}
+          disabled={busy || !canSubmit}
+          whileTap={canSubmit && !busy ? { scale: 0.96 } : undefined}
           animate={{
-            backgroundColor: valid ? "var(--color-fg-strong)" : "var(--color-ink-4)",
-            opacity: valid ? 1 : 0.55,
+            backgroundColor: canSubmit ? "var(--color-fg-strong)" : "var(--color-ink-4)",
+            opacity: canSubmit ? 1 : 0.55,
           }}
           transition={{ duration: 0.16, ease: APPLE_EASE }}
           className="mr-2 inline-flex h-10 items-center gap-1.5 rounded-md px-4 font-medium text-[13px] text-[var(--color-bg)] disabled:cursor-not-allowed"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-          {busy ? "Working…" : "Try free"}
+          {/* Logged-in users see a verb that matches what happens (they
+              jump to the picker, not a public preview). Logged-out get
+              the conversion-friendly "Try free". */}
+          {busy ? (isSignedIn ? "Opening…" : "Working…") : (isSignedIn ? "Open in picker" : "Try free")}
         </motion.button>
       </motion.form>
 

@@ -238,7 +238,17 @@ def _pull(tree, field: Field) -> Any:
         return [] if kind == "list" else None
 
     if kind == "list":
-        raw = [_read(n, "text", attr) for n in nodes]
+        # If `attr` is set on a list field, return a list of attribute
+        # values (one per match) — the natural "list of hrefs / srcs"
+        # semantic. Without this, listing pages can't express
+        # `image_url: list` or `link: list` and the LLM is forced to
+        # downgrade to scalar `kind: attr` which returns just the first
+        # match. That's why books.toscrape used to show one image_url
+        # and one link instead of 20 each.
+        if attr:
+            raw = [_read(n, "attr", attr) for n in nodes]
+        else:
+            raw = [_read(n, "text", "") for n in nodes]
     else:
         raw = _read(nodes[0], kind, attr)
 

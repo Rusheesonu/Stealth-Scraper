@@ -11,10 +11,27 @@ raw `get_current_user`). That dependency:
 Plan limits match the published pricing page (free/hobby/pro/business).
 Calendar month is UTC `YYYY-MM`. Mid-month plan changes work naturally —
 we check the current plan's limit at request time, no migration needed.
+
+Admin tier
+----------
+An additional "admin" tier exists for internal accounts (founder, team,
+support, trusted launch testers). It's NOT publicly purchasable. Two ways
+to grant it:
+
+  1. Email allowlist via ADMIN_EMAILS env var (csv). Anyone in this list
+     resolves to plan="admin" regardless of their subscriptions table row.
+     This is the easy path — change env, no DB write.
+  2. Subscriptions table row with plan='admin' (out-of-band insert). Used
+     when a teammate has an account but we don't want their email in env.
+
+Admins have a 10M monthly limit (effectively unlimited for any realistic
+use) AND bypass the public landing-page IP rate limit so we can test the
+modal repeatedly without getting locked out.
 """
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, status
@@ -32,9 +49,31 @@ PLAN_LIMITS: dict[str, int] = {
     "hobby":    1_000,
     "pro":      10_000,
     "business": 100_000,
+    # Internal admin tier — effectively unlimited. Granted via the
+    # ADMIN_EMAILS env allowlist or by inserting a subscriptions row with
+    # plan='admin'. Not on the public pricing page.
+    "admin":    10_000_000,
     # Defensive: unknown plan (mis-configured variant ID) = no access.
     "unknown":  0,
 }
+
+
+# Comma-separated emails that resolve to the admin tier. Loaded at import
+# (env doesn't change at runtime in our deploy). Empty by default. Stored
+# as a frozenset of lower-cased emails for case-insensitive matching.
+ADMIN_EMAILS: frozenset[str] = frozenset(
+    e.strip().lower()
+    for e in os.getenv("ADMIN_EMAILS", "").split(",")
+    if e.strip()
+)
+
+
+def is_admin_email(email: str | None) -> bool:
+    """True if the email is in the ADMIN_EMAILS allowlist. Case-insensitive,
+    None/empty-safe (returns False)."""
+    if not email:
+        return False
+    return email.strip().lower() in ADMIN_EMAILS
 
 
 def current_year_month() -> str:

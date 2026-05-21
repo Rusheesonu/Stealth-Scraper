@@ -329,12 +329,39 @@ class PublicSnapshotRequest(BaseModel):
     url: HttpUrl
 
 
+async def _is_admin_request(request: Request) -> bool:
+    """Best-effort: does this request carry a valid Bearer token belonging
+    to an admin-allowlisted email? Used by the public endpoint to skip the
+    IP rate limit for internal testers without making the endpoint require
+    auth (anonymous visitors must still be able to hit it).
+
+    Never raises — auth failure of any kind just returns False so the
+    normal rate-limited path applies. Catches everything because this
+    runs on the hot path of the landing page and a stray exception here
+    would brick the demo.
+    """
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.lower().startswith("bearer "):
+        return False
+    try:
+        # Re-use the standard auth resolver. It accepts both API keys and
+        # JWTs and returns a user_id — exactly what we need.
+        from app.auth import get_current_user
+        from app.usage import is_admin_email
+        user_id = await get_current_user(auth_header)
+        email = await db.get_user_email(user_id)
+        return is_admin_email(email)
+    except Exception:
+        return False
+
+
 @app.post("/public/snapshot-and-suggest")
 async def public_snapshot_and_suggest(
     req: PublicSnapshotRequest,
     request: Request,
 ) -> dict[str, Any]:
-    """Landing-page magic preview. No auth.
+    """Landing-page magic preview. No auth REQUIRED, but admin Bearer
+    tokens bypass the IP rate limit.
 
     Snapshots the URL, auto-detects what kind of page it is, asks the LLM
     to suggest 3-5 useful fields, runs an extraction, returns the screenshot
@@ -345,20 +372,28 @@ async def public_snapshot_and_suggest(
     SOMETHING worked.
     """
     ip = _client_ip(request)
-    allowed, used, reset = _check_public_rate_limit(ip)
-    if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail=(
-                f"You've used {PUBLIC_SNAPSHOT_LIMIT} free previews this hour. "
-                f"Sign up free to keep going — unlimited previews + save your work."
-            ),
-            headers={
-                "X-RateLimit-Limit": str(PUBLIC_SNAPSHOT_LIMIT),
-                "X-RateLimit-Used": str(used),
-                "X-RateLimit-Reset": str(reset),
-            },
-        )
+    is_admin = await _is_admin_request(request)
+    if is_admin:
+        # Admin testers — skip the IP rate limit so we can hammer the
+        # modal repeatedly during dev/launch QA without locking ourselves
+        # out. Still return rate_limit shape (with synthetic "unlimited"
+        # values) so the frontend doesn't have to care.
+        used, reset = 0, PUBLIC_SNAPSHOT_WINDOW
+    else:
+        allowed, used, reset = _check_public_rate_limit(ip)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"You've used {PUBLIC_SNAPSHOT_LIMIT} free previews this hour. "
+                    f"Sign up free to keep going — unlimited previews + save your work."
+                ),
+                headers={
+                    "X-RateLimit-Limit": str(PUBLIC_SNAPSHOT_LIMIT),
+                    "X-RateLimit-Used": str(used),
+                    "X-RateLimit-Reset": str(reset),
+                },
+            )
 
     # 1. Snapshot the page. Tighter viewport than logged-in /snapshot so
     # this stays fast even on lazy-loaded pages (we don't need the full
@@ -379,10 +414,17 @@ async def public_snapshot_and_suggest(
     page_type = "generic"
     if assist.is_configured():
         try:
+            # Hard-cap to 3 fields for the magic preview. Tighter focus
+            # converts better than a wall of values; the user signs up
+            # to unlock the full picker schema beyond 3. The seeds in
+            # assist.PAGE_TYPE_SEED_DESCRIPTIONS already ask for "EXACTLY
+            # 3", so the LLM doesn't waste tokens producing extras we'd
+            # truncate.
             template, page_type = await assist.auto_suggest_template(
                 elements=snap.elements,
                 url=snap.url,
                 title=snap.title,
+                max_fields=3,
             )
         except assist.LLMError as e:
             # Soft-fail: the snapshot worked, only the AI suggest part failed.
@@ -398,7 +440,7 @@ async def public_snapshot_and_suggest(
     if template:
         from app.extract import extract as extract_fields  # local import keeps cold-start light
         try:
-            preview_template = template[:5]
+            preview_template = template[:3]
             res = await extract_fields(snap.url, preview_template)  # type: ignore[arg-type]
             sample_values = res.get("fields", {}) if isinstance(res, dict) else {}
         except Exception as e:
@@ -411,7 +453,7 @@ async def public_snapshot_and_suggest(
         "title": snap.title,
         "screenshot": snap.screenshot_base64,
         "page_type": page_type,
-        "template": template[:5],
+        "template": template[:3],
         "sample_values": sample_values,
         "element_count": len(snap.elements),
         "rate_limit": {

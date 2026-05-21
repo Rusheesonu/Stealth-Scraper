@@ -246,7 +246,30 @@ async def fork_public_template(template_id: int, user_id: str) -> dict[str, Any]
 _ACTIVE_STATUSES = ("active", "on_trial", "paused", "cancelled")
 
 
+async def get_user_email(user_id: str) -> str | None:
+    """Best-effort email lookup against Supabase's auth.users table. Used
+    to check admin allowlist (see usage.ADMIN_EMAILS). Returns None on any
+    error — callers must treat that as "not admin", never as a hard fail."""
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        try:
+            row = await conn.fetchrow(
+                "SELECT email FROM auth.users WHERE id = $1::uuid",
+                user_id,
+            )
+        except Exception:
+            return None
+        return row["email"] if row and row["email"] else None
+
+
 async def get_user_plan(user_id: str) -> str:
+    # Admin allowlist short-circuits the subscriptions lookup. Imported
+    # lazily to avoid a usage→db→usage import cycle.
+    from app.usage import is_admin_email
+    email = await get_user_email(user_id)
+    if is_admin_email(email):
+        return "admin"
+
     pool = await _get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(

@@ -164,11 +164,19 @@ def _detect_page_type(elements: list[dict[str, Any]], title: str = "") -> str:
     listing_signal = 0   # repeating product-card-ish patterns
     article_signal = 0   # long paragraphs (news/blog tell)
     feed_signal = 0      # comment counts, points, upvotes (HN/Reddit tell)
+    small_byline_signal = 0  # <small> tags w/ short text — author bylines / quote attribution
+    quote_signal = 0     # blockquote / quote-class / quote-mark text patterns
+
+    # Shape-frequency: how many repeating selector groups exist? Strong
+    # repeating patterns → the page is a "list of things" regardless of
+    # what those things are (products, quotes, posts, articles).
+    by_shape: dict[str, int] = {}
 
     for el in elements:
         tag = (el.get("tag") or "").lower()
         text = (el.get("text") or "").strip()
         attrs = el.get("attrs") or {}
+        css = el.get("css") or ""
 
         if tag == "h1": h1_count += 1
         if tag == "h2": h2_count += 1
@@ -196,7 +204,31 @@ def _detect_page_type(elements: list[dict[str, Any]], title: str = "") -> str:
         if (attrs.get("alt") or attrs.get("aria_label")) and tag in ("a", "img"):
             listing_signal += 1
 
+        # Quote / byline tells — quotes.toscrape and similar list-of-quotes
+        # pages have lots of <small> author tags + quote text patterns.
+        # Without these the classifier mis-buckets them as "generic" and
+        # the LLM gets a wishy-washy seed that includes "title", causing
+        # it to emit the page H1 as a scalar field. (Real bug, real fix.)
+        if tag == "small" and 0 < len(text) < 80:
+            small_byline_signal += 1
+        if tag == "blockquote" or "quote" in css:
+            quote_signal += 1
+        if (text.startswith(("“", '"', "'", "«"))
+                and text.endswith(("”", '"', "'", "»"))
+                and len(text) > 20):
+            quote_signal += 1
+
+        # Shape-frequency
+        if css:
+            shape = _NTH_OF_TYPE_RE.sub("", css)
+            by_shape[shape] = by_shape.get(shape, 0) + 1
+
     title_lo = (title or "").lower()
+
+    # Count "strong" repeating patterns — shapes appearing ≥3 times with
+    # text. This is the most reliable signal that the page is a LIST of
+    # something, not a single article/product/landing.
+    strong_repeating = sum(1 for n in by_shape.values() if n >= 3)
 
     # ── Decision tree, ordered by specificity (strongest signal wins)
     if feed_signal >= 3:
@@ -207,40 +239,75 @@ def _detect_page_type(elements: list[dict[str, Any]], title: str = "") -> str:
     if price_signal >= 1 and review_signal >= 1 and h1_count >= 1:
         # Single product page — has h1, at least one price, at least one rating
         return "ecommerce_product"
+    # Quotes / forum threads / testimonials / FAQ — many bylines + many
+    # repeating quote-ish blocks. Treat as a social_feed for prompt
+    # purposes (every item is a row; nothing scalar).
+    if (small_byline_signal >= 3 and quote_signal >= 2) or quote_signal >= 4:
+        return "social_feed"
     if article_signal >= 3 and h1_count >= 1:
         return "article"
     if "blog" in title_lo or "news" in title_lo or article_signal >= 2:
         return "article"
+    # Catch-all listing: lots of repeating shapes + many anchors but no
+    # commerce or feed-specific signals → still a list page. Better to
+    # treat it as a feed (list-only seed) than "generic" (which encourages
+    # scalar title extraction).
+    if strong_repeating >= 3 and a_count >= 10:
+        return "social_feed"
     return "generic"
 
 
 # Per-type description seeds — what to ask the LLM to extract when the user
 # didn't write a description themselves (landing-page magic preview).
 # Each is a single line that mimics what an experienced user would type.
+#
+# Key rule baked into the seeds: NEVER mix scalar "page title" / "page
+# heading" fields into a list extraction. If a page is a feed of N items,
+# every field is a list of N values — the user does not want the global
+# page H1 as a separate scalar field. (This was the quotes.toscrape bug:
+# the LLM saw "Identify... title, key metadata..." in the generic seed and
+# happily picked the page H1 = "Quotes to Scrape" as a scalar `title`
+# field alongside the per-quote list fields. Useless data.)
 PAGE_TYPE_SEED_DESCRIPTIONS = {
     "ecommerce_product": (
-        "Extract the product's title, price (current + original if discounted), "
-        "discount percentage, rating, review count, primary image, and "
-        "availability. Return as scalar fields — this is a single product page."
+        "Extract EXACTLY 3 scalar fields for this single product page: "
+        "(1) product title, (2) current price, (3) rating OR review count. "
+        "Return as `kind: text` scalars. Do NOT return 4+ fields — fewer "
+        "is better here, the user is previewing."
     ),
     "ecommerce_listing": (
-        "Extract every product card on this page as a list — for each, "
-        "get the title, price, image URL, link, and rating if visible. "
-        "Return list fields so each row corresponds to one product."
+        "Extract EXACTLY 3 LIST FIELDS covering every product card: "
+        "(1) product title, (2) price, (3) image URL (kind=list, attr=src) "
+        "OR product link (kind=list, attr=href). Every field MUST be "
+        "`kind: list`. Do NOT extract the page's global title/heading. "
+        "Do NOT pad to 4+ fields — exactly 3 focused fields."
     ),
     "article": (
-        "Extract the headline, author, publish date, and main body content "
-        "(markdown for the body). Also any tags/categories if visible."
+        "Extract EXACTLY 3 scalar fields: (1) headline, (2) author, "
+        "(3) publish date OR main body content (markdown). Return as "
+        "scalars (`kind: text` / `kind: markdown`). Do NOT pad to 4+ fields."
     ),
     "social_feed": (
-        "Extract every story/post/comment as a list — for each item get "
-        "the title or content, author, score (points/upvotes), and comment "
-        "count if visible. Return list fields."
+        "This page is a list of repeating items (posts, quotes, comments, "
+        "stories). Extract EXACTLY 3 LIST FIELDS, one value per item: "
+        "(1) the item's main text/content (quote body, post title, headline "
+        "— the visible primary text); (2) the author or byline; (3) "
+        "primary metadata (tags / score / date — pick ONE). Every field "
+        "MUST be `kind: list` whose selector matches the repeating shape. "
+        "ALWAYS include the main-text field — never skip it. Do NOT add "
+        "a scalar field for the page's overall H1. Do NOT pad to 4+ "
+        "fields with redundant data (no `description` if you already "
+        "have `tags`, no `description_2` ever). Exactly 3."
     ),
     "generic": (
-        "Identify the 5 most useful structured fields a visitor would want "
-        "to extract from this page — title, key metadata, and any prominent "
-        "values. Prefer list fields when you see repeating patterns."
+        "Find the strongest repeating pattern on this page (cards, rows, "
+        "items, posts) and extract EXACTLY 3 LIST FIELDS describing ONE "
+        "such item: main visible text, plus two of {author, price, "
+        "rating, date, tags} — whichever are most visible. Every field "
+        "should be `kind: list`. If — and ONLY if — there is no repeating "
+        "pattern (single landing page, single article), extract 3 scalar "
+        "fields instead. Do NOT include the page's global H1 as a scalar "
+        "alongside list fields. Do NOT pad to 4+ fields."
     ),
 }
 
@@ -290,16 +357,28 @@ def _heuristic_suggest_fields(
         shape = _NTH_OF_TYPE_RE.sub("", css)
         by_shape.setdefault(shape, []).append(el)
 
-    # Score repeating patterns: count × average text length
+    # Score repeating patterns: count × average text length.
+    # Special-case img / a — their value lives in attrs (src/href), so a
+    # near-empty text average is normal and shouldn't disqualify them.
+    # Without this exception, listing pages skipped the image_url and
+    # link fields entirely (books.toscrape was returning scalar attr).
     repeating: list[tuple[str, list[dict[str, Any]], float]] = []
     for shape, items in by_shape.items():
         if len(items) < 3:
             continue
+        tags = {(el.get("tag") or "").lower() for el in items}
+        is_media_pattern = tags <= {"img"} or tags <= {"a"}
         avg_text_len = sum(len((el.get("text") or "")) for el in items) / len(items)
-        if avg_text_len < 2:
-            continue  # all-empty repeating pattern → not useful (probably nav)
-        # Slight bonus for shapes that look like content (h2, h3, span inside a list item)
-        score = len(items) * avg_text_len
+        has_useful_attr = is_media_pattern and any(
+            (el.get("attrs") or {}).get("src") or (el.get("attrs") or {}).get("href")
+            for el in items
+        )
+        if avg_text_len < 2 and not has_useful_attr:
+            continue  # all-empty repeating pattern → probably nav glue
+
+        # Score = count × text density, with a floor for media patterns
+        # (so they don't lose to text-heavy patterns just for being short).
+        score = len(items) * max(avg_text_len, 6 if has_useful_attr else 0)
         repeating.append((shape, items, score))
 
     # Sort by score, take top patterns first
@@ -314,23 +393,52 @@ def _heuristic_suggest_fields(
         if shape in used_shapes:
             continue
         used_shapes.add(shape)
-        label = _label_from_sample(items[0])
+
+        # Decide kind + attr based on the sample element's tag and attrs.
+        # Repeating <img> → kind=list, attr=src (list of image URLs).
+        # Repeating <a> with empty text → kind=list, attr=href (list of links).
+        # Otherwise → kind=list of text content.
+        sample = items[0]
+        sample_tag = (sample.get("tag") or "").lower()
+        sample_attrs = sample.get("attrs") or {}
+        avg_text_len = sum(len((el.get("text") or "")) for el in items) / len(items)
+        field_kind = "list"
+        field_attr = ""
+        label = _label_from_sample(sample)
+        if sample_tag == "img" and sample_attrs.get("src"):
+            field_attr = "src"
+            label = "image_url" if label == "image" else label
+        elif sample_tag == "a" and sample_attrs.get("href") and avg_text_len < 3:
+            # Anchor with no useful text → emit as href list (the value
+            # is in the attr, not the text). When the anchor has text
+            # (like a tag chip), prefer text — the user usually wants
+            # the visible label, not the URL.
+            field_attr = "href"
+            label = "link" if label == "link" else label
+
         # Dedupe labels (prepend a numeric if needed)
         label = _unique_label(label, [f["label"] for f in out])
         out.append({
             "label": label,
             "selector": shape,
-            "kind": "list",
-            "attr": "",
+            "kind": field_kind,
+            "attr": field_attr,
         })
 
-    # If we didn't find any repeating patterns (single-product page, doc page),
+    # If we DIDN'T find any list patterns (single-product page, doc page),
     # fall back to scalar fields: h1, price patterns, primary image.
+    # If we DID find list patterns, only add scalars that aren't the page
+    # H1 — extracting the page heading alongside per-row data is useless
+    # noise (the "Quotes to Scrape" scalar-title bug).
     if len(out) < max_fields:
+        already_have_lists = any(f.get("kind") == "list" for f in out)
         scalars = _scalar_candidates(elements, exclude_labels={f["label"] for f in out})
         for s in scalars:
             if len(out) >= max_fields:
                 break
+            # Skip the scalar h1/title when we already have list fields.
+            if already_have_lists and s.get("label") in {"title", "page_title"}:
+                continue
             out.append(s)
 
     return out
@@ -504,15 +612,34 @@ CRITICAL RULES — violations cause silent extraction failures:
    exactly 3 fields. Do NOT pad with invented selectors to look helpful.
 
 6. KIND RULES:
-   - `list` for repeating items (e.g. every story on a feed). Pick ONE
-     representative element from the repeating pattern — its selector
-     shape works for the whole list.
-   - `text` for a single distinct value (h1 title, single price node).
-   - `attr` only when extracting an attribute (href, src, alt, datetime).
-     Set `attr` to the attribute name.
+   - `list` for repeating items (e.g. every story on a feed, every
+     product card on a listing). Pick ONE representative element from
+     the repeating pattern — its selector shape works for the whole list.
+   - `list` + `attr` for REPEATING attributes — every product's image
+     URL, every story's href, every <time>'s datetime. Use this for
+     image/link lists on any catalog or listing page. The selector
+     should be the repeating shape (e.g. `.product img`), and `attr`
+     names the attribute to pull from each match (`src`, `href`, etc).
+     Do NOT downgrade these to scalar `kind: attr` — that returns only
+     the first item, which is almost never what the user wants.
+   - `text` for a single distinct value (h1 title, single price node
+     on a single-product page).
+   - `attr` (scalar) ONLY when extracting one specific attribute from
+     a single distinct element — single canonical link, single product
+     hero image. NOT for listings.
    - `markdown` for rich content blocks (article body, comment thread).
 
-7. LABELS: short snake_case, descriptive, no spaces, no punctuation."""
+7. LABELS: short snake_case, descriptive, no spaces, no punctuation.
+
+8. NEVER MIX SCALAR PAGE-LEVEL FIELDS WITH LIST EXTRACTIONS.
+   If you're returning ANY `list` fields (because the page has repeating
+   items), do NOT also return a scalar field pointing at the page's
+   global H1 / page title / site name / breadcrumbs / footer copy. The
+   user wants per-row data — the global page heading is useless to them.
+     ✓ {quote: list, author: list, tags: list}
+     ✗ {title: text (= "Quotes to Scrape"), quote: list, author: list}
+   Same for product listings: extract every card as a list; do NOT add
+   "page_title" or "category_name" as scalars."""
 
 
 # ── Generation ───────────────────────────────────────────────────────────
@@ -600,6 +727,7 @@ async def auto_suggest_template(
     elements: list[dict[str, Any]],
     url: str,
     title: str = "",
+    max_fields: int = 3,
 ) -> tuple[list[dict[str, Any]], str]:
     """Landing-page magic preview entry point. The whole homepage demo
     hinges on this — visitors paste a URL and expect to see fields
@@ -620,30 +748,150 @@ async def auto_suggest_template(
     """
     page_type = _detect_page_type(elements, title)
 
-    # Path 1 — try the LLM first if configured. Soft-fail to heuristic
-    # on ANY error so the homepage demo never breaks because of LLM issues.
+    # Two-engine strategy (LLM + heuristic), then merge.
+    #
+    # The LLM gives BETTER labels (`quote_text`, `product_price`, `author`)
+    # but sometimes returns too FEW fields — it picks 1–2 obvious ones and
+    # stops, leaving a sparse preview that looks broken.
+    #
+    # The heuristic always finds the strongest 3–5 repeating shape groups
+    # on the page but gives GENERIC labels (`field`, `link`).
+    #
+    # Best of both: run LLM first (its picks have priority for naming),
+    # then fill remaining slots from the heuristic — deduped by selector
+    # SHAPE so we don't add a heuristic-named clone of an LLM field.
+    llm_template: list[dict[str, Any]] = []
     if is_configured():
         try:
             seed_description = PAGE_TYPE_SEED_DESCRIPTIONS.get(
                 page_type, PAGE_TYPE_SEED_DESCRIPTIONS["generic"]
             )
-            template = await generate_template(
+            llm_template = await generate_template(
                 elements=elements,
                 description=seed_description,
                 url=url,
                 title=title,
             )
-            if template:
-                return template, page_type
-            log.info("LLM returned empty template, falling back to heuristic")
+            if not llm_template:
+                log.info("LLM returned empty template; relying on heuristic alone")
         except LLMError as e:
-            log.warning("LLM error (%s), falling back to heuristic: %s", e.kind, e)
+            log.warning("LLM error (%s), relying on heuristic: %s", e.kind, e)
         except Exception as e:
-            log.warning("LLM unexpected error, falling back to heuristic: %r", e)
+            log.warning("LLM unexpected error, relying on heuristic: %r", e)
 
-    # Path 2 — heuristic fallback. Always works, no network calls.
-    heuristic_template = _heuristic_suggest_fields(elements, max_fields=5)
-    return heuristic_template, page_type
+    heuristic_template = _heuristic_suggest_fields(elements, max_fields=max_fields)
+    merged = _merge_templates(llm_template, heuristic_template, max_fields=max_fields)
+    merged = _strip_mixed_scalar_heading(merged, elements, page_title=title)
+    return merged, page_type
+
+
+def _merge_templates(
+    primary: list[dict[str, Any]],
+    secondary: list[dict[str, Any]],
+    *,
+    max_fields: int = 5,
+) -> list[dict[str, Any]]:
+    """Merge two field lists with `primary` getting priority on naming and
+    ordering. Dedupes by selector SHAPE (nth-of-type stripped) so we don't
+    add the same repeating pattern under two different labels.
+
+    Anti-collision: if a secondary field's label collides with a primary
+    field's label, it gets a numeric suffix (`field_2`) so the resulting
+    schema is still valid (picker enforces unique labels).
+    """
+    if not primary and not secondary:
+        return []
+
+    out: list[dict[str, Any]] = []
+    used_shapes: set[str] = set()
+    used_labels: set[str] = set()
+
+    def _maybe_add(f: dict[str, Any]) -> None:
+        if len(out) >= max_fields:
+            return
+        sel = f.get("selector") or ""
+        if not sel:
+            return
+        shape = _NTH_OF_TYPE_RE.sub("", sel)
+        if shape in used_shapes:
+            return
+        label = (f.get("label") or "field").strip() or "field"
+        if label.lower() in used_labels:
+            label = _unique_label(label, list(used_labels))
+            f = {**f, "label": label}
+        out.append(f)
+        used_shapes.add(shape)
+        used_labels.add(label.lower())
+
+    for f in primary:
+        _maybe_add(f)
+    for f in secondary:
+        _maybe_add(f)
+
+    return out
+
+
+def _strip_mixed_scalar_heading(
+    template: list[dict[str, Any]],
+    elements: list[dict[str, Any]],
+    *,
+    page_title: str = "",
+) -> list[dict[str, Any]]:
+    """If the template contains ≥1 `list` field AND a scalar `text` field
+    whose SELECTOR matches the page's global H1, drop the scalar.
+
+    Last line of defense against the "Quotes to Scrape" bug — where the
+    LLM emits a scalar `title` field pointing at the page H1 alongside
+    per-item list fields. The H1 is useless data when each row is the
+    real unit of extraction.
+
+    Strict rules (deliberately conservative — false positives mean missing
+    fields, which is worse than including a stray H1):
+      * Only drops fields with kind == 'text'. List/markdown/attr fields
+        are NEVER touched, regardless of label.
+      * Only drops when the selector itself matches an <h1> or a top-
+        level element whose text equals the page title. Label heuristics
+        are NOT used — labels like 'title' can legitimately mean the
+        per-item main text on forum threads, posts, products, etc.
+    """
+    if not template:
+        return template
+
+    has_list = any((f.get("kind") or "").lower() == "list" for f in template)
+    if not has_list:
+        return template  # Pure-scalar template (single-product / article) — leave it.
+
+    # Build the set of selectors pointing at top-level page headings:
+    # the H1(s), and any element whose text matches the page title.
+    h1_selectors: set[str] = set()
+    title_norm = (page_title or "").strip().lower()
+    for el in elements:
+        tag = (el.get("tag") or "").lower()
+        css = el.get("css") or ""
+        text = (el.get("text") or "").strip().lower()
+        if not css:
+            continue
+        if tag == "h1":
+            h1_selectors.add(css)
+        elif title_norm and tag in ("h1", "h2", "title") and text == title_norm:
+            h1_selectors.add(css)
+
+    kept: list[dict[str, Any]] = []
+    dropped: list[str] = []
+    for f in template:
+        kind = (f.get("kind") or "").lower()
+        sel = f.get("selector") or ""
+        # ONLY drop on a confirmed selector match. Don't try to read minds
+        # from the label — too many false positives there.
+        if kind == "text" and sel in h1_selectors:
+            dropped.append(f"{f.get('label','?')}={sel[:60]}")
+            continue
+        kept.append(f)
+
+    if dropped:
+        log.info("Stripped %d scalar page-heading fields from list extraction: %s",
+                 len(dropped), "; ".join(dropped))
+    return kept
 
 
 async def generate_template(

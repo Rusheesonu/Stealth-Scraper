@@ -18,6 +18,7 @@ import { FieldSidebar } from "@/components/picker/field-sidebar";
 import { ResultsPanel } from "@/components/picker/results-panel";
 import { BatchModal } from "@/components/picker/batch-modal";
 import { FieldDetailDrawer } from "@/components/picker/field-detail";
+import { PlanLimitText } from "@/components/plan-limit-text";
 import { downloadBlob, toCsv } from "@/lib/utils";
 import {
   api,
@@ -575,17 +576,37 @@ export function PickerClient() {
               </div>
             </div>
           )}
-          {loadError && (
-            <div className="mx-auto max-w-lg rounded-xl border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-5">
-              <div className="mb-1 text-[14px] font-semibold text-[var(--color-fg-strong)]">
-                Snapshot failed
+          {loadError && (() => {
+            const lower = loadError.toLowerCase();
+            const isPlanLimit =
+              lower.includes("plan limit") ||
+              lower.includes("scrapes this month") ||
+              lower.includes("/pricing");
+            return (
+              <div className="mx-auto max-w-lg rounded-xl border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-5">
+                <div className="mb-1 text-[14px] font-semibold text-[var(--color-fg-strong)]">
+                  {isPlanLimit ? "You're out of scrapes this month" : "Snapshot failed"}
+                </div>
+                <PlanLimitText
+                  text={loadError}
+                  className="mb-4 block text-[12.5px] leading-[1.55] text-[var(--color-fg-muted)]"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  {isPlanLimit && (
+                    <Link
+                      href="/pricing"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-3 text-[12.5px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]"
+                    >
+                      See pricing
+                    </Link>
+                  )}
+                  <Button variant="secondary" size="sm" onClick={load}>
+                    Try again
+                  </Button>
+                </div>
               </div>
-              <div className="mb-4 font-mono text-[11px] text-[var(--color-fg-muted)]">{loadError}</div>
-              <Button variant="secondary" size="sm" onClick={load}>
-                Try again
-              </Button>
-            </div>
-          )}
+            );
+          })()}
           {snapshot && (
             <SnapshotCanvas
               snapshot={snapshot}

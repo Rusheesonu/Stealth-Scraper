@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -8,6 +8,7 @@ import {
   Loader2, Sparkles, Lock, AlertTriangle, Cpu, Search, Shield, Wand2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PlanLimitText } from "@/components/plan-limit-text";
 import { cn, truncate } from "@/lib/utils";
 import type { PublicSnapshotResponse } from "@/lib/api";
 
@@ -95,14 +96,17 @@ export function LandingPreviewModal({ open, url, preview, error, onClose }: Prop
           />
 
           {/* Modal body — large, not full-screen (so user feels they can
-              click out). max-h pegged so very tall results scroll inside. */}
+              click out). max-h pegged so very tall results scroll inside.
+              Sized for "this is the moment" theatre — wider than a normal
+              modal because the loading + result phases both want lots of
+              real estate to feel like real software, not a tooltip. */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 4 }}
             transition={{ duration: 0.28, ease: APPLE_EASE }}
             onClick={(e) => e.stopPropagation()}
-            className="relative flex w-full max-w-5xl max-h-[88vh] flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-modal)]"
+            className="relative flex w-full max-w-6xl max-h-[92vh] flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-modal)]"
           >
             {/* Close button — top right */}
             <button
@@ -130,14 +134,42 @@ export function LandingPreviewModal({ open, url, preview, error, onClose }: Prop
 }
 
 // ─── Phase 1: loading ────────────────────────────────────────────────────
+//
+// Goal of this phase: justify the wait. First snapshot can take 10–15s
+// (cold Chromium tab), which is forever in web-time. Without spectacle
+// the visitor closes the tab thinking we hung. With spectacle the wait
+// becomes the demo — they see what's happening, watch the schema get
+// built in real time, and arrive at the result phase already convinced.
 
 const LOADING_STAGES = [
-  { icon: Globe,   text: "Opening a real Chromium…",        from: 0.0, to: 0.18 },
-  { icon: Shield,  text: "Bypassing bot detection…",        from: 0.18, to: 0.38 },
-  { icon: Cpu,     text: "Capturing page elements…",        from: 0.38, to: 0.58 },
-  { icon: Search,  text: "Detecting repeating patterns…",   from: 0.58, to: 0.75 },
-  { icon: Wand2,   text: "Asking AI which fields you want…", from: 0.75, to: 0.92 },
-  { icon: Sparkles,text: "Extracting clean values…",        from: 0.92, to: 1.0 },
+  { icon: Globe,   text: "Opening a real Chromium browser",        from: 0.0, to: 0.18 },
+  { icon: Shield,  text: "Bypassing bot detection",                from: 0.18, to: 0.38 },
+  { icon: Cpu,     text: "Capturing page elements",                from: 0.38, to: 0.58 },
+  { icon: Search,  text: "Detecting repeating patterns",           from: 0.58, to: 0.75 },
+  { icon: Wand2,   text: "Asking AI which fields you want",        from: 0.75, to: 0.92 },
+  { icon: Sparkles,text: "Extracting clean values",                from: 0.92, to: 1.0 },
+];
+
+// Mock fields revealed in the right-side "Discovered schema" panel as
+// the scan progresses. We don't know the real fields until the LLM
+// responds — these are realistic placeholders that match what the
+// result phase commonly shows for listings (the most popular paste).
+// Labels stay generic so they're plausible for any URL pasted.
+const MOCK_DISCOVERED_FIELDS = [
+  { label: "title",      kind: "list", matches: 10 },
+  { label: "primary_value", kind: "list", matches: 10 },
+  { label: "metadata",   kind: "list", matches: 8 },
+  { label: "image_url",  kind: "list", matches: 10 },
+];
+
+// Selectors that float next to the currently-scanned mock card. These
+// are intentionally generic shapes so they're believable for any site.
+const MOCK_SELECTORS = [
+  ".item .title",
+  ".card .price",
+  ".row .author",
+  ".product img",
+  ".entry .meta",
 ];
 
 function LoadingPhase({ url }: { url: string }) {
@@ -148,7 +180,7 @@ function LoadingPhase({ url }: { url: string }) {
 
   useEffect(() => {
     const TOTAL_MS = 12_000;
-    const TICK_MS = 80;
+    const TICK_MS = 60;
     let raf: number;
     const start = performance.now();
     function tick() {
@@ -161,7 +193,26 @@ function LoadingPhase({ url }: { url: string }) {
     return () => clearTimeout(raf);
   }, []);
 
-  const activeStage = LOADING_STAGES.find((s) => t >= s.from && t < s.to) ?? LOADING_STAGES[LOADING_STAGES.length - 1];
+  const activeStage =
+    LOADING_STAGES.find((s) => t >= s.from && t < s.to)
+    ?? LOADING_STAGES[LOADING_STAGES.length - 1];
+
+  // Scanning highlight — cycles through 5 mock rows on the left panel.
+  // Independent of overall progress so the scan keeps moving even after
+  // t maxes at 0.97 (still gives "we're working" feedback to the user).
+  const CARD_COUNT = 5;
+  // ~3s per row → full cycle ~15s. Adjust if it feels too fast/slow.
+  const activeCard = Math.floor((t * 18)) % CARD_COUNT;
+
+  // Live counters — tick up with progress. tabular-nums in the renderer
+  // keeps them from jiggling as digits change.
+  const elementCount = Math.floor(t * 247);
+  const patternCount = Math.min(4, Math.floor(t * 5));
+  // Fields start being "discovered" once we cross into the AI stage.
+  const fieldsFoundCount = Math.min(
+    MOCK_DISCOVERED_FIELDS.length,
+    Math.max(0, Math.floor((t - 0.35) * 7)),
+  );
 
   return (
     <motion.div
@@ -169,92 +220,407 @@ function LoadingPhase({ url }: { url: string }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22, ease: APPLE_EASE }}
-      className="relative flex min-h-[440px] flex-col items-center justify-center p-10 md:p-14"
+      className="relative flex min-h-[600px] flex-col p-6 md:p-8"
     >
-      {/* Subtle ambient accent wash */}
+      {/* Ambient backdrop — dotted grid + accent wash. Sets "this is a
+          screen showing real software", not just a spinner on white. */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]"
+        style={{
+          backgroundImage: `radial-gradient(circle, color-mix(in srgb, var(--color-fg-subdued) 30%, transparent) 0.8px, transparent 0.8px)`,
+          backgroundSize: "22px 22px",
+        }}
+        aria-hidden
+      />
       <div
         className="pointer-events-none absolute inset-0 opacity-50"
-        style={{ background: "radial-gradient(ellipse at center, var(--color-accent-faint) 0%, transparent 60%)" }}
+        style={{ background: "radial-gradient(ellipse at center, var(--color-accent-faint) 0%, transparent 65%)" }}
         aria-hidden
       />
 
-      {/* Top mini browser chrome — anchors the visual to "we're scraping a real page" */}
-      <div className="relative mb-8 w-full max-w-md overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]">
-        <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-1.5">
-          <div className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
-            <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
-            <span className="h-2 w-2 rounded-full bg-[#28c840]" />
-          </div>
-          <div className="flex flex-1 items-center gap-1.5 truncate font-mono text-[10.5px] text-[var(--color-fg-muted)]">
-            <Globe className="h-2.5 w-2.5 text-[var(--color-fg-subdued)]" />
-            {truncate(url.replace(/^https?:\/\//, ""), 50)}
-          </div>
-        </div>
-        {/* Animated "scan line" inside the chrome — simulates extraction */}
-        <div className="relative h-16 overflow-hidden bg-[var(--color-ink-1)]">
-          {/* Skeleton rows */}
-          <div className="space-y-1.5 px-3 py-2">
-            <div className="h-1.5 w-3/4 rounded-sm bg-[var(--color-ink-2)]" />
-            <div className="h-1.5 w-1/2 rounded-sm bg-[var(--color-ink-2)]" />
-            <div className="h-1.5 w-5/6 rounded-sm bg-[var(--color-ink-2)]" />
-          </div>
-          {/* Sweeping accent line */}
-          <motion.div
-            initial={{ y: -4, opacity: 0 }}
-            animate={{ y: [0, 64, 0], opacity: [0, 1, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="pointer-events-none absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)] to-transparent"
-          />
-        </div>
-      </div>
-
-      {/* Stage label — the entertaining bit */}
-      <div className="relative flex items-center gap-2.5">
+      {/* ── Stage indicator — big, prominent, animated. The "headline" of
+          the loading screen. Icon spins in place to signal life even when
+          the stage text holds still between transitions. ── */}
+      <div className="relative mx-auto mb-6 flex items-center gap-3">
         <AnimatePresence mode="wait">
-          <motion.span
+          <motion.div
             key={activeStage.text}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.22, ease: APPLE_EASE }}
-            className="inline-flex items-center gap-2.5"
+            initial={{ opacity: 0, y: 10, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.96 }}
+            transition={{ duration: 0.32, ease: APPLE_EASE }}
+            className="inline-flex items-center gap-3"
           >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-accent-faint)] ring-1 ring-inset ring-[var(--color-accent-line)]">
-              <activeStage.icon className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+            <span className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-accent-faint)] ring-1 ring-inset ring-[var(--color-accent-line)]">
+              {/* Spinning ring around the icon — subtle, gives "active" feel */}
+              <motion.span
+                className="absolute inset-0 rounded-xl"
+                style={{
+                  borderTop: "2px solid var(--color-accent)",
+                  borderRight: "2px solid transparent",
+                  borderBottom: "2px solid transparent",
+                  borderLeft: "2px solid transparent",
+                }}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
+                aria-hidden
+              />
+              <activeStage.icon className="h-5 w-5 text-[var(--color-accent)]" />
             </span>
-            <span className="text-[15px] font-medium tracking-[-0.005em] text-[var(--color-fg-strong)]">
-              {activeStage.text}
-            </span>
-          </motion.span>
+            <div className="flex flex-col">
+              <span className="text-[19px] font-semibold leading-[1.15] tracking-[-0.012em] text-[var(--color-fg-display)]">
+                {activeStage.text}
+              </span>
+              <span className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+                stage {LOADING_STAGES.indexOf(activeStage) + 1} of {LOADING_STAGES.length}
+              </span>
+            </div>
+          </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Progress bar — visual confirmation that something IS happening */}
-      <div className="relative mt-8 h-1 w-full max-w-md overflow-hidden rounded-full bg-[var(--color-border)]">
-        <motion.div
-          className="h-full rounded-full bg-[var(--color-accent)]"
-          animate={{ width: `${Math.round(t * 100)}%` }}
-          transition={{ duration: 0.25, ease: APPLE_EASE }}
-        />
+      {/* ── Main two-column visualization ── */}
+      <div className="relative grid flex-1 grid-cols-1 gap-5 md:grid-cols-[1.4fr_1fr]">
+
+        {/* LEFT — mock browser with scanning highlights.
+            5 generic placeholder "cards" with skeleton content. A
+            colored bounding box hops between them in a loop, and a
+            floating CSS-selector chip appears next to the active one.
+            Conveys "we're inspecting elements" without needing the
+            real page DOM (which we don't have yet anyway). */}
+        <div className="relative overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]">
+          {/* Browser chrome with real URL */}
+          <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-2">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+            </div>
+            <div className="flex flex-1 items-center gap-1.5 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
+              <Globe className="h-3 w-3 text-[var(--color-fg-subdued)]" />
+              {truncate(url.replace(/^https?:\/\//, ""), 55)}
+            </div>
+            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-[var(--color-accent)]">
+              <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
+              live
+            </span>
+          </div>
+
+          {/* Scanning cards */}
+          <div className="relative space-y-2 p-3">
+            {Array.from({ length: CARD_COUNT }).map((_, i) => (
+              <ScanningCard
+                key={i}
+                active={i === activeCard}
+                selector={MOCK_SELECTORS[i % MOCK_SELECTORS.length]}
+              />
+            ))}
+
+            {/* Sweeping horizontal accent line — adds constant motion
+                even when the highlight isn't transitioning */}
+            <motion.div
+              initial={{ top: "0%" }}
+              animate={{ top: ["0%", "100%"] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+              className="pointer-events-none absolute inset-x-3 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)] to-transparent opacity-60"
+              style={{ filter: "blur(0.5px)" }}
+              aria-hidden
+            />
+          </div>
+        </div>
+
+        {/* RIGHT — "Discovered schema" panel. Streams in fields one at a
+            time as the scan progresses, mimicking a real schema-building
+            session. Builds anticipation for the result phase. */}
+        <div className="relative flex flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-ink-1)]">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              Discovered schema
+            </div>
+            <div className="font-mono text-[10px] text-[var(--color-fg-subdued)]">
+              {fieldsFoundCount}/{MOCK_DISCOVERED_FIELDS.length}
+            </div>
+          </div>
+          <div className="flex-1 space-y-2 p-3">
+            {MOCK_DISCOVERED_FIELDS.map((f, i) => {
+              const found = i < fieldsFoundCount;
+              const scanning = i === fieldsFoundCount;
+              return (
+                <motion.div
+                  key={f.label}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{
+                    opacity: found ? 1 : scanning ? 0.85 : 0.28,
+                    x: 0,
+                  }}
+                  transition={{ duration: 0.32, ease: APPLE_EASE }}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-md border bg-[var(--color-surface)] px-3 py-2 transition-colors",
+                    found
+                      ? "border-[var(--color-accent-line)]"
+                      : "border-[var(--color-border)]",
+                  )}
+                >
+                  <span className={cn(
+                    "inline-flex h-6 w-6 items-center justify-center rounded-md",
+                    found ? "bg-[var(--color-accent-faint)]" : "bg-[var(--color-ink-2)]",
+                  )}>
+                    {found ? (
+                      <Check className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+                    ) : scanning ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-fg-muted)]" />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-fg-subdued)]" />
+                    )}
+                  </span>
+                  <span className={cn(
+                    "flex-1 font-mono text-[12.5px] font-medium",
+                    found ? "text-[var(--color-fg-strong)]" : "text-[var(--color-fg-muted)]",
+                  )}>
+                    {f.label}
+                  </span>
+                  <Badge tone="muted" size="xs">{f.kind}</Badge>
+                  {found && (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.7 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.1, duration: 0.2 }}
+                      className="font-mono text-[10.5px] text-[var(--color-accent)]"
+                    >
+                      ×{f.matches}
+                    </motion.span>
+                  )}
+                </motion.div>
+              );
+            })}
+
+            {fieldsFoundCount < MOCK_DISCOVERED_FIELDS.length && (
+              <div className="flex items-center gap-1.5 pt-1 font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+                <span className="inline-flex h-1 w-1 animate-pulse rounded-full bg-[var(--color-fg-subdued)]" />
+                scanning more elements…
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Footer caption — context + reassurance */}
-      <p className="relative mt-6 max-w-md text-center text-[11.5px] leading-[1.55] text-[var(--color-fg-muted)]">
-        First load can take 10–15s while we warm a fresh Chromium tab. Subsequent
-        scrapes on this site are sub-second.
-      </p>
+      {/* ── Bottom strip: stats + progress + caption ── */}
+      <div className="relative mt-6 space-y-3">
+        {/* Live stat counters — small but moving, completes the
+            "real software is processing data" feel */}
+        <div className="mx-auto flex max-w-lg items-center justify-center gap-5 font-mono text-[11.5px]">
+          <StatCounter label="elements" value={elementCount} />
+          <span className="text-[var(--color-fg-subdued)]">·</span>
+          <StatCounter label="patterns" value={patternCount} />
+          <span className="text-[var(--color-fg-subdued)]">·</span>
+          <StatCounter label="fields" value={fieldsFoundCount} />
+        </div>
+
+        {/* Wider, gradient-tinted progress bar */}
+        <div className="relative mx-auto h-1.5 w-full max-w-2xl overflow-hidden rounded-full bg-[var(--color-border)]">
+          <motion.div
+            className="h-full rounded-full"
+            style={{
+              background:
+                "linear-gradient(90deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent) 70%, var(--color-fg-display)) 100%)",
+            }}
+            animate={{ width: `${Math.round(t * 100)}%` }}
+            transition={{ duration: 0.25, ease: APPLE_EASE }}
+          />
+          {/* Shimmer overlay — moves left→right inside the filled bar */}
+          <motion.div
+            className="pointer-events-none absolute inset-y-0 w-24 -skew-x-12 opacity-60"
+            style={{
+              background:
+                "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)",
+            }}
+            animate={{ x: ["-100%", "500%"] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
+            aria-hidden
+          />
+        </div>
+
+        <p className="mx-auto max-w-md text-center text-[11.5px] leading-[1.55] text-[var(--color-fg-muted)]">
+          First load can take 10–15s while we warm a fresh Chromium tab.
+          Subsequent scrapes on this site are sub-second.
+        </p>
+      </div>
     </motion.div>
   );
 }
 
+/** One row in the left-panel mock browser. When `active`, gets an accent
+ *  ring + a floating CSS-selector chip in the top-right corner. */
+function ScanningCard({ active, selector }: { active: boolean; selector: string }) {
+  return (
+    <div className="relative">
+      {/* Highlight ring + selector chip — only mounted when active so
+          AnimatePresence + layout transitions feel natural. */}
+      <AnimatePresence>
+        {active && (
+          <motion.div
+            layoutId="ss-scan-highlight"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22, ease: APPLE_EASE }}
+            className="pointer-events-none absolute -inset-[3px] rounded-lg ring-2 ring-[var(--color-accent)]"
+            style={{ boxShadow: "0 0 0 4px color-mix(in srgb, var(--color-accent) 18%, transparent)" }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {active && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.95 }}
+            transition={{ duration: 0.22, ease: APPLE_EASE }}
+            className="absolute -top-2.5 right-2 z-10 inline-flex -translate-y-full items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-2 py-1 font-mono text-[10px] text-[var(--color-bg)] shadow-[var(--shadow-card)]"
+          >
+            <span className="text-[var(--color-accent)]">▸</span>
+            {selector}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Placeholder content — skeleton bars of varying width, plus a
+          row of tag-ish chips at the bottom. Doesn't need to match the
+          real site; it just has to feel like "card content getting
+          inspected". */}
+      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div className="mb-2 h-2.5 w-2/3 rounded-sm bg-[var(--color-ink-2)]" />
+        <div className="mb-1 h-1.5 w-full rounded-sm bg-[var(--color-ink-1)]" />
+        <div className="mb-2 h-1.5 w-4/5 rounded-sm bg-[var(--color-ink-1)]" />
+        <div className="flex gap-1.5">
+          <span className="h-3 w-10 rounded-sm bg-[var(--color-info-soft)]" />
+          <span className="h-3 w-8 rounded-sm bg-[var(--color-warning-soft)]" />
+          <span className="h-3 w-12 rounded-sm bg-[var(--color-accent-soft)]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCounter({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="tabular-nums font-semibold text-[var(--color-fg-strong)]">
+        {value}
+      </span>
+      <span className="text-[var(--color-fg-muted)]">{label}</span>
+    </span>
+  );
+}
+
 // ─── Phase 2: result ────────────────────────────────────────────────────
+
+/**
+ * Zip parallel list fields into per-item records — one JSON object per
+ * row of extracted data. Far more compelling than "card per field" for
+ * the no-signup preview: visitors immediately see the schema they'd get
+ * back from the API. The shape is what the SDK would return.
+ *
+ * Behavior:
+ *   - All-list schema (the common listing case) → N records, where N is
+ *     the length of the longest list field (capped). Each record gets
+ *     one value per field.
+ *   - All-scalar schema (single-product / single-article) → one record
+ *     with all scalars.
+ *   - Mixed → scalars repeat in every record, list values index by row.
+ */
+const PREVIEW_RECORD_CAP = 8;
+
+/** Same shape-zipping as buildRecords but UNCAPPED — used for "copy JSON"
+ *  so the user gets the full extraction in their clipboard, not just the
+ *  8 rows we render. */
+function buildAllRecords(
+  template: PublicSnapshotResponse["template"],
+  sample_values: Record<string, unknown>,
+): Record<string, unknown>[] {
+  if (!template.length) return [];
+  let maxLen = 0;
+  const entries = template.map((f) => {
+    const v = sample_values[f.label];
+    const isList = Array.isArray(v);
+    if (isList) maxLen = Math.max(maxLen, (v as unknown[]).length);
+    return { field: f, isList, value: v };
+  });
+  if (maxLen === 0) {
+    const rec: Record<string, unknown> = {};
+    entries.forEach(({ field, value }) => {
+      if (value !== undefined) rec[field.label] = value;
+    });
+    return [rec];
+  }
+  const records: Record<string, unknown>[] = [];
+  for (let i = 0; i < maxLen; i++) {
+    const rec: Record<string, unknown> = {};
+    entries.forEach(({ field, isList, value }) => {
+      if (isList) {
+        const arr = value as unknown[];
+        if (i < arr.length) rec[field.label] = arr[i];
+      } else {
+        rec[field.label] = value;
+      }
+    });
+    records.push(rec);
+  }
+  return records;
+}
+
+function buildRecords(
+  template: PublicSnapshotResponse["template"],
+  sample_values: Record<string, unknown>,
+): { records: Record<string, unknown>[]; totalRecords: number } {
+  if (!template.length) return { records: [], totalRecords: 0 };
+
+  let maxLen = 0;
+  const entries = template.map((f) => {
+    const v = sample_values[f.label];
+    const isList = Array.isArray(v);
+    if (isList) maxLen = Math.max(maxLen, (v as unknown[]).length);
+    return { field: f, isList, value: v };
+  });
+
+  // Pure-scalar schema: one record with everything.
+  if (maxLen === 0) {
+    const rec: Record<string, unknown> = {};
+    entries.forEach(({ field, value }) => {
+      if (value !== undefined) rec[field.label] = value;
+    });
+    return { records: [rec], totalRecords: 1 };
+  }
+
+  const totalRecords = maxLen;
+  const shown = Math.min(maxLen, PREVIEW_RECORD_CAP);
+  const records: Record<string, unknown>[] = [];
+  for (let i = 0; i < shown; i++) {
+    const rec: Record<string, unknown> = {};
+    entries.forEach(({ field, isList, value }) => {
+      if (isList) {
+        const arr = value as unknown[];
+        if (i < arr.length) rec[field.label] = arr[i];
+      } else {
+        // Scalars repeat in every record so each row is a complete object.
+        rec[field.label] = value;
+      }
+    });
+    records.push(rec);
+  }
+  return { records, totalRecords };
+}
 
 function ResultPhase({
   preview, originalUrl, onClose,
 }: { preview: PublicSnapshotResponse; originalUrl: string; onClose: () => void }) {
   const { screenshot, template, sample_values, page_type, rate_limit } = preview;
   const [copied, setCopied] = useState(false);
+
+  const { records, totalRecords } = useMemo(
+    () => buildRecords(template, sample_values),
+    [template, sample_values],
+  );
 
   function openInPicker() {
     try {
@@ -268,9 +634,12 @@ function ResultPhase({
   }
 
   function copyJson() {
-    const out: Record<string, unknown> = {};
-    template.forEach((f) => { out[f.label] = sample_values[f.label] ?? null; });
-    navigator.clipboard.writeText(JSON.stringify(out, null, 2));
+    // Copy the FULL extraction (uncapped) so the user gets every row,
+    // not just the preview-visible ones. Build from raw sample_values
+    // straight from the API response.
+    const fullRecords = buildAllRecords(template, sample_values);
+    const payload = fullRecords.length === 1 ? fullRecords[0] : fullRecords;
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -314,18 +683,25 @@ function ResultPhase({
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[var(--color-ink-1)] to-transparent" />
           </div>
 
-          {/* Fields — big enough to actually read this time */}
+          {/* JSON records — one block per item, syntax-highlighted. This
+              shows the schema the API would actually return, which is far
+              more compelling for the technical audience than per-field
+              cards. "One block per product" feel. */}
           <div className="overflow-y-auto p-5 md:p-6">
             <div className="mb-4 flex items-center justify-between">
-              <div className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
-                Auto-detected fields
+              <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+                <span>Live extraction</span>
+                <span>·</span>
+                <span className="text-[var(--color-accent)]">
+                  {totalRecords} {totalRecords === 1 ? "record" : "records"}
+                </span>
               </div>
               <button
                 onClick={copyJson}
                 className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[10.5px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
               >
                 {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                {copied ? "copied" : "copy json"}
+                {copied ? "copied" : "copy all"}
               </button>
             </div>
 
@@ -335,25 +711,30 @@ function ResultPhase({
                 the picker and click what you want.
               </div>
             ) : (
-              <ul className="space-y-2">
-                {template.map((f, i) => (
-                  <motion.li
-                    key={i}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 + i * 0.06, ease: APPLE_EASE }}
-                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3"
-                  >
-                    <div className="mb-1.5 flex items-center gap-1.5">
-                      <span className="font-mono text-[13px] font-semibold text-[var(--color-accent)]">
-                        {f.label}
-                      </span>
-                      <Badge tone="muted" size="xs">{f.kind}</Badge>
-                    </div>
-                    <BigValueDisplay value={sample_values[f.label]} />
-                  </motion.li>
+              <div className="space-y-2.5">
+                {records.map((rec, i) => (
+                  <JsonRecord key={i} record={rec} index={i} />
                 ))}
-              </ul>
+                {totalRecords > records.length && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.1 + records.length * 0.05 }}
+                    className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-2.5 text-center font-mono text-[11px] text-[var(--color-fg-muted)]"
+                  >
+                    <Lock className="h-3 w-3 text-[var(--color-fg-subdued)]" />
+                    <span>
+                      +{totalRecords - records.length} more rows —{" "}
+                      <Link
+                        href="/login?mode=signup"
+                        className="font-medium text-[var(--color-accent)] hover:underline"
+                      >
+                        sign up free to unlock
+                      </Link>
+                    </span>
+                  </motion.div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -428,38 +809,142 @@ function CtaButton({
   );
 }
 
+/** One extracted record rendered as syntax-highlighted JSON. */
+function JsonRecord({ record, index }: { record: Record<string, unknown>; index: number }) {
+  const entries = Object.entries(record);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.32, delay: 0.05 + index * 0.05, ease: APPLE_EASE }}
+      className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]"
+    >
+      {/* Tiny header strip — record index + accent dot. Makes each card
+          feel like a "row" not just a block of code. */}
+      <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-1.5">
+        <div className="flex items-center gap-1.5 font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+          <span>record {String(index + 1).padStart(2, "0")}</span>
+        </div>
+        <span className="font-mono text-[10px] text-[var(--color-fg-subdued)]">
+          {entries.length} {entries.length === 1 ? "field" : "fields"}
+        </span>
+      </div>
+      <pre className="overflow-x-auto p-3 font-mono text-[12.5px] leading-[1.65] text-[var(--color-fg)]">
+        <span className="text-[var(--color-fg-subdued)]">{"{"}</span>
+        {"\n"}
+        {entries.map(([k, v], i) => (
+          <span key={k}>
+            {"  "}
+            <span className="text-[var(--color-accent)]">&quot;{k}&quot;</span>
+            <span className="text-[var(--color-fg-subdued)]">: </span>
+            <JsonValue value={v} />
+            {i < entries.length - 1 && <span className="text-[var(--color-fg-subdued)]">,</span>}
+            {"\n"}
+          </span>
+        ))}
+        <span className="text-[var(--color-fg-subdued)]">{"}"}</span>
+      </pre>
+    </motion.div>
+  );
+}
+
+/** Render a single JSON value with subtle color coding by type. Truncates
+ *  long strings and array previews so a wall of text doesn't blow up the
+ *  layout — the user signs up to see full content. */
+function JsonValue({ value }: { value: unknown }) {
+  if (value === null || value === undefined) {
+    return <span className="text-[var(--color-warning)]">null</span>;
+  }
+  if (typeof value === "boolean") {
+    return <span className="text-[var(--color-info)]">{String(value)}</span>;
+  }
+  if (typeof value === "number") {
+    return <span className="text-[var(--color-info)]">{value}</span>;
+  }
+  if (Array.isArray(value)) {
+    const shown = value.slice(0, 5);
+    return (
+      <span>
+        <span className="text-[var(--color-fg-subdued)]">[</span>
+        {shown.map((v, i) => (
+          <span key={i}>
+            <JsonValue value={v} />
+            {i < shown.length - 1 && <span className="text-[var(--color-fg-subdued)]">, </span>}
+          </span>
+        ))}
+        {value.length > 5 && (
+          <span className="text-[var(--color-fg-subdued)]">
+            , … +{value.length - 5}
+          </span>
+        )}
+        <span className="text-[var(--color-fg-subdued)]">]</span>
+      </span>
+    );
+  }
+  // string
+  const s = String(value);
+  const trimmed = truncate(s, 220);
+  return (
+    <span className="text-[var(--color-success)]">
+      &quot;{trimmed}&quot;
+    </span>
+  );
+}
+
 function BigValueDisplay({ value }: { value: unknown }) {
   if (value === null || value === undefined) {
     return (
-      <div className="font-mono text-[12px] text-[var(--color-warning)]">
+      <div className="font-mono text-[12.5px] text-[var(--color-warning)]">
         null
-        <span className="ml-1 text-[10.5px] text-[var(--color-fg-subdued)]">
+        <span className="ml-1 text-[11px] text-[var(--color-fg-subdued)]">
           (open in picker to fix)
         </span>
       </div>
     );
   }
   if (Array.isArray(value)) {
-    const shown = value.slice(0, 4);
+    // Heuristic: short array items (tags, keywords) get no truncation —
+    // they're meant to be scannable. Long items (quote text, post bodies)
+    // get a generous limit (was 100 → 220) so the user can actually read
+    // what we extracted instead of seeing "…" mid-word.
+    const allShort = value.every((v) => String(v ?? "").length <= 32);
+    const shown = value.slice(0, allShort ? 8 : 4);
     return (
-      <div className="space-y-1">
-        {shown.map((v, i) => (
-          <div key={i} className="truncate font-mono text-[12px] text-[var(--color-fg)]">
-            <span className="text-[var(--color-fg-subdued)]">{i}.</span>{" "}
-            {truncate(String(v), 100)}
-          </div>
-        ))}
-        {value.length > 4 && (
-          <div className="font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
-            … +{value.length - 4} more
+      <div className={cn(allShort ? "flex flex-wrap gap-1.5" : "space-y-1.5")}>
+        {shown.map((v, i) => {
+          const text = String(v ?? "");
+          if (allShort) {
+            return (
+              <span
+                key={i}
+                className="inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] px-1.5 py-0.5 font-mono text-[11.5px] text-[var(--color-fg)]"
+              >
+                {text}
+              </span>
+            );
+          }
+          return (
+            <div
+              key={i}
+              className="break-words font-mono text-[12.5px] leading-[1.55] text-[var(--color-fg)]"
+            >
+              <span className="text-[var(--color-fg-subdued)]">{i + 1}.</span>{" "}
+              {truncate(text, 220)}
+            </div>
+          );
+        })}
+        {value.length > shown.length && (
+          <div className="font-mono text-[11px] text-[var(--color-fg-subdued)]">
+            … +{value.length - shown.length} more
           </div>
         )}
       </div>
     );
   }
   return (
-    <div className="break-words font-mono text-[13px] leading-[1.55] text-[var(--color-fg)]">
-      {truncate(String(value), 220)}
+    <div className="break-words font-mono text-[13.5px] leading-[1.6] text-[var(--color-fg)]">
+      {truncate(String(value), 340)}
     </div>
   );
 }
@@ -467,6 +952,16 @@ function BigValueDisplay({ value }: { value: unknown }) {
 // ─── Error phase ────────────────────────────────────────────────────────
 
 function ErrorPhase({ error, onClose }: { error: string; onClose: () => void }) {
+  // Detect plan-limit specifically so we can give a more useful headline
+  // + a primary CTA that actually upgrades, not just dismisses. Pattern
+  // matches both the backend's "free plan limit" wording and our own
+  // upper-cased "Plan limit:" prefix from api.ts.
+  const lower = error.toLowerCase();
+  const isPlanLimit =
+    lower.includes("plan limit") ||
+    lower.includes("scrapes this month") ||
+    lower.includes("/pricing");
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -479,17 +974,33 @@ function ErrorPhase({ error, onClose }: { error: string; onClose: () => void }) 
         <AlertTriangle className="h-5 w-5 text-[var(--color-danger)]" />
       </div>
       <h3 className="text-[16px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)]">
-        Couldn&apos;t snapshot that page
+        {isPlanLimit ? "You're out of free scrapes" : "Couldn't snapshot that page"}
       </h3>
-      <p className="mt-1.5 max-w-md text-[12.5px] leading-[1.55] text-[var(--color-fg-muted)]">
-        {error}
-      </p>
-      <button
-        onClick={onClose}
-        className="mt-5 inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-4 text-[13px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]"
-      >
-        Try another URL
-      </button>
+      <PlanLimitText
+        text={error}
+        className="mt-1.5 max-w-md text-[13px] leading-[1.6] text-[var(--color-fg-muted)]"
+      />
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+        {isPlanLimit && (
+          <Link
+            href="/pricing"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-4 text-[13px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]"
+          >
+            See pricing
+          </Link>
+        )}
+        <button
+          onClick={onClose}
+          className={cn(
+            "inline-flex h-9 items-center gap-1.5 rounded-md px-4 text-[13px] font-medium",
+            isPlanLimit
+              ? "border border-[var(--color-border)] text-[var(--color-fg)] hover:bg-[var(--color-ink-1)]"
+              : "bg-[var(--color-fg-strong)] text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]",
+          )}
+        >
+          {isPlanLimit ? "Close" : "Try another URL"}
+        </button>
+      </div>
     </motion.div>
   );
 }
