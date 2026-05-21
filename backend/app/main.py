@@ -375,14 +375,19 @@ async def status_endpoint(response: Response) -> dict[str, Any]:
     fallback_ok = bool(assist.LLM_API_KEY_FALLBACK)
 
     # ── Severity calc ─────────────────────────────────────────────────
-    # Count core failures. LLM/fallback don't count toward `down` because
-    # the product still works without them (snapshot + visual picker).
-    core_failures = (0 if pool_ok else 1) + (0 if db_ok else 1)
-    if core_failures >= 2:
+    # Core failure = DB unreachable. The browser pool is lazy-initialized
+    # (we don't spin Chromium until the first scrape — saves ~600MB RAM
+    # idle), so `pool.running=False` is the NORMAL state for a fresh
+    # container with no scrapes yet. Counting that as degradation would
+    # make /status flap every container restart. If pool startup itself
+    # is broken, requests will surface that as 5xx — UptimeRobot fires on
+    # those independently.
+    #
+    # LLM/fallback don't count toward severity because the product still
+    # works without them (snapshot + visual picker remain usable).
+    if not db_ok:
         overall = "down"
         response.status_code = 503
-    elif core_failures == 1:
-        overall = "degraded"
     else:
         overall = "operational"
 
