@@ -177,16 +177,34 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
     };
   }
 
-  function onMouseDown(e: React.MouseEvent) {
-    if (e.button !== 0) return;
+  // Pointer Events (not MouseEvent): fires for mouse + pen + touch with
+  // the same handler. Means the picker now works on touchpads, Surface
+  // devices, and Wacom tablets too — plus we get capture semantics for
+  // free, so a drag that leaves the canvas still completes cleanly.
+  //
+  // We still render the friendly mobile fallback for `(pointer: coarse)`
+  // devices upstream (see picker-client.tsx) because drag-select on a
+  // phone-sized screen is bad UX no matter how good the event plumbing.
+  function onPointerDown(e: React.PointerEvent) {
+    // Mouse button 0 = primary; touch/pen always reports 0. Filter only
+    // for explicit secondary-button mouse events.
+    if (e.pointerType === "mouse" && e.button !== 0) return;
     const p = toImgCoords(e.clientX, e.clientY);
     if (!p) return;
+    // Capture so the drag completes even if the pointer leaves the
+    // canvas mid-gesture (matches the implicit behavior of MouseEvent
+    // but explicit + works for touch).
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch {
+      // Older browsers / weird input setups — capture isn't critical.
+    }
     setDragStart(p);
     setDragEnd(p);
     setDragShift(e.shiftKey);
   }
 
-  function onMouseMove(e: React.MouseEvent) {
+  function onPointerMove(e: React.PointerEvent) {
     const p = toImgCoords(e.clientX, e.clientY);
     if (!p) return;
     setCursorPos(p);
@@ -203,16 +221,23 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
     setHoverId(hit?.id ?? null);
   }
 
-  function onMouseLeave() {
+  function onPointerLeave() {
     setHoverId(null);
     setCursorPos(null);
     // If a drag was in-progress, cancel it — avoids ghost rectangles
-    // when the mouse leaves the image mid-gesture.
+    // when the pointer leaves the image mid-gesture. (With pointer
+    // capture this is mostly defensive; capture should keep pointermove
+    // firing until pointerup.)
     setDragStart(null);
     setDragEnd(null);
   }
 
-  function onMouseUp(e: React.MouseEvent) {
+  function onPointerUp(e: React.PointerEvent) {
+    try {
+      (e.currentTarget as Element).releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore — capture may have been released already
+    }
     const start = dragStart;
     const end = dragEnd;
     setDragStart(null);
@@ -225,7 +250,7 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
 
     if (dist < DRAG_THRESHOLD) {
       // Not a drag — fall through to click semantics using the element
-      // under the cursor at mouseup time.
+      // under the cursor at pointerup time.
       const hit = findElementAt(end.x, end.y);
       if (hit) onElementClick(hit, { shiftKey: e.shiftKey });
       return;
@@ -273,11 +298,19 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
     <div
       ref={containerRef}
       className="relative mx-auto max-w-6xl overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-popover)]"
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
-      onMouseUp={onMouseUp}
-      style={{ cursor: isDragging ? "crosshair" : hoverId != null ? "crosshair" : "default" }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerLeave}
+      // touch-none stops the browser from converting touch drags into
+      // page scrolls / pinch-zooms, which would steal our pointer
+      // events mid-gesture. Safe for touchpads (they emit pointer
+      // events of pointerType=mouse, which aren't affected).
+      style={{
+        cursor: isDragging ? "crosshair" : hoverId != null ? "crosshair" : "default",
+        touchAction: "none",
+      }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

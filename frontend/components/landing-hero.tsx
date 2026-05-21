@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick, AlertTriangle } from "lucide-react";
+import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LandingPreviewModal } from "@/components/landing-preview-modal";
-import { api, type PublicSnapshotResponse } from "@/lib/api";
+import { api, ApiError, type AntiBotBlockDetail, type PublicSnapshotResponse } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -224,6 +223,10 @@ function UrlMode() {
   const [preview, setPreview] = useState<PublicSnapshotResponse | null>(null);
   const [submittedUrl, setSubmittedUrl] = useState<string>("");
   const [error, setError] = useState<string>("");
+  // Anti-bot 422 — structured detail from the backend. When set, the
+  // modal renders the dedicated AntiBotBlock card instead of the generic
+  // error phase. Null = no anti-bot block.
+  const [antiBotBlock, setAntiBotBlock] = useState<AntiBotBlockDetail | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   // null while we resolve the session on mount; bool thereafter. We
   // disable submit during the resolve window (tiny — usually <50ms) so
@@ -286,6 +289,7 @@ function UrlMode() {
     // in parallel; modal swaps loader → result when it resolves.
     setBusy(true);
     setError("");
+    setAntiBotBlock(null);
     setPreview(null);
     setSubmittedUrl(normalizedUrl);
     setModalOpen(true);
@@ -293,17 +297,30 @@ function UrlMode() {
       const res = await api.publicSnapshotAndSuggest(normalizedUrl);
       setPreview(res);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes("429")) {
-        setError("You've used your free previews for this hour. Sign up free for unlimited.");
-      } else if (msg.toLowerCase().includes("plan limit")) {
-        // Surface the backend's plain-text message; the modal turns
-        // /pricing into a real link via PlanLimitText.
-        setError(msg.replace(/^Plan limit:\s*/i, ""));
-      } else if (msg.includes("502") || msg.toLowerCase().includes("snapshot failed")) {
-        setError("Couldn't reach that page. Either the site is blocking bots, or the URL is wrong.");
+      // Anti-bot soft block (status 422 with structured detail). This is
+      // the high-visibility case for the launch — render a friendly card
+      // instead of a wall of JSON. Detail is preserved through ApiError.
+      if (
+        e instanceof ApiError &&
+        e.status === 422 &&
+        e.detail &&
+        typeof e.detail === "object" &&
+        (e.detail as { kind?: string }).kind === "anti_bot_block"
+      ) {
+        setAntiBotBlock(e.detail as AntiBotBlockDetail);
       } else {
-        setError(msg);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("429")) {
+          setError("You've used your free previews for this hour. Sign up free for unlimited.");
+        } else if (msg.toLowerCase().includes("plan limit")) {
+          // Surface the backend's plain-text message; the modal turns
+          // /pricing into a real link via PlanLimitText.
+          setError(msg.replace(/^Plan limit:\s*/i, ""));
+        } else if (msg.includes("502") || msg.toLowerCase().includes("snapshot failed")) {
+          setError("Couldn't reach that page. Either the site is blocking bots, or the URL is wrong.");
+        } else {
+          setError(msg);
+        }
       }
     } finally {
       setBusy(false);
@@ -317,8 +334,16 @@ function UrlMode() {
     setTimeout(() => {
       setPreview(null);
       setError("");
+      setAntiBotBlock(null);
       setSubmittedUrl("");
     }, 320);
+  }
+
+  // Anti-bot card's primary action: clear the form so the visitor can
+  // try a different URL without remembering to close the modal first.
+  function tryDifferentUrl() {
+    setUrl("");
+    closeModal();
   }
 
   return (
@@ -392,6 +417,8 @@ function UrlMode() {
         url={submittedUrl}
         preview={preview}
         error={error}
+        antiBotBlock={antiBotBlock}
+        onTryDifferentUrl={tryDifferentUrl}
         onClose={closeModal}
       />
     </div>
