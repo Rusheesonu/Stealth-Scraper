@@ -189,30 +189,32 @@ class BrowserPool:
         challenges. Without this, Chromium pops a basic-auth dialog and
         the request hangs forever in headless mode.
 
-        Best-effort: if any of the CDP calls fail (older nodriver API,
-        connection not yet ready, etc.), we log + fall through. The
-        proxy will still work for unauthenticated targets but will hang
-        on basic-auth-required ones — visible in /health as proxy_set
-        but with errors on first request."""
-        if self._browser is None:
-            return
+        nodriver 0.50.x API: the Browser object IS the CDP transport —
+        use `browser.send(cdp_cmd)` and `browser.add_handler(EventType,
+        callback)` directly. Earlier nodriver releases exposed a separate
+        `.connection` attribute; we used to look that up via getattr and
+        bail when it was None, which silently disabled all proxy auth on
+        modern nodriver. Hence the long-running "proxy logs say 'starting
+        with proxy X' but every scrape times out" bug. Fixed 2026-05-21.
 
-        conn = getattr(self._browser, "connection", None)
-        if conn is None:
-            print("[browser] proxy auth setup skipped — no browser connection handle")
+        Best-effort: if any of the CDP calls fail (unsupported API,
+        timing race, etc.), we log + fall through. The proxy will still
+        work for unauthenticated targets but will hang on
+        basic-auth-required ones (which is most of them)."""
+        if self._browser is None:
             return
 
         try:
             # Enable fetch interception for auth challenges only (not every
             # request — that would tank performance).
-            await conn.send(cdp.fetch.enable(handle_auth_requests=True))
+            await self._browser.send(cdp.fetch.enable(handle_auth_requests=True))
         except Exception as e:
             print(f"[browser] cdp.fetch.enable failed: {e!r} — proxy auth NOT wired")
             return
 
         async def _on_auth(event) -> None:
             try:
-                await conn.send(
+                await self._browser.send(
                     cdp.fetch.continue_with_auth(
                         request_id=event.request_id,
                         auth_challenge_response=cdp.fetch.AuthChallengeResponse(
@@ -229,16 +231,16 @@ class BrowserPool:
             # We enabled auth-only interception, but defensively handle any
             # RequestPaused that slips through so the request doesn't stall.
             try:
-                await conn.send(cdp.fetch.continue_request(request_id=event.request_id))
+                await self._browser.send(cdp.fetch.continue_request(request_id=event.request_id))
             except Exception:
                 pass
 
         try:
-            conn.add_handler(
+            self._browser.add_handler(
                 cdp.fetch.AuthRequired,
                 lambda evt: asyncio.create_task(_on_auth(evt)),
             )
-            conn.add_handler(
+            self._browser.add_handler(
                 cdp.fetch.RequestPaused,
                 lambda evt: asyncio.create_task(_on_paused(evt)),
             )
