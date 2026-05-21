@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Brand } from "@/components/brand";
 import { Popover, MotionFade } from "@/components/motion-primitives";
+import { UsageWarningBanner } from "@/components/usage-warning-banner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -346,6 +347,7 @@ export function PageShell({
   const vCls = vPadding === "flush" ? "" : "py-10";
   return (
     <div className="flex min-h-screen flex-col">
+      <UsageWarningBanner />
       <Nav />
       <main className={cn("flex-1", className)}>
         <MotionFade key={pathname} className={cn("mx-auto px-6", maxWidth, vCls)}>
