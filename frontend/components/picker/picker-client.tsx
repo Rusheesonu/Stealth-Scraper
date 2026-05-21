@@ -361,7 +361,7 @@ export function PickerClient() {
       });
       setSavedId(res.id);
     } catch (e) {
-      alert("Save failed: " + (e instanceof Error ? e.message : String(e)));
+      flashToast("Save failed: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setSaving(false);
     }

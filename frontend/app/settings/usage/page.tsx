@@ -1,27 +1,94 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, AlertTriangle, TrendingUp } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Loader2, AlertTriangle, TrendingUp, Sparkles } from "lucide-react";
 import { PageShell } from "@/components/nav";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api, type UsageStatus } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-export default function UsagePage() {
+function UsagePageInner() {
+  const search = useSearchParams();
+  const upgraded = search.get("upgraded") === "1";
+
   const [data, setData] = useState<UsageStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Plan we expect to have landed on (anything but free, really). When the
+   *  user returns from LS we poll until the plan flips off "free". */
+  const [pollingUpgrade, setPollingUpgrade] = useState<boolean>(upgraded);
+  const [celebrate, setCelebrate] = useState<string | null>(null);
+
+  // Persist initial plan so we can detect the actual flip post-webhook.
+  const initialPlanRef = useRef<string | null>(null);
 
   useEffect(() => {
     async function load() {
-      try { setData(await api.usage()); }
-      catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+      try { return await api.usage(); }
+      catch (e) { setError(e instanceof Error ? e.message : String(e)); return null; }
     }
-    void load();
-  }, []);
+
+    async function init() {
+      if (upgraded) {
+        // Force a Supabase session refresh — the user's JWT might still
+        // carry the pre-checkout claims even though the LS webhook has fired.
+        try {
+          const supabase = createClient();
+          await supabase.auth.refreshSession();
+        } catch {
+          // refresh failure is non-fatal; polling will still flush eventually.
+        }
+      }
+      const u = await load();
+      if (u) {
+        setData(u);
+        initialPlanRef.current = u.plan;
+        if (upgraded && u.plan !== "free") {
+          // Already landed — webhook beat us, celebrate immediately.
+          setCelebrate(u.plan);
+          setPollingUpgrade(false);
+        }
+      }
+    }
+    void init();
+  }, [upgraded]);
+
+  // Poll every 5s for up to 60s in case the LS webhook is slow.
+  useEffect(() => {
+    if (!pollingUpgrade) return;
+    const start = Date.now();
+    const id = setInterval(async () => {
+      if (Date.now() - start > 60_000) {
+        clearInterval(id);
+        setPollingUpgrade(false);
+        return;
+      }
+      try {
+        const u = await api.usage();
+        setData(u);
+        if (initialPlanRef.current && u.plan !== initialPlanRef.current && u.plan !== "free") {
+          setCelebrate(u.plan);
+          setPollingUpgrade(false);
+          clearInterval(id);
+        }
+      } catch {
+        // ignore intermittent fetch errors during polling
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [pollingUpgrade]);
+
+  // Auto-dismiss celebration toast after 6 seconds — long enough to read.
+  useEffect(() => {
+    if (!celebrate) return;
+    const t = setTimeout(() => setCelebrate(null), 6000);
+    return () => clearTimeout(t);
+  }, [celebrate]);
 
   const pct = data ? Math.min(100, data.percent) : 0;
   const barColor =
@@ -39,6 +106,43 @@ export default function UsagePage() {
           backHref="/"
           backLabel="Home"
         />
+
+        {/* Welcome / celebration card — shown after LS checkout returns. */}
+        {celebrate && (
+          <Card density="comfortable" className="mb-6 border-[color:var(--color-accent)]/40 bg-[var(--color-accent-faint)]">
+            <div className="flex items-start gap-3">
+              <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
+              <div className="flex-1">
+                <div className="text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
+                  Welcome to {celebrate.charAt(0).toUpperCase() + celebrate.slice(1)}!
+                </div>
+                <p className="mt-1 text-[12.5px] text-[var(--color-fg-muted)]">
+                  Your new limits are active. Receipt is in your email — manage your subscription in your billing portal.
+                </p>
+              </div>
+              <button
+                onClick={() => setCelebrate(null)}
+                className="text-[11px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </Card>
+        )}
+
+        {/* Pending-webhook card — only when we returned with ?upgraded=1 but
+            backend hasn't flipped the plan yet. Disappears once the poll
+            finds the new plan, or after the 60s budget elapses. */}
+        {pollingUpgrade && !celebrate && (
+          <Card density="compact" className="mb-6 border-[color:var(--color-accent)]/30">
+            <div className="flex items-start gap-2.5 text-[13px] text-[var(--color-fg)]">
+              <Loader2 className="mt-0.5 h-4 w-4 flex-shrink-0 animate-spin text-[var(--color-accent)]" />
+              <div className="flex-1">
+                Finalizing your upgrade… <span className="text-[var(--color-fg-muted)]">This usually takes a few seconds.</span>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {error && (
           <Card density="compact" className="mb-6 border-[color:var(--color-danger)]/30">
@@ -124,5 +228,14 @@ export default function UsagePage() {
         </div>
       </div>
     </PageShell>
+  );
+}
+
+export default function UsagePage() {
+  // useSearchParams needs a Suspense boundary in App Router.
+  return (
+    <Suspense fallback={null}>
+      <UsagePageInner />
+    </Suspense>
   );
 }

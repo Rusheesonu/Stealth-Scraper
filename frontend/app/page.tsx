@@ -14,14 +14,27 @@ import { SdkPreview } from "@/components/sdk-preview";
 import { OssSection } from "@/components/oss-section";
 import { FounderNote } from "@/components/founder-note";
 import { LandingFaq } from "@/components/landing-faq";
+import { DashboardWelcome } from "@/components/dashboard-welcome";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * Landing. Hero IS the URL paste input + a static demo strip showing
  * what comes back — product demonstrates itself in the first viewport.
  * No carousel, no feature grid above the fold.
+ *
+ * Logged-in branch: signed-in users see a dashboard welcome (first-time)
+ * or recent templates (returning) instead of the marketing page. The pitch
+ * is for visitors — already-sold users want their tools.
  */
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    return <DashboardWelcome />;
+  }
+
   return (
     <PageShell maxWidth="max-w-6xl" vPadding="flush">
       <LandingHero />
