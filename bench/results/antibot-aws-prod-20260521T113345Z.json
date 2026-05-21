@@ -1,0 +1,215 @@
+{
+  "name": "antibot",
+  "iso_timestamp": "2026-05-21T11:33:45.965405Z",
+  "commit_sha": "unknown",
+  "backend_endpoint": "local-nodriver-via-app.snapshot",
+  "duration_s": 125.43,
+  "config": {
+    "concurrency": 1,
+    "filter_vendor": null,
+    "max_n": 12,
+    "url_count": 12
+  },
+  "summary": {
+    "overall": {
+      "total": 8,
+      "success": 7,
+      "blocked": 0,
+      "error": 0,
+      "pass_rate": 0.875,
+      "comment": "excludes vendor=none control URLs"
+    },
+    "by_vendor": {
+      "none": {
+        "total": 4,
+        "success": 2,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 0.5
+      },
+      "cloudflare": {
+        "total": 3,
+        "success": 2,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 0.667
+      },
+      "cloudflare-turnstile": {
+        "total": 2,
+        "success": 2,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 1.0
+      },
+      "datadome": {
+        "total": 3,
+        "success": 3,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 1.0
+      }
+    },
+    "control": {
+      "total": 4,
+      "success": 2
+    }
+  },
+  "results": [
+    {
+      "url": "https://example.com/",
+      "expected_vendor": "none",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 3,
+      "title": "Example Domain",
+      "elapsed_s": 3.68,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://httpbin.org/ip",
+      "expected_vendor": "none",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 1,
+      "title": "",
+      "elapsed_s": 4.09,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://news.ycombinator.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 380,
+      "title": "Hacker News",
+      "elapsed_s": 39.93,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://quotes.toscrape.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 100,
+      "title": "Quotes to Scrape",
+      "elapsed_s": 3.9,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://nowsecure.nl/",
+      "expected_vendor": "cloudflare",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 6,
+      "title": "nowsecure.nl",
+      "elapsed_s": 5.18,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.g2.com/",
+      "expected_vendor": "cloudflare",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 0,
+      "title": "g2.com",
+      "elapsed_s": 5.47,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.crunchbase.com/",
+      "expected_vendor": "cloudflare",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 717,
+      "title": "Crunchbase",
+      "elapsed_s": 14.36,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://2captcha.com/demo/cloudflare-turnstile",
+      "expected_vendor": "cloudflare-turnstile",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 259,
+      "title": "Cloudflare Turnstile demo: Sample Form with Cloudflare Turnstile",
+      "elapsed_s": 6.1,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://chess.com/",
+      "expected_vendor": "cloudflare-turnstile",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 102,
+      "title": "Chess.com - Play Chess Online - Free Games",
+      "elapsed_s": 7.05,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.petsmart.com/",
+      "expected_vendor": "datadome",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 368,
+      "title": "Pet Supplies, Accessories, and Pet Food - Pet Stores | PetSmart",
+      "elapsed_s": 11.4,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.footlocker.com/",
+      "expected_vendor": "datadome",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 88,
+      "title": "Foot Locker Europe",
+      "elapsed_s": 12.42,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.airfrance.com/",
+      "expected_vendor": "datadome",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 275,
+      "title": "Air France",
+      "elapsed_s": 11.1,
+      "error": null,
+      "notes": ""
+    }
+  ]
+}
