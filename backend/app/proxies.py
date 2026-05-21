@@ -102,3 +102,81 @@ def host_port_user_pass() -> tuple[str, int, str, str] | None:
 def all_endpoints() -> list[dict]:
     """Endpoints without credentials — for health/status views."""
     return list(_config().get("endpoints", []))
+
+
+# ── Residential proxy tier (paid-infra hook, iter 11) ─────────────────────
+# When a Bright Data / Oxylabs / Webshare-Residential plan gets wired in,
+# set RESIDENTIAL_PROXIES_JSON to the same shape as PROXIES_JSON:
+#   {"credentials": [{"user": "...", "pass": "..."}],
+#    "endpoints":  [{"host": "brd.superproxy.io", "port": 22225}]}
+#
+# Engines call pick_residential() when vendor_hint is in a residential-
+# preferred set (cloudflare/imperva/akamai/datadome — see
+# bench/setup_needed.md §1 for why). Falls back to None (caller uses
+# the datacenter pool or no proxy) when not configured.
+#
+# Cost note: residential = 50-100× datacenter, so we DON'T always use it.
+# Only when the vendor specifically flags datacenter IPs.
+
+
+_RESIDENTIAL_VENDORS = frozenset({
+    "cloudflare",
+    "cloudflare-turnstile",
+    "imperva",
+    "akamai",
+    "datadome",
+    # PerimeterX is behavioral, not IP-rep — residential won't help.
+    # Kasada targets the headless engine itself — same.
+})
+
+
+@lru_cache(maxsize=1)
+def _residential_config() -> dict:
+    """Load residential proxy config. Mirrors _config() but reads
+    RESIDENTIAL_PROXIES_JSON (separate env var → separate plan)."""
+    env_json = os.getenv("RESIDENTIAL_PROXIES_JSON", "").strip()
+    if env_json:
+        try:
+            return json.loads(env_json)
+        except json.JSONDecodeError as e:
+            print(f"[proxies] RESIDENTIAL_PROXIES_JSON invalid JSON: {e}")
+    return {"credentials": [], "endpoints": []}
+
+
+def residential_available() -> bool:
+    """True iff a residential plan is configured. Independent of the
+    datacenter pool's PROXIES_ENABLED gate — operators may want to
+    enable residential without flipping the global proxy toggle."""
+    cfg = _residential_config()
+    return bool(cfg.get("credentials")) and bool(cfg.get("endpoints"))
+
+
+def pick_residential() -> str | None:
+    """Random `http://user:pass@host:port` from the residential pool,
+    or None if pool empty. Same shape as pick_random() so engines can
+    swap pools transparently."""
+    cfg = _residential_config()
+    creds = cfg.get("credentials", [])
+    endpoints = cfg.get("endpoints", [])
+    if not creds or not endpoints:
+        return None
+    c = random.choice(creds)
+    e = random.choice(endpoints)
+    return f"http://{c['user']}:{c['pass']}@{e['host']}:{e['port']}"
+
+
+def pick_for_vendor(vendor: str | None) -> str | None:
+    """Returns a residential proxy URL when the vendor is in the
+    IP-reputation-sensitive set AND a residential plan is configured.
+    Falls back to pick_random() (datacenter) otherwise. Returns None
+    if no pool at all.
+
+    Engines pass their `requirements.vendor_hint` to this function so
+    the right tier wins per scrape — datacenter for vendors that don't
+    care about IP reputation (perimeterx, kasada), residential for those
+    that gate hard on it (cloudflare, imperva, akamai, datadome)."""
+    if vendor and vendor in _RESIDENTIAL_VENDORS and residential_available():
+        return pick_residential()
+    if available():
+        return pick_random()
+    return None

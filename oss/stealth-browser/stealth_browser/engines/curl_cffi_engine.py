@@ -117,8 +117,12 @@ class CurlCffiEngine:
 
         from curl_cffi.requests import AsyncSession
 
-        # Best-effort proxy plumbing via app.proxies (same pool nodriver uses)
-        proxy_url = self._maybe_proxy_url()
+        # Best-effort proxy plumbing. Passes the vendor_hint so when a
+        # residential plan is configured (RESIDENTIAL_PROXIES_JSON env),
+        # IP-rep-sensitive vendors (cloudflare, imperva, akamai, datadome)
+        # transparently route through residential IPs. Falls back to the
+        # datacenter pool, then to direct.
+        proxy_url = self._maybe_proxy_url(requirements.vendor_hint)
 
         t0 = time.perf_counter()
         async with AsyncSession(impersonate=_IMPERSONATE_PROFILE) as session:
@@ -196,13 +200,15 @@ class CurlCffiEngine:
         return proxy_url.split("@", 1)[-1] if "@" in proxy_url else proxy_url
 
     @staticmethod
-    def _maybe_proxy_url() -> Optional[str]:
+    def _maybe_proxy_url(vendor_hint: Optional[str] = None) -> Optional[str]:
         """Same proxy pool that browser engines use — share IPs so the
-        target can't detect engine swap by IP change. Best-effort."""
+        target can't detect engine swap by IP change. Best-effort.
+
+        Routes through residential when vendor_hint indicates an
+        IP-reputation-sensitive vendor AND a residential plan is
+        configured; otherwise falls back to the datacenter pool."""
         try:
             from app import proxies
-            if proxies.available():
-                return proxies.pick_random()
+            return proxies.pick_for_vendor(vendor_hint)
         except Exception:
-            pass
-        return None
+            return None

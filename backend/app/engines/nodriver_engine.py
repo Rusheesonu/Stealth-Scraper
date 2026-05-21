@@ -101,6 +101,16 @@ class NodriverEngine:
         except Exception:
             pass
 
+        # NOTE: tried suspicious-empty escalation (<=2 elements → raise
+        # EngineFailedError so router tries another engine) in iter 11.
+        # Reverted: g2.com / hyatt / crunchbase-discover all returned
+        # ≤2 elements on BOTH engines, so escalation just added latency
+        # without recovering any sites. Also broke httpbin.org/html
+        # (legitimately minimal page caught by the threshold). Real
+        # fixes for these sites need paid infra (residential proxies
+        # for IP-reputation vendors, CAPTCHA solvers for behavioral).
+        # See bench/setup_needed.md.
+
         return EngineSnapshotResult(
             url=snap.url,
             title=snap.title,

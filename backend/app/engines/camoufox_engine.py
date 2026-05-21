@@ -177,7 +177,9 @@ class CamoufoxEngine:
 
         # Best-effort proxy plumbing from the same pool nodriver uses,
         # so target sites can't fingerprint engine choice by IP swap.
-        proxy_config = self._maybe_proxy_config()
+        # Routes through residential when vendor_hint indicates an
+        # IP-rep-sensitive vendor AND a residential plan is configured.
+        proxy_config = self._maybe_proxy_config(requirements.vendor_hint)
 
         # `humanize` enables camoufox's mouse-path simulation. PerimeterX
         # and Kasada specifically score behavioral signals (cursor entropy,
@@ -233,6 +235,11 @@ class CamoufoxEngine:
                 retriable_on_other_engine=True,
             ) from e
 
+        # NOTE: tried suspicious-empty escalation here in iter 11. Reverted —
+        # the persistent-failure sites (g2.com, hyatt.com, crunchbase-discover)
+        # returned ≤2 elements on BOTH engines, so escalation just added
+        # latency without recovering any sites. See nodriver_engine.py.
+
         return EngineSnapshotResult(
             url=url,
             title=title,
@@ -261,21 +268,26 @@ class CamoufoxEngine:
         return server or None
 
     @staticmethod
-    def _maybe_proxy_config() -> Optional[dict[str, str]]:
+    def _maybe_proxy_config(vendor_hint: Optional[str] = None) -> Optional[dict[str, str]]:
         """Build Playwright-shaped proxy config from our pool. None if no
-        proxies configured. Same pool nodriver uses."""
+        proxies configured. Same pool nodriver uses.
+
+        Picks residential when vendor_hint is in the IP-rep-sensitive set
+        and a residential plan is configured; otherwise datacenter."""
         try:
             from app import proxies
-            if not proxies.available():
+            url = proxies.pick_for_vendor(vendor_hint)
+            if not url:
                 return None
-            tup = proxies.host_port_user_pass()
-            if not tup:
-                return None
-            host, port, user, password = tup
+            # Parse user:pass@host:port out of the URL so Playwright can
+            # consume the typed proxy config.
+            # url shape: http://user:pass@host:port
+            from urllib.parse import urlparse
+            p = urlparse(url)
             return {
-                "server": f"http://{host}:{port}",
-                "username": user,
-                "password": password,
+                "server": f"{p.scheme}://{p.hostname}:{p.port}",
+                "username": p.username or "",
+                "password": p.password or "",
             }
         except Exception:
             return None

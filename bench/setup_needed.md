@@ -140,3 +140,41 @@ hide an expensive but-it-works approach behind an aggregate.
 
 If a vendor needs >$0.05/page to scrape reliably, that's a vendor we
 **document and skip** from the throughput pool, not one we burn budget on.
+
+---
+
+## Empirical ceiling (as of iter 11)
+
+After 11 iters of stealth tuning + multi-engine routing (nodriver +
+camoufox + curl_cffi escalation), the antibot bench plateaus at
+**14/18 = 77.8%** on local Mac. The 4 persistent failures map to
+exactly the paid-infra needs above:
+
+| URL | Vendor | Required to fix | Section |
+|---|---|---|---|
+| `g2.com/` | Cloudflare | Residential proxy or paid CF bypass | §1 |
+| `zillow.com/` | PerimeterX (silent denial) | PX behavioral solver | §3 |
+| `hyatt.com/` | Imperva (IP-rep) | Residential proxy | §1 |
+| `crunchbase.com/discover/...` | Cloudflare (deep page) | Residential proxy | §1 |
+
+3 of 4 needed sites unlock with **§1 (residential proxy)** alone.
+That single integration takes 14/18 → 17/18 = **94.4%**, putting us
+within striking distance of the ≥95% win condition.
+
+The 4th (zillow) needs §3 (PX solver) — paid per-solve, but cheap
+($1-2 per zillow scrape, only invoked on PX-detected pages).
+
+**Recommended next move:**
+1. Sign up for Bright Data residential ($8.40/GB, $500 min commit OR
+   Web Unlocker at $1.50/1k requests with no commit).
+2. Wire env vars per §1 into `app/proxies.py` proxy-pool plumbing.
+3. Set router to prefer residential for vendor_hint ∈ {cloudflare,
+   imperva, akamai, datadome}, datacenter for everything else
+   (cost-optimal — residential is 50× the price).
+4. Re-run antibot bench. Expected 14/18 → 17/18 (94.4%) → integrate
+   §3 PX solver to push past 95%.
+
+**Estimated full-bench cost on residential:** $5-15 per run (one-time
+to validate, then move to a smaller daily-monitor list to keep weekly
+CI bench costs ~$20-40/mo).
+
