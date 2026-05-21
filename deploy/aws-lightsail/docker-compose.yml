@@ -7,6 +7,12 @@
 # (defined in /etc/caddy/Caddyfile). The container itself binds only to
 # 127.0.0.1 so it's not directly reachable from the public internet.
 
+# Explicit project name so future renames of this directory don't cause
+# the "container_name in use" conflict (which iter 17 hit when renaming
+# deploy/hetzner → deploy/aws-lightsail). Compose normally derives the
+# project name from the parent dir.
+name: stealth-scraper
+
 services:
   backend:
     image: stealth-scraper-backend:latest
