@@ -50,11 +50,23 @@ async def _get_pool() -> asyncpg.Pool:
                 "URL (Settings → Database → Connection string → Session pooler) — "
                 "direct connection requires IPv6 and won't work from most ISPs."
             )
+        # Pool sizing tuned for Product Hunt launch burst load:
+        #   min_size=2  — warm pool so the FIRST request in a burst doesn't
+        #                eat the asyncpg connect cost (~150ms cold).
+        #   max_size=20 — Supabase free tier allows 60 client conns via the
+        #                pooler; 20 leaves headroom for scheduler, bench,
+        #                and the LS billing webhook listener.
+        #   command_timeout=30 — kill stalled queries fast. The default 60s
+        #                lets a runaway extract pin a connection long enough
+        #                that the pool saturates under burst load.
+        #   max_inactive_connection_lifetime=300 — recycle idle conns every
+        #                5 min so PgBouncer's stale-conn cleanup doesn't
+        #                hand us a dead socket.
         _pool = await asyncpg.create_pool(
             DATABASE_URL,
-            min_size=1,
-            max_size=10,
-            command_timeout=60,
+            min_size=2,
+            max_size=20,
+            command_timeout=30,
             # Supabase's pooler runs PgBouncer in transaction mode, which doesn't
             # support PREPARE — disable the per-connection statement cache.
             statement_cache_size=0,
@@ -67,7 +79,7 @@ async def init() -> None:
     """Initialize pool + verify schema exists. Called from FastAPI lifespan
     on startup. Raises if DATABASE_URL is unset or schema is missing."""
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         present = await conn.fetchval(
             "SELECT COUNT(*) FROM information_schema.tables "
             "WHERE table_schema='public' AND table_name='templates'"
@@ -77,6 +89,54 @@ async def init() -> None:
                 "Schema not initialized — run the migration in Supabase SQL editor "
                 "or `python -m app.migrate`. See backend/migrations/initial.sql."
             )
+
+
+# ── Acquire helper — bounded wait, surfaces saturation as HTTP 503 ────────
+
+# Default 5s budget for getting a connection from the pool. If the pool is
+# saturated (all 20 conns in flight, all callers waiting), the 21st caller
+# would hang for the full asyncpg default (~60s) without this guard. 5s is
+# the sweet spot: long enough to absorb a brief burst, short enough that a
+# saturated pool surfaces to the user as a clean 503 instead of a Caddy
+# upstream timeout. Override via DB_ACQUIRE_TIMEOUT for stress testing.
+ACQUIRE_TIMEOUT_S = float(os.getenv("DB_ACQUIRE_TIMEOUT", "5.0"))
+
+
+class DBUnavailable(RuntimeError):
+    """Raised when the pool is saturated and a connection couldn't be
+    obtained within ACQUIRE_TIMEOUT_S. main.py maps this to 503 — caller
+    sees a clean "service unavailable" rather than a hung request."""
+
+
+from contextlib import asynccontextmanager as _asynccontextmanager
+
+
+@_asynccontextmanager
+async def _acquire(pool: asyncpg.Pool):
+    """Wrap `pool.acquire()` with a bounded wait. Use this everywhere in
+    this module instead of raw `pool.acquire()` — it's the entire point
+    of the 5s timeout: a saturated pool surfaces as 503 in <5s instead
+    of hanging for 60s.
+
+    The double-context-manager is deliberate: asyncpg's `pool.acquire()`
+    is itself an async context manager, but the underlying mechanism is
+    `pool._acquire(...)` which is awaitable. `asyncio.wait_for` works on
+    the awaitable form; we then yield the connection and release it in
+    finally."""
+    try:
+        conn = await asyncio.wait_for(pool.acquire(), timeout=ACQUIRE_TIMEOUT_S)
+    except asyncio.TimeoutError as e:
+        raise DBUnavailable(
+            f"DB pool saturated (waited {ACQUIRE_TIMEOUT_S}s) — "
+            f"all {pool.get_size()} connections in flight"
+        ) from e
+    try:
+        yield conn
+    finally:
+        try:
+            await pool.release(conn)
+        except Exception:
+            pass
 
 
 async def close() -> None:
@@ -128,7 +188,7 @@ def _template_to_dict(row: asyncpg.Record) -> dict[str, Any]:
 
 async def list_templates(user_id: str) -> list[dict[str, Any]]:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         rows = await conn.fetch(
             "SELECT * FROM templates WHERE user_id = $1 ORDER BY updated_at DESC",
             user_id,
@@ -138,7 +198,7 @@ async def list_templates(user_id: str) -> list[dict[str, Any]]:
 
 async def get_template(template_id: int, user_id: str) -> dict[str, Any] | None:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "SELECT * FROM templates WHERE id = $1 AND user_id = $2",
             template_id, user_id,
@@ -149,7 +209,7 @@ async def get_template(template_id: int, user_id: str) -> dict[str, Any] | None:
 async def create_template(*, user_id: str, name: str, source_url: str,
                            fields: list[dict[str, Any]]) -> dict[str, Any]:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "INSERT INTO templates (user_id, name, source_url, fields_json) "
             "VALUES ($1, $2, $3, $4) RETURNING *",
@@ -173,7 +233,7 @@ async def update_template(
     new_source = source_url if source_url is not None else existing["source_url"]
     new_fields = fields if fields is not None else existing["fields"]
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "UPDATE templates SET name = $1, source_url = $2, fields_json = $3, updated_at = NOW() "
             "WHERE id = $4 AND user_id = $5 RETURNING *",
@@ -184,7 +244,7 @@ async def update_template(
 
 async def delete_template(template_id: int, user_id: str) -> bool:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "DELETE FROM templates WHERE id = $1 AND user_id = $2 RETURNING id",
             template_id, user_id,
@@ -196,7 +256,7 @@ async def delete_template(template_id: int, user_id: str) -> bool:
 
 async def list_public_templates(limit: int = 50) -> list[dict[str, Any]]:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         rows = await conn.fetch(
             "SELECT * FROM templates WHERE is_public = TRUE "
             "ORDER BY fork_count DESC, updated_at DESC LIMIT $1",
@@ -208,7 +268,7 @@ async def list_public_templates(limit: int = 50) -> list[dict[str, Any]]:
 async def set_template_public(template_id: int, user_id: str, is_public: bool,
                                 description: str = "") -> dict[str, Any] | None:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "UPDATE templates SET is_public = $1, description = $2, updated_at = NOW() "
             "WHERE id = $3 AND user_id = $4 RETURNING *",
@@ -219,7 +279,7 @@ async def set_template_public(template_id: int, user_id: str, is_public: bool,
 
 async def fork_public_template(template_id: int, user_id: str) -> dict[str, Any] | None:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         async with conn.transaction():
             src = await conn.fetchrow(
                 "SELECT * FROM templates WHERE id = $1 AND is_public = TRUE",
@@ -251,7 +311,7 @@ async def get_user_email(user_id: str) -> str | None:
     to check admin allowlist (see usage.ADMIN_EMAILS). Returns None on any
     error — callers must treat that as "not admin", never as a hard fail."""
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         try:
             row = await conn.fetchrow(
                 "SELECT email FROM auth.users WHERE id = $1::uuid",
@@ -271,7 +331,7 @@ async def get_user_plan(user_id: str) -> str:
         return "admin"
 
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "SELECT plan FROM subscriptions "
             "WHERE user_id = $1 AND status = ANY($2::text[]) "
@@ -291,7 +351,7 @@ async def upsert_subscription(
     current_period_end: str = "",
 ) -> None:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         await conn.execute(
             """
             INSERT INTO subscriptions
@@ -310,7 +370,7 @@ async def upsert_subscription(
 
 async def update_subscription_status(*, ls_subscription_id: str, status: str) -> None:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         await conn.execute(
             "UPDATE subscriptions SET status = $1, updated_at = NOW() "
             "WHERE ls_subscription_id = $2",
@@ -322,7 +382,7 @@ async def update_subscription_status(*, ls_subscription_id: str, status: str) ->
 
 async def get_usage_count(user_id: str, year_month: str) -> int:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "SELECT count FROM usage_counts WHERE user_id = $1 AND year_month = $2",
             user_id, year_month,
@@ -332,7 +392,7 @@ async def get_usage_count(user_id: str, year_month: str) -> int:
 
 async def increment_usage_count(user_id: str, year_month: str, by: int = 1) -> None:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         await conn.execute(
             """
             INSERT INTO usage_counts (user_id, year_month, count)
@@ -378,7 +438,7 @@ async def create_api_key(user_id: str, name: str) -> dict[str, Any]:
     the SHA-256 hash)."""
     raw_key, prefix, hashed = _generate_api_key()
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "INSERT INTO api_keys (user_id, name, prefix, hashed_key) "
             "VALUES ($1, $2, $3, $4) RETURNING *",
@@ -391,7 +451,7 @@ async def create_api_key(user_id: str, name: str) -> dict[str, Any]:
 
 async def list_api_keys(user_id: str) -> list[dict[str, Any]]:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         rows = await conn.fetch(
             "SELECT id, name, prefix, created_at, last_used_at, revoked_at "
             "FROM api_keys WHERE user_id = $1 ORDER BY created_at DESC",
@@ -402,7 +462,7 @@ async def list_api_keys(user_id: str) -> list[dict[str, Any]]:
 
 async def revoke_api_key(key_id: int, user_id: str) -> bool:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "UPDATE api_keys SET revoked_at = NOW() "
             "WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL RETURNING id",
@@ -418,7 +478,7 @@ async def lookup_api_key_user(raw_key: str) -> str | None:
         return None
     hashed = _hash_api_key(raw_key)
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "SELECT id, user_id, revoked_at FROM api_keys WHERE hashed_key = $1",
             hashed,
@@ -455,7 +515,7 @@ def _job_to_dict(row: asyncpg.Record) -> dict[str, Any]:
 
 async def list_jobs(user_id: str) -> list[dict[str, Any]]:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         rows = await conn.fetch(
             "SELECT * FROM scheduled_jobs WHERE user_id = $1 ORDER BY created_at DESC",
             user_id,
@@ -465,7 +525,7 @@ async def list_jobs(user_id: str) -> list[dict[str, Any]]:
 
 async def get_job(job_id: int, user_id: str) -> dict[str, Any] | None:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "SELECT * FROM scheduled_jobs WHERE id = $1 AND user_id = $2",
             job_id, user_id,
@@ -477,7 +537,7 @@ async def create_job(*, user_id: str, template_id: int, name: str,
                        target_url: str, schedule_cron: str,
                        webhook_url: str = "") -> dict[str, Any]:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "INSERT INTO scheduled_jobs "
             "(user_id, template_id, name, target_url, schedule_cron, webhook_url) "
@@ -489,7 +549,7 @@ async def create_job(*, user_id: str, template_id: int, name: str,
 
 async def delete_job(job_id: int, user_id: str) -> bool:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "DELETE FROM scheduled_jobs WHERE id = $1 AND user_id = $2 RETURNING id",
             job_id, user_id,
@@ -499,7 +559,7 @@ async def delete_job(job_id: int, user_id: str) -> bool:
 
 async def toggle_job(job_id: int, user_id: str, enabled: bool) -> bool:
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         row = await conn.fetchrow(
             "UPDATE scheduled_jobs SET enabled = $1, updated_at = NOW() "
             "WHERE id = $2 AND user_id = $3 RETURNING id",
@@ -512,7 +572,7 @@ async def list_due_jobs() -> list[dict[str, Any]]:
     """All enabled jobs whose next_run_at is in the past (or NULL — meaning
     never run yet). Used by scheduler.tick()."""
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         rows = await conn.fetch(
             "SELECT * FROM scheduled_jobs WHERE enabled = TRUE "
             "AND (next_run_at IS NULL OR next_run_at <= NOW())"
@@ -524,7 +584,7 @@ async def mark_job_ran(job_id: int, *, next_run_at: str, status: str) -> None:
     """next_run_at comes from scheduler.compute_next_run() as an ISO string —
     we cast to timestamptz on the DB side."""
     pool = await _get_pool()
-    async with pool.acquire() as conn:
+    async with _acquire(pool) as conn:
         await conn.execute(
             "UPDATE scheduled_jobs SET last_run_at = NOW(), last_status = $1, "
             "next_run_at = $2::timestamptz, updated_at = NOW() WHERE id = $3",

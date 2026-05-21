@@ -11,6 +11,7 @@ from nodriver import cdp
 from app.actions import run_actions, BrowserAction
 from app.browser import pool, with_transient_retry
 from app.extract_js import COLLECT_ELEMENTS_JS
+from app.safety import SafetyCheck
 
 
 @dataclass
@@ -30,11 +31,20 @@ async def take_snapshot(
     viewport_height: int = 900,
     actions: list[BrowserAction] | None = None,
     warmup: bool = False,
+    override_robots: bool = False,
 ) -> SnapshotResult:
     """One-shot snapshot with a restart+retry on transient nodriver flakes.
 
     Optional actions run after navigation but before element collection —
     used to dismiss cookie banners, log in, scroll-trigger lazy content.
+
+    Safety gate: every snapshot now passes through `SafetyCheck` which
+      (a) honors robots.txt unless `override_robots=True`
+      (b) per-host rate-limits via the shared token bucket in safety.py
+    Authenticated paid callers set override_robots=True (they own the
+    risk). Anonymous endpoints leave it False so robots.txt is enforced.
+    PermissionError surfaces up to the caller — main.py maps it to a 422
+    with `kind=robots_disallowed`.
 
     warmup=False (DEFAULT, after iter 6 bench): the cookie-warmup approach
     was tested and caused MORE problems than it solved on the antibot
@@ -48,9 +58,14 @@ async def take_snapshot(
     instead of re-using the same browser session."""
 
     async def _once() -> SnapshotResult:
-        if warmup:
-            await _warmup_session(url)
-        return await _snapshot_inner(url, viewport_width, viewport_height, actions)
+        # SafetyCheck runs robots.txt + rate-limit BEFORE we burn a browser
+        # tab. PermissionError (robots disallowed) propagates out — caller
+        # decides how to surface it. The rate limiter just waits, never
+        # raises.
+        async with SafetyCheck(url, override_robots=override_robots):
+            if warmup:
+                await _warmup_session(url)
+            return await _snapshot_inner(url, viewport_width, viewport_height, actions)
 
     return await with_transient_retry(_once, label="snapshot")
 

@@ -44,8 +44,25 @@ cd "$SRC_DIR/backend"
 docker build -t stealth-scraper-backend:latest .
 ok "image built"
 
-log "Restarting container"
+# Run DB migrations BEFORE restarting the app container. The migration
+# script (app.migrate) is idempotent — uses CREATE TABLE IF NOT EXISTS
+# / CREATE INDEX IF NOT EXISTS everywhere — so re-running every deploy
+# is safe and costs <1s when nothing changed. Without this step, schema
+# drift silently breaks prod when we add new tables (the next request
+# that touches the missing table fails with a noisy "relation does not
+# exist" deep in user-facing logs).
+#
+# We run via `docker compose run --rm` (one-shot container, removed
+# after exit) rather than `docker compose exec` because exec would
+# require the backend service to already be up — which it may not be
+# on a first deploy of a new image. The --rm flag prevents stale
+# migration containers from piling up.
+log "Running DB migrations"
 cd "$COMPOSE_DIR"
+docker compose --env-file "$ENV_FILE" run --rm backend python -m app.migrate
+ok "migrations applied"
+
+log "Restarting container"
 docker compose --env-file "$ENV_FILE" up -d --force-recreate
 ok "container recreated"
 

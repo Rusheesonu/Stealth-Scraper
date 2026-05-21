@@ -42,6 +42,13 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
       # Optional override — leave unset to use the default chain.
       LLM_MODELS: ${LLM_MODELS:-}
+      # Provider-level fallback. When the primary (Groq) returns 429
+      # (launch-day rate-limit spike), assist.py transparently retries
+      # against this endpoint with the fallback key. Defaults assume
+      # OpenRouter — set LLM_API_KEY_FALLBACK in .env.production to enable.
+      LLM_API_KEY_FALLBACK: ${LLM_API_KEY_FALLBACK:-}
+      LLM_BASE_URL_FALLBACK: ${LLM_BASE_URL_FALLBACK:-https://openrouter.ai/api/v1}
+      LLM_MODEL_FALLBACK: ${LLM_MODEL_FALLBACK:-meta-llama/llama-3.3-70b-instruct}
       # Residential / datacenter proxy pool. PROXIES_ENABLED is the
       # master switch; PROXIES_JSON carries the actual creds+endpoints
       # (single-line JSON matching proxies.py schema). PROXIES_JSON was

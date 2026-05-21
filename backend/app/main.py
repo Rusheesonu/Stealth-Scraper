@@ -17,9 +17,13 @@ Supabase user JWT in `Authorization: Bearer <token>`.
 # ruff: noqa: E402  — load_dotenv must run before any submodule that reads env.
 from __future__ import annotations
 
+import asyncio
+import ipaddress
 import os
+import socket
 import time
 from collections import defaultdict, deque
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -28,7 +32,7 @@ load_dotenv()  # app.auth needs SUPABASE_URL at import time.
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -79,6 +83,21 @@ app.add_middleware(
 from app.billing import router as billing_router  # noqa: E402
 
 app.include_router(billing_router)
+
+
+# DB pool saturation → 503 instead of hanging the request for 60s.
+# The DBUnavailable exception is raised by db._acquire() when the pool
+# can't hand us a conn within ACQUIRE_TIMEOUT_S. This is the surface
+# UptimeRobot sees during a burst — clean 503 with a short message.
+from fastapi.responses import JSONResponse  # noqa: E402
+
+
+@app.exception_handler(db.DBUnavailable)
+async def _db_unavailable_handler(request: Request, exc: db.DBUnavailable) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Database busy — please retry in a moment."},
+    )
 
 
 # ── Models ────────────────────────────────────────────────────────────────
@@ -183,9 +202,26 @@ async def health() -> dict[str, Any]:
 
 
 @app.get("/status")
-async def status_endpoint() -> dict[str, Any]:
-    """Public status data — consumed by the /status page on the frontend.
-    No auth required. Don't expose any per-user data here."""
+async def status_endpoint(response: Response) -> dict[str, Any]:
+    """Public status data — consumed by the /status page on the frontend
+    AND by UptimeRobot (which alerts on non-200). No auth required. Don't
+    expose any per-user data here.
+
+    Probes (cheap, sub-second):
+      * Pool — `pool.running` flag.
+      * DB — `SELECT 1` with a 1s timeout. If asyncpg pool is saturated
+        OR Supabase is unreachable, this fails fast and we degrade.
+      * LLM — just checks `assist.is_configured()` (does NOT call Groq;
+        that'd burn quota on every uptime check and isn't worth the cost).
+      * LLM fallback — set / unset.
+
+    Severity ladder (kept simple — fewer states = less ambiguity for
+    on-call):
+      * `operational` — all core probes green.
+      * `degraded` — DB OR pool down (but not both). Returns 200 so the
+        frontend status page renders normally; UptimeRobot won't fire.
+      * `down` — 2+ core probes failing. Returns 503 so UptimeRobot pages.
+    """
     models = assist.active_models() if assist.is_configured() else None
     # If we have any live model in the chain, the AI service is "operational"
     # — even if some models are dead-cached, the chain falls through.
@@ -194,27 +230,74 @@ async def status_endpoint() -> dict[str, Any]:
         else "operational" if models and any(m not in models["dead"] for m in models["chain"])
         else "degraded"  # every model in chain is currently cached as dead
     )
+
+    # ── Probe: scrape pool ────────────────────────────────────────────
+    pool_ok = bool(pool.running)
+
+    # ── Probe: DB ─────────────────────────────────────────────────────
+    # 1s budget — the status endpoint MUST stay sub-second so UptimeRobot
+    # checks don't pile up. A slow Supabase counts as degraded.
+    db_ok = False
+    db_error: str | None = None
+    try:
+        pool_obj = await asyncio.wait_for(db._get_pool(), timeout=1.0)
+        async with pool_obj.acquire() as conn:
+            await asyncio.wait_for(conn.fetchval("SELECT 1"), timeout=1.0)
+        db_ok = True
+    except asyncio.TimeoutError:
+        db_error = "timeout"
+    except Exception as e:
+        # Swallow the specific error; don't leak DSN-shaped stuff to a
+        # public endpoint. Type name is enough for ops triage.
+        db_error = type(e).__name__
+
+    # ── Probe: LLM (config check only — DON'T actually call) ─────────
+    llm_ok = assist.is_configured()
+    fallback_ok = bool(assist.LLM_API_KEY_FALLBACK)
+
+    # ── Severity calc ─────────────────────────────────────────────────
+    # Count core failures. LLM/fallback don't count toward `down` because
+    # the product still works without them (snapshot + visual picker).
+    core_failures = (0 if pool_ok else 1) + (0 if db_ok else 1)
+    if core_failures >= 2:
+        overall = "down"
+        response.status_code = 503
+    elif core_failures == 1:
+        overall = "degraded"
+    else:
+        overall = "operational"
+
+    def _comp_status(ok: bool) -> str:
+        return "operational" if ok else "down"
+
     return {
         "service": "stealth-scraper",
         "version": "2.0.0",
-        "status": "operational",
+        "status": overall,
         "scrape_engine": {
-            "running": pool.running,
+            "running": pool_ok,
             "proxy_region": pool.current_proxy_label(),
+        },
+        "db": {
+            "ok": db_ok,
+            "error": db_error,
         },
         "llm": {
             "provider": assist.provider_label(),
-            "configured": assist.is_configured(),
+            "configured": llm_ok,
+            "fallback_configured": fallback_ok,
             "chain": models["chain"] if models else [],
             "dead": models["dead"] if models else [],
             "primary": models["primary"] if models else None,
         },
         "components": [
             {"name": "API",             "status": "operational"},
-            {"name": "Scrape engine",   "status": "operational" if pool.running else "idle"},
+            {"name": "Database",        "status": _comp_status(db_ok)},
+            {"name": "Scrape engine",   "status": _comp_status(pool_ok) if pool_ok else "idle"},
             {"name": "Billing webhook", "status": "operational"},
-            {"name": "Auth (Supabase)", "status": "operational"},
+            {"name": "Auth (Supabase)", "status": _comp_status(db_ok)},  # auth uses the same Supabase
             {"name": f"AI assist ({assist.provider_label()})", "status": ai_status},
+            {"name": "LLM fallback",    "status": "operational" if fallback_ok else "not configured"},
         ],
     }
 
@@ -244,16 +327,28 @@ async def snapshot_endpoint(
     req: SnapshotRequest,
     user_id: str = Depends(enforce_plan),
 ) -> dict[str, Any]:
+    actions_payload: list[BrowserAction] | None = None
+    if req.actions:
+        actions_payload = [a.model_dump() for a in req.actions]  # type: ignore[misc]
     try:
-        actions_payload: list[BrowserAction] | None = None
-        if req.actions:
-            actions_payload = [a.model_dump() for a in req.actions]  # type: ignore[misc]
+        # Authenticated callers explicitly want to scrape — they own
+        # the legal/ethical risk. override_robots=True bypasses robots.txt.
+        # Per-host rate limiting still applies (safety.RateLimiter).
         snap = await take_snapshot(
             str(req.url),
             viewport_width=req.viewport_width,
             viewport_height=req.viewport_height,
             actions=actions_payload,
+            override_robots=True,
         )
+    except PermissionError as e:
+        # Defensive: should never fire with override_robots=True, but if
+        # safety.py ever adds a non-robots block (e.g. global blocklist)
+        # we want a clean 422 not a 502.
+        raise HTTPException(
+            status_code=422,
+            detail={"kind": "robots_disallowed", "message": str(e)},
+        ) from e
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
     return {
@@ -399,12 +494,31 @@ async def public_snapshot_and_suggest(
     # 1. Snapshot the page. Tighter viewport than logged-in /snapshot so
     # this stays fast even on lazy-loaded pages (we don't need the full
     # 24k px capture for a preview).
+    #
+    # override_robots=False — anonymous visitors don't get to bypass
+    # robots.txt. They haven't agreed to anything; we're the ones legally
+    # exposed if we scrape a site that explicitly disallowed crawling.
+    # Authenticated paid users get the bypass on /snapshot above.
     try:
         snap = await take_snapshot(
             str(req.url),
             viewport_width=1280,
             viewport_height=900,
+            override_robots=False,
         )
+    except PermissionError as e:
+        # robots.txt disallowed this URL. Surface as a structured 422 so
+        # the landing modal can render a helpful "this site asked us not
+        # to crawl, try a different URL?" message instead of a generic 5xx.
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "kind": "robots_disallowed",
+                "message": str(e),
+                "suggestion": "This site's robots.txt disallows crawling. "
+                              "Try a public docs page or a marketplace listing.",
+            },
+        ) from e
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
 
@@ -588,7 +702,13 @@ async def assist_schema(
             str(req.url),
             viewport_width=req.viewport_width,
             viewport_height=req.viewport_height,
+            override_robots=True,  # authenticated paid user → they own the risk
         )
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=422,
+            detail={"kind": "robots_disallowed", "message": str(e)},
+        ) from e
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
 
@@ -727,12 +847,96 @@ async def template_fork(
 
 # Scheduled jobs ---------------------------------------------------------------
 
+# ── SSRF guard for outbound URLs (webhook targets) ────────────────────────
+#
+# Without this, a malicious user could register a scheduled job whose
+# `webhook_url` points at:
+#   * `http://169.254.169.254/latest/meta-data/`  — AWS / GCP IMDS,
+#     leaking instance credentials to the user via webhook delivery body.
+#   * `http://localhost:5432/` / `http://127.0.0.1:9000/` — internal
+#     services on the same host (DB, Redis, internal admin UIs).
+#   * `http://[::1]/`, `http://[fc00::1]/` — IPv6 loopback / ULA.
+#   * `file://...`, `gopher://...`, etc. — non-HTTP schemes.
+#
+# We reject:
+#   * Non-http(s) schemes
+#   * Bare numeric hosts that resolve into RFC1918 / loopback / link-local
+#     / multicast / reserved / IMDS ranges
+#   * Hostnames that resolve to ANY private IP
+#
+# Identical to the helper the snapshot SSRF agent is adding — at merge
+# time keep one copy. Kept local here (not imported from snapshot) so
+# this commit is self-contained.
+
+# Block AWS/GCP/Azure metadata endpoints by exact IP — covered by the
+# link-local /16 (169.254.0.0) check below but called out explicitly for
+# clarity.
+_IMDS_HOSTS = frozenset({"169.254.169.254", "metadata.google.internal", "metadata.azure.com"})
+
+
+def _is_safe_url(url: str) -> tuple[bool, str]:
+    """Returns (safe, reason). Caller rejects when safe=False.
+
+    Resolves the hostname (DNS lookup, ~ms) and checks every returned IP
+    against private/loopback/link-local/reserved ranges. Synchronous
+    socket.getaddrinfo is OK here — DNS is cheap (<10ms cached) and we
+    only call this on user-supplied input at validation time + scheduler
+    tick (max 1/min).
+    """
+    if not url:
+        return False, "empty URL"
+    try:
+        p = urlparse(url)
+    except Exception as e:
+        return False, f"unparseable: {e}"
+
+    scheme = (p.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        return False, f"scheme {scheme!r} not allowed (http/https only)"
+
+    host = (p.hostname or "").lower()
+    if not host:
+        return False, "no host"
+
+    if host in _IMDS_HOSTS:
+        return False, "metadata endpoint blocked"
+
+    # Resolve to all IPs (handles round-robin DNS and dual-stack hosts).
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as e:
+        return False, f"DNS lookup failed: {e}"
+
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr.split("%", 1)[0])  # strip zone id
+        except ValueError:
+            return False, f"invalid resolved IP: {addr}"
+        # Cover EVERY non-routable / sensitive range:
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            return False, f"host resolves to non-public IP {ip}"
+
+    return True, "ok"
+
+
 class ScheduledJobCreate(BaseModel):
     template_id: int
     name: str = Field(min_length=1, max_length=80)
     target_url: str
     schedule_cron: str = Field(min_length=1, max_length=80)
-    webhook_url: str = Field(default="", max_length=500)
+    # HttpUrl forces http(s) + valid URL structure at Pydantic layer.
+    # The deeper SSRF check (DNS → private-IP rejection) runs server-side
+    # at create time and again before each scheduled POST. Empty string
+    # is allowed (no webhook configured) — only validate when set.
+    webhook_url: HttpUrl | None = None
 
 
 @app.get("/schedules")
@@ -749,13 +953,24 @@ async def schedules_create(
     tpl = await db.get_template(body.template_id, user_id)
     if tpl is None:
         raise HTTPException(status_code=404, detail="template not found")
+    # SSRF guard: if a webhook URL is provided, reject anything pointing
+    # at internal infrastructure BEFORE we persist the job. The scheduler
+    # re-checks at delivery time too, in case DNS flips post-create.
+    webhook_str = str(body.webhook_url) if body.webhook_url else ""
+    if webhook_str:
+        safe, reason = _is_safe_url(webhook_str)
+        if not safe:
+            raise HTTPException(
+                status_code=422,
+                detail={"kind": "webhook_unsafe", "message": reason},
+            )
     return await db.create_job(
         user_id=user_id,
         template_id=body.template_id,
         name=body.name,
         target_url=body.target_url,
         schedule_cron=body.schedule_cron,
-        webhook_url=body.webhook_url,
+        webhook_url=webhook_str,
     )
 
 
