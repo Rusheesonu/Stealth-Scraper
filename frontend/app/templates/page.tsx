@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PageShell } from "@/components/nav";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { TemplatesList } from "@/components/templates-list";
+
+export const metadata: Metadata = {
+  title: "Templates",
+  description:
+    "Your saved extraction recipes. Re-run them on new URLs, publish to the community marketplace, or fork existing ones.",
+};
 
 export default function TemplatesPage() {
   return (

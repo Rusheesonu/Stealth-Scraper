@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Stealth-Scraper — structured web data for AI agents",
+  // Title template — child pages set `title: "Pricing"` and we suffix with
+  // " · Stealth-Scraper". The plain `default` is used on the root.
+  title: {
+    default: "Stealth-Scraper — structured web data for AI agents",
+    template: "%s · Stealth-Scraper",
+  },
   description:
     "Point, click, extract — or describe what you want in plain English. A precision instrument for getting structured data from any website.",
   metadataBase: new URL("https://stealthscraper.dev"),
@@ -11,11 +16,16 @@ export const metadata: Metadata = {
     description: "Point and click, or describe what you want. Clean JSON from any page.",
     type: "website",
     url: "https://stealthscraper.dev",
+    siteName: "Stealth-Scraper",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Stealth-Scraper" }],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@rushikeshsonu",
+    creator: "@rushikeshsonu",
     title: "Stealth-Scraper",
     description: "Structured web data for AI agents. Point, click, extract.",
+    images: [{ url: "/opengraph-image", alt: "Stealth-Scraper" }],
   },
 };
 

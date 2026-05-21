@@ -160,7 +160,12 @@ function LoginForm() {
       )}
 
       <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-center text-[12px] text-[var(--color-fg-subdued)]">
-        By continuing you agree to our terms. <Link href="/pricing" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">See pricing</Link>.
+        By continuing you agree to our{" "}
+        <Link href="/terms" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">Terms</Link>
+        {" "}and{" "}
+        <Link href="/privacy" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">Privacy Policy</Link>
+        .{" "}
+        <Link href="/pricing" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">See pricing</Link>.
       </div>
     </motion.div>
   );
