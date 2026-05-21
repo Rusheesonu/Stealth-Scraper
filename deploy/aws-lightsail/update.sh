@@ -42,7 +42,13 @@ ok "advanced ${BEFORE:0:7} → ${AFTER:0:7}"
 log "Rebuilding backend image"
 cd "$SRC_DIR/backend"
 docker build -t stealth-scraper-backend:latest .
-ok "image built"
+# Also tag with the current git SHA so rollback.sh can reach previous
+# builds. Without the SHA tag, Docker prunes :latest the next time we
+# rebuild and there's no way to roll back without re-checking-out and
+# re-building from source.
+SHA=$(git -C "$SRC_DIR" rev-parse --short HEAD)
+docker tag stealth-scraper-backend:latest "stealth-scraper-backend:$SHA"
+ok "image built — tagged :latest + :$SHA"
 
 log "Restarting container"
 cd "$COMPOSE_DIR"

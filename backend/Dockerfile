@@ -56,4 +56,13 @@ RUN mkdir -p /home/user/app/data
 ENV PORT=7860
 EXPOSE 7860
 
+# Health check — uses python stdlib (urllib) because this slim base has
+# no curl. A prior version used `curl -f` and the container was marked
+# "unhealthy" forever even when serving fine. docker-compose.yml carries
+# the same probe so swarm/compose deploys inherit it whether or not they
+# read this directive.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7860/status', timeout=5).status == 200 else 1)" \
+    || exit 1
+
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
