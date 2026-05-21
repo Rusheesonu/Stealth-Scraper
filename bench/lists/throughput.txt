@@ -1,0 +1,40 @@
+# Throughput benchmark list — pages/$ measurement on a fixed budget.
+#
+# 30 URLs balanced across difficulty so the throughput number reflects
+# real-world mix, not just easy targets. ~70% easy, 30% medium difficulty
+# (no PerimeterX behavioral or Kasada — those skew toward 0% on free
+# proxies and dominate the cost).
+
+# ── Easy (no major bot wall)
+https://news.ycombinator.com/
+https://quotes.toscrape.com/
+https://books.toscrape.com/
+https://example.com/
+https://www.wikipedia.org/
+https://en.wikipedia.org/wiki/Web_scraping
+https://en.wikipedia.org/wiki/Python_(programming_language)
+https://news.ycombinator.com/news?p=2
+https://news.ycombinator.com/news?p=3
+https://news.ycombinator.com/news?p=4
+https://quotes.toscrape.com/page/2/
+https://quotes.toscrape.com/page/3/
+https://quotes.toscrape.com/tag/inspirational/
+https://quotes.toscrape.com/tag/life/
+https://books.toscrape.com/catalogue/page-2.html
+https://books.toscrape.com/catalogue/page-3.html
+https://books.toscrape.com/catalogue/category/books/fiction_10/index.html
+https://books.toscrape.com/catalogue/category/books/poetry_23/index.html
+https://www.iana.org/numbers
+https://www.rfc-editor.org/rfc/rfc7231
+
+# ── Medium (light Cloudflare or basic anti-bot)
+https://www.g2.com/
+https://github.com/trending
+https://github.com/explore
+https://www.producthunt.com/
+https://medium.com/
+https://stackoverflow.com/questions
+https://www.reddit.com/r/programming/.json
+https://www.reddit.com/r/python/.json
+https://news.combinator.com/
+https://httpbin.org/headers

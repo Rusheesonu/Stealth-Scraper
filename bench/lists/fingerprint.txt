@@ -1,0 +1,19 @@
+# Fingerprint test pages.
+#
+# These pages run JS in-browser that probes for automation tells, then
+# render a verdict in the DOM. bench/fingerprint.py navigates to each,
+# waits for the verdict to settle, extracts the verdict text/json, and
+# scores pass/fail per-page.
+#
+# Format:  <url> <site-id>
+# site-id matches a parser in bench/fingerprint.py (see SITE_PARSERS).
+
+https://bot.sannysoft.com/                                                 sannysoft
+https://abrahamjuliot.github.io/creepjs/                                   creepjs
+https://browserleaks.com/javascript                                        browserleaks-js
+https://browserleaks.com/canvas                                            browserleaks-canvas
+https://browserleaks.com/webgl                                             browserleaks-webgl
+https://browserleaks.com/tls                                               browserleaks-tls
+https://browserleaks.com/webrtc                                            browserleaks-webrtc
+https://amiunique.org/fingerprint                                          amiunique
+https://fingerprint.com/products/bot-detection/                            fingerprint-bot

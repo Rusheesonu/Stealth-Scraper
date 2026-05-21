@@ -1,0 +1,37 @@
+{
+  "name": "fingerprint",
+  "iso_timestamp": "2026-05-21T09:32:13.268864Z",
+  "commit_sha": "275a64a",
+  "backend_endpoint": "local-nodriver-via-app.browser.pool",
+  "duration_s": 5.3,
+  "config": {
+    "site_filter": "sannysoft",
+    "wait_after_load_s": 4.0
+  },
+  "summary": {
+    "pass": 0,
+    "partial": 0,
+    "fail": 1,
+    "error": 0,
+    "total": 1,
+    "sannysoft_passed": 0,
+    "sannysoft_total": 0
+  },
+  "results": [
+    {
+      "site_id": "sannysoft",
+      "url": "https://bot.sannysoft.com/",
+      "elapsed_s": 5.19,
+      "error": null,
+      "verdict": "fail",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "details": {
+        "passed": 0,
+        "total": 0,
+        "results": {}
+      },
+      "raw_title": "Antibot"
+    }
+  ]
+}

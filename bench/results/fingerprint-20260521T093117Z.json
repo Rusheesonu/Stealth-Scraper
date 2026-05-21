@@ -1,0 +1,448 @@
+{
+  "name": "fingerprint",
+  "iso_timestamp": "2026-05-21T09:31:17.782509Z",
+  "commit_sha": "275a64a",
+  "backend_endpoint": "local-nodriver-via-app.browser.pool",
+  "duration_s": 5.92,
+  "config": {
+    "site_filter": "sannysoft",
+    "wait_after_load_s": 4.0
+  },
+  "summary": {
+    "pass": 0,
+    "partial": 0,
+    "fail": 0,
+    "error": 1,
+    "total": 1,
+    "sannysoft_passed": 0,
+    "sannysoft_total": 0
+  },
+  "results": [
+    {
+      "site_id": "sannysoft",
+      "url": "https://bot.sannysoft.com/",
+      "elapsed_s": 5.82,
+      "error": "AttributeError: 'list' object has no attribute 'get'",
+      "verdict": "error",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "details": [
+        [
+          "passed",
+          {
+            "type": "number",
+            "value": 29
+          }
+        ],
+        [
+          "total",
+          {
+            "type": "number",
+            "value": 57
+          }
+        ],
+        [
+          "results",
+          {
+            "type": "object",
+            "value": [
+              [
+                "User Agent (Old)",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "WebDriver (New)",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "WebDriver Advanced",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "Chrome (New)",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "Permissions (New)",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "Plugins Length (Old)",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "Plugins is of type PluginArray",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "Languages (Old)",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "WebGL Vendor",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "WebGL Renderer",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "Broken Image Dimensions",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "PHANTOM_UA",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "PHANTOM_PROPERTIES",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "PHANTOM_ETSL",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "PHANTOM_LANGUAGE",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "PHANTOM_WEBSOCKET",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "MQ_SCREEN",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "PHANTOM_OVERFLOW",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "PHANTOM_WINDOW_HEIGHT",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "HEADCHR_UA",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "HEADCHR_CHROME_OBJ",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "HEADCHR_PERMISSIONS",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "HEADCHR_PLUGINS",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "HEADCHR_IFRAME",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "CHR_DEBUG_TOOLS",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "SELENIUM_DRIVER",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "CHR_BATTERY",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "CHR_MEMORY",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "TRANSPARENT_PIXEL",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "SEQUENTUM",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "VIDEO_CODECS",
+                {
+                  "type": "string",
+                  "value": "pass"
+                }
+              ],
+              [
+                "navigator.cookieEnabled",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.doNotTrack",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.msDoNotTrack",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.sendBeacon",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.userAgent",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.appName",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.vendor",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.appCodeName",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.getUserMedia",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.sayswho",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.javaEnabled",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.plugins",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "screen.width",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "screen.height",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "screen.colorDepth",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.language",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.loadPurpose",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.platform",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.mediaDevices",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "navigator.getBattery details",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "Canvas1",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "Canvas2",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "Canvas3 (iframe sandbox)",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "Canvas4 (iframe sandbox)",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ],
+              [
+                "Canvas5 (iframe)",
+                {
+                  "type": "string",
+                  "value": "fail"
+                }
+              ]
+            ]
+          }
+        ]
+      ],
+      "raw_title": "Antibot"
+    }
+  ]
+}

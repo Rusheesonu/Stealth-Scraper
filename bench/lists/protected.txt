@@ -1,0 +1,50 @@
+# Protected URL benchmark — per-vendor bypass rate target.
+#
+# Format:  <url> <vendor-tag>
+# vendor-tag must match one of: cloudflare, cloudflare-turnstile, datadome,
+#   perimeterx, akamai, imperva, kasada, none (control).
+#
+# These are REAL production URLs. The vendor tag is the LAST-OBSERVED
+# anti-bot on that URL — vendors swap over time, so don't be surprised if
+# a URL stops matching its tag. Update as we learn.
+#
+# Keep at least 3 URLs per vendor so per-vendor pass-rate is statistically
+# meaningful (1/3 vs 2/3 vs 3/3 actually tells you something).
+
+# ── CONTROL (should always pass — sanity check that the scraper works at all)
+https://example.com/                                                       none
+https://httpbin.org/ip                                                     none
+https://news.ycombinator.com/                                              none
+https://quotes.toscrape.com/                                               none
+
+# ── CLOUDFLARE (free/lite tier — soft challenges; nodriver usually passes)
+https://nowsecure.nl/                                                      cloudflare
+https://www.g2.com/                                                        cloudflare
+https://www.crunchbase.com/                                                cloudflare
+
+# ── CLOUDFLARE TURNSTILE (visible challenge mode — harder)
+https://2captcha.com/demo/cloudflare-turnstile                             cloudflare-turnstile
+https://chess.com/                                                         cloudflare-turnstile
+
+# ── DATADOME (TLS-fingerprint heavy)
+https://www.petsmart.com/                                                  datadome
+https://www.footlocker.com/                                                datadome
+https://www.airfrance.com/                                                 datadome
+
+# ── PERIMETERX / HUMAN
+https://www.zillow.com/                                                    perimeterx
+https://www.crunchbase.com/discover/organization.companies/                perimeterx
+https://www.glassdoor.com/                                                 perimeterx
+
+# ── AKAMAI BOT MANAGER
+https://www.bestbuy.com/                                                   akamai
+https://www.macys.com/                                                     akamai
+https://www.target.com/                                                    akamai
+
+# ── IMPERVA (Incapsula)
+https://www.hyatt.com/                                                     imperva
+https://www.kayak.com/                                                     imperva
+
+# ── KASADA (aggressive; few common examples)
+https://www.canadapost-postescanada.ca/                                    kasada
+https://www.aircanada.com/                                                 kasada

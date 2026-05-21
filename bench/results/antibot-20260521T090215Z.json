@@ -1,0 +1,90 @@
+{
+  "name": "antibot",
+  "iso_timestamp": "2026-05-21T09:02:15.313565Z",
+  "commit_sha": "275a64a",
+  "backend_endpoint": "local-nodriver-via-app.snapshot",
+  "duration_s": 29.22,
+  "config": {
+    "concurrency": 1,
+    "filter_vendor": "none",
+    "max_n": null,
+    "url_count": 4
+  },
+  "summary": {
+    "overall": {
+      "total": 0,
+      "success": 0,
+      "blocked": 0,
+      "error": 0,
+      "pass_rate": 0.0,
+      "comment": "excludes vendor=none control URLs"
+    },
+    "by_vendor": {
+      "none": {
+        "total": 4,
+        "success": 2,
+        "blocked": 0,
+        "error": 1,
+        "pass_rate": 0.5
+      }
+    },
+    "control": {
+      "total": 4,
+      "success": 2
+    }
+  },
+  "results": [
+    {
+      "url": "https://example.com/",
+      "expected_vendor": "none",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 0,
+      "title": "",
+      "elapsed_s": 2.85,
+      "error": "Exception: \n                ---------------------\n                Failed to connect to browser\n                ---------------------\n                One of the causes could be when you are running as root.\n                In that case you need to pass no_sandbox=True \n                ",
+      "notes": ""
+    },
+    {
+      "url": "https://httpbin.org/ip",
+      "expected_vendor": "none",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 1,
+      "title": "",
+      "elapsed_s": 5.74,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://news.ycombinator.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 380,
+      "title": "Hacker News",
+      "elapsed_s": 10.11,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://quotes.toscrape.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 100,
+      "title": "Quotes to Scrape",
+      "elapsed_s": 10.38,
+      "error": null,
+      "notes": ""
+    }
+  ]
+}
