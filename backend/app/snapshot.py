@@ -29,16 +29,87 @@ async def take_snapshot(
     viewport_width: int = 1440,
     viewport_height: int = 900,
     actions: list[BrowserAction] | None = None,
+    warmup: bool = False,
 ) -> SnapshotResult:
     """One-shot snapshot with a restart+retry on transient nodriver flakes.
 
     Optional actions run after navigation but before element collection —
-    used to dismiss cookie banners, log in, scroll-trigger lazy content."""
+    used to dismiss cookie banners, log in, scroll-trigger lazy content.
+
+    warmup=False (DEFAULT, after iter 6 bench): the cookie-warmup approach
+    was tested and caused MORE problems than it solved on the antibot
+    bench — visiting site root first then immediately scraping a deep URL
+    looked MORE suspicious to Akamai (macys.com regressed from PASS to
+    45s timeout) and the warmup-tab cleanup is racy on nodriver 0.45+
+    causing "No target with given id found" errors on the follow-up
+    scrape (broke 2captcha demo). Disabled by default; opt-in via warmup=
+    True when you've validated it helps a specific site. Future improvement:
+    extract cf_clearance cookie post-warmup and replay via curl-impersonate
+    instead of re-using the same browser session."""
 
     async def _once() -> SnapshotResult:
+        if warmup:
+            await _warmup_session(url)
         return await _snapshot_inner(url, viewport_width, viewport_height, actions)
 
     return await with_transient_retry(_once, label="snapshot")
+
+
+# Per-process cache of (hostname → already-warmed) so a 100-URL crawl
+# doesn't warm the same domain 100 times. Cleared on browser restart
+# because the cookies are gone too.
+_warmed_hosts: set[str] = set()
+
+
+async def _warmup_session(target_url: str) -> None:
+    """Visit the site root first to collect anti-bot session cookies.
+
+    No-op if we've already warmed this host on the current browser
+    instance. Best-effort: a failure to warm doesn't block the real
+    snapshot — that already has its own retry."""
+    from urllib.parse import urlparse
+    try:
+        u = urlparse(target_url)
+    except Exception:
+        return
+    host = (u.hostname or "").lower()
+    if not host or host in _warmed_hosts:
+        return
+    # Skip warmup for sites known not to need it (cheap heuristic — these
+    # don't run anti-bot challenges at root so warming is wasted time).
+    if host.endswith(("toscrape.com", "ycombinator.com", "httpbin.org", "example.com", "wikipedia.org")):
+        _warmed_hosts.add(host)
+        return
+
+    root = f"{u.scheme}://{u.hostname}/"
+    if target_url.rstrip("/") == root.rstrip("/"):
+        # Target IS the root — no separate warmup needed; the main scrape
+        # will collect cookies naturally.
+        _warmed_hosts.add(host)
+        return
+
+    warmup_tab = None
+    try:
+        warmup_tab = await pool.open_tab(root)
+        # Brief pause for any CF/DataDome challenge JS to execute and set
+        # the clearance cookie. 2.5s is the sweet spot per testing —
+        # under 2s misses some challenges, over 3s adds noticeable latency.
+        await asyncio.sleep(2.5)
+        _warmed_hosts.add(host)
+        print(f"[warmup] warmed {host}")
+    except Exception as e:
+        # Don't poison the cache on error — let the next attempt retry.
+        print(f"[warmup] {host} warmup failed (continuing anyway): {e!r}")
+    finally:
+        if warmup_tab is not None:
+            try: await warmup_tab.close()
+            except Exception: pass
+
+
+def reset_warmup_cache() -> None:
+    """Clear the warmed-hosts cache. Call after pool.restart() or when
+    cookies are believed stale."""
+    _warmed_hosts.clear()
 
 
 async def _snapshot_inner(

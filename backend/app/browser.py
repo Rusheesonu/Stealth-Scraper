@@ -41,6 +41,15 @@ _TRANSIENT_ERROR_MARKERS = (
     "Connection closed",
     "connection closed",
     "websocket",
+    # nodriver 0.45.1+ regression on Cloudflare-protected pages — the
+    # tab's CDP session sometimes dies mid-load and any subsequent
+    # tab.send / tab.evaluate raises this. Per upstream issue #2181 the
+    # only mitigation is retry-with-fresh-tab. See research note in
+    # AUDIT.md §3.x and LOOP_LOG iter 6.
+    "Session with given id not found",
+    "ProtocolException",
+    # nodriver async-cancel path under heavy use
+    "Invalid search result range",
 )
 
 
@@ -107,12 +116,23 @@ class BrowserPool:
         rotate_proxy=True picks a new proxy from the pool (default — gives us
         a fresh egress IP each restart, which is half the point of having
         a proxy pool). Pass False to keep the same proxy if you're sure the
-        error wasn't IP-related."""
+        error wasn't IP-related.
+
+        Also clears the warmed-hosts cache because the new browser will
+        have an empty cookie jar — any "cf_clearance valid" cache
+        assumptions are invalid post-restart."""
         await self.stop()
         new_proxy: Optional[ProxyTuple] = None
         if rotate_proxy and proxies.available():
             new_proxy = proxies.host_port_user_pass()
         await self.start(proxy=new_proxy)
+        # Local import to avoid circular dependency (snapshot.py imports
+        # from browser.py).
+        try:
+            from app.snapshot import reset_warmup_cache
+            reset_warmup_cache()
+        except ImportError:
+            pass
 
     # ── health / liveness ─────────────────────────────────────────────────
 

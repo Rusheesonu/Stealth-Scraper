@@ -1,0 +1,373 @@
+{
+  "name": "antibot",
+  "iso_timestamp": "2026-05-21T11:58:01.495304Z",
+  "commit_sha": "unknown",
+  "backend_endpoint": "local-nodriver-via-app.snapshot",
+  "duration_s": 200.15,
+  "config": {
+    "concurrency": 1,
+    "filter_vendor": null,
+    "max_n": null,
+    "url_count": 22
+  },
+  "summary": {
+    "overall": {
+      "total": 18,
+      "success": 13,
+      "blocked": 3,
+      "error": 1,
+      "pass_rate": 0.722,
+      "comment": "excludes vendor=none control URLs"
+    },
+    "by_vendor": {
+      "none": {
+        "total": 4,
+        "success": 2,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 0.5
+      },
+      "cloudflare": {
+        "total": 3,
+        "success": 2,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 0.667
+      },
+      "cloudflare-turnstile": {
+        "total": 2,
+        "success": 2,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 1.0
+      },
+      "datadome": {
+        "total": 3,
+        "success": 3,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 1.0
+      },
+      "perimeterx": {
+        "total": 3,
+        "success": 0,
+        "blocked": 3,
+        "error": 0,
+        "pass_rate": 0.0
+      },
+      "akamai": {
+        "total": 3,
+        "success": 3,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 1.0
+      },
+      "imperva": {
+        "total": 2,
+        "success": 1,
+        "blocked": 0,
+        "error": 1,
+        "pass_rate": 0.5
+      },
+      "kasada": {
+        "total": 2,
+        "success": 2,
+        "blocked": 0,
+        "error": 0,
+        "pass_rate": 1.0
+      }
+    },
+    "control": {
+      "total": 4,
+      "success": 2
+    }
+  },
+  "results": [
+    {
+      "url": "https://example.com/",
+      "expected_vendor": "none",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 3,
+      "title": "Example Domain",
+      "elapsed_s": 3.49,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://httpbin.org/ip",
+      "expected_vendor": "none",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 1,
+      "title": "",
+      "elapsed_s": 5.35,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://news.ycombinator.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 380,
+      "title": "Hacker News",
+      "elapsed_s": 5.27,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://quotes.toscrape.com/",
+      "expected_vendor": "none",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 100,
+      "title": "Quotes to Scrape",
+      "elapsed_s": 4.88,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://nowsecure.nl/",
+      "expected_vendor": "cloudflare",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 6,
+      "title": "nowsecure.nl",
+      "elapsed_s": 6.36,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.g2.com/",
+      "expected_vendor": "cloudflare",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 0,
+      "title": "g2.com",
+      "elapsed_s": 4.85,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.crunchbase.com/",
+      "expected_vendor": "cloudflare",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 724,
+      "title": "Crunchbase",
+      "elapsed_s": 13.6,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://2captcha.com/demo/cloudflare-turnstile",
+      "expected_vendor": "cloudflare-turnstile",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 259,
+      "title": "Cloudflare Turnstile demo: Sample Form with Cloudflare Turnstile",
+      "elapsed_s": 5.57,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://chess.com/",
+      "expected_vendor": "cloudflare-turnstile",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 94,
+      "title": "Chess.com - Play Chess Online - Free Games",
+      "elapsed_s": 6.39,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.petsmart.com/",
+      "expected_vendor": "datadome",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 368,
+      "title": "Pet Supplies, Accessories, and Pet Food - Pet Stores | PetSmart",
+      "elapsed_s": 11.47,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.footlocker.com/",
+      "expected_vendor": "datadome",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 88,
+      "title": "Foot Locker Europe",
+      "elapsed_s": 11.49,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.airfrance.com/",
+      "expected_vendor": "datadome",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 275,
+      "title": "Air France",
+      "elapsed_s": 7.86,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.zillow.com/",
+      "expected_vendor": "perimeterx",
+      "success": false,
+      "blocked": true,
+      "detected_vendor": "perimeterx",
+      "page_type": null,
+      "element_count": 3,
+      "title": "Access to this page has been denied",
+      "elapsed_s": 5.93,
+      "error": null,
+      "notes": "PerimeterX behavioral challenge: PerimeterX (HUMAN Security) requires a press-and-hold gesture that fingerprint patching can't fake."
+    },
+    {
+      "url": "https://www.crunchbase.com/discover/organization.companies/",
+      "expected_vendor": "perimeterx",
+      "success": false,
+      "blocked": true,
+      "detected_vendor": "cloudflare",
+      "page_type": null,
+      "element_count": 5,
+      "title": "Just a moment...",
+      "elapsed_s": 6.03,
+      "error": null,
+      "notes": "Cloudflare bot challenge: Cloudflare's bot manager intercepted the request before the real page loaded."
+    },
+    {
+      "url": "https://www.glassdoor.com/",
+      "expected_vendor": "perimeterx",
+      "success": false,
+      "blocked": true,
+      "detected_vendor": "cloudflare",
+      "page_type": null,
+      "element_count": 17,
+      "title": "Just a moment...",
+      "elapsed_s": 7.58,
+      "error": null,
+      "notes": "Cloudflare bot challenge: Cloudflare's bot manager intercepted the request before the real page loaded."
+    },
+    {
+      "url": "https://www.bestbuy.com/",
+      "expected_vendor": "akamai",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 16,
+      "title": "Best Buy International: Select your Country - Best Buy",
+      "elapsed_s": 6.31,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.macys.com/",
+      "expected_vendor": "akamai",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 813,
+      "title": "Macy's - Shop Fashion Clothing & Accessories - Official Site - Macys.com",
+      "elapsed_s": 37.57,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.target.com/",
+      "expected_vendor": "akamai",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 534,
+      "title": "Target : Expect More. Pay Less.",
+      "elapsed_s": 14.87,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.hyatt.com/",
+      "expected_vendor": "imperva",
+      "success": false,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 0,
+      "title": "",
+      "elapsed_s": 3.05,
+      "error": "ProtocolException: No target with given id found [code: -32602]",
+      "notes": ""
+    },
+    {
+      "url": "https://www.kayak.com/",
+      "expected_vendor": "imperva",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 411,
+      "title": "Search Flights, Hotels & Rental Cars | KAYAK",
+      "elapsed_s": 9.08,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.canadapost-postescanada.ca/",
+      "expected_vendor": "kasada",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 186,
+      "title": "Mailing and shipping for Personal and Business | Canada Post",
+      "elapsed_s": 15.02,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "url": "https://www.aircanada.com/",
+      "expected_vendor": "kasada",
+      "success": true,
+      "blocked": false,
+      "detected_vendor": null,
+      "page_type": null,
+      "element_count": 137,
+      "title": "Book flights | Air Canada",
+      "elapsed_s": 7.41,
+      "error": null,
+      "notes": ""
+    }
+  ]
+}
