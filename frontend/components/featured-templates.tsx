@@ -138,13 +138,9 @@ export function FeaturedTemplates() {
 
   return (
     <section className="relative mx-auto max-w-6xl py-10 md:py-14">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.4, ease: APPLE_EASE }}
-        className="mb-8 flex items-end justify-between gap-4"
-      >
+      {/* CSS-only fade-up. Cards below keep framer-motion for the
+          per-card staggered entrance — visually it's worth the cost. */}
+      <div className="animate-fade-up mb-8 flex items-end justify-between gap-4">
         <div>
           <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
             <Sparkles className="h-3 w-3 text-[var(--color-accent)]" />
@@ -165,7 +161,7 @@ export function FeaturedTemplates() {
         >
           Browse all <ArrowRight className="h-3 w-3" />
         </Link>
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         {items.slice(0, 6).map((card, i) => (

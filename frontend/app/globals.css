@@ -30,7 +30,8 @@
   --color-ink-2:  #f5f5f4;             /* hover surface */
   --color-ink-3:  #ebebea;             /* default border, hairline */
   --color-ink-4:  #d9d9d6;             /* strong border, focus */
-  --color-ink-5:  #a8a8a3;             /* placeholder, disabled */
+  --color-ink-5:  #a8a8a3;             /* placeholder, disabled (decorative only) */
+  --color-ink-5-aa: #737373;           /* WCAG AA-safe subdued text (5.7:1 on white) */
   --color-ink-6:  #6e6e69;             /* secondary text */
   --color-ink-7:  #3a3a37;             /* primary text */
   --color-ink-8:  #1c1c1a;             /* headings */
@@ -60,7 +61,10 @@
   --color-elevated:      var(--color-ink-0);
   --color-border:        var(--color-ink-3);
   --color-border-strong: var(--color-ink-4);
-  --color-fg-subdued:    var(--color-ink-5);
+  /* Bumped from ink-5 (#a8a8a3, 2.6:1) to ink-5-aa (#737373, 5.7:1) for
+     WCAG AA. ink-5 still exists for placeholder/disabled which are
+     intentionally light and don't carry information. */
+  --color-fg-subdued:    var(--color-ink-5-aa);
   --color-fg-muted:      var(--color-ink-6);
   --color-fg:            var(--color-ink-7);
   --color-fg-strong:     var(--color-ink-8);
@@ -80,8 +84,12 @@
 
   /* ── TYPE ──────────────────────────────────────────────────────────── */
 
-  --font-display:  "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono:     "JetBrains Mono", "SF Mono", "SFMono-Regular", ui-monospace, Menlo, monospace;
+  /* next/font/google injects `--font-inter` and `--font-mono-google` on
+     <html>. Putting them first in the stack means we get the self-hosted
+     Inter / JetBrains Mono webfonts when available, with the system
+     fallbacks intact for the initial paint (display: swap). */
+  --font-display:  var(--font-inter), "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono:     var(--font-mono-google), "JetBrains Mono", "SF Mono", "SFMono-Regular", ui-monospace, Menlo, monospace;
 
   --text-hero:     56px;
   --text-display:  40px;
@@ -283,4 +291,37 @@ button { background: none; border: none; cursor: pointer; }
 /* Subtle inner-shadow for pressed states (Apple-style affordance) */
 .inset-shadow-soft {
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ── CSS REVEAL ANIMATIONS ────────────────────────────────────────────────
+   Cheap, GPU-friendly replacements for trivial framer-motion fade-ins.
+   Use `.animate-fade-in` for opacity-only reveals and `.animate-fade-up`
+   for the 8px translate variant. Keep framer-motion for anything with
+   AnimatePresence, layoutId, drag, or spring physics. */
+
+@keyframes ss-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes ss-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: ss-fade-in var(--dur-deliberate) var(--ease-out) both;
+}
+.animate-fade-up {
+  animation: ss-fade-up var(--dur-deliberate) var(--ease-out) both;
+}
+
+/* Honour reduced motion — kill the translation, keep a soft fade. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-up {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transform: none !important;
+  }
 }

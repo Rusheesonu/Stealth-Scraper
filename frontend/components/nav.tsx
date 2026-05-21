@@ -118,6 +118,7 @@ export function Nav() {
                   "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px]",
                   "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-ink-2)]",
                   "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
+                  "outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
                 )}
                 aria-haspopup
                 aria-expanded={settingsOpen}
@@ -146,7 +147,7 @@ export function Nav() {
                       key={s.href}
                       href={s.href}
                       onClick={() => setSettingsOpen(false)}
-                      className="flex items-center px-3 py-1.5 text-[13px] text-[var(--color-fg)] hover:bg-[var(--color-ink-2)]"
+                      className="flex items-center px-3 py-1.5 text-[13px] text-[var(--color-fg)] hover:bg-[var(--color-ink-2)] outline-none focus-visible:bg-[var(--color-ink-2)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]"
                     >
                       {s.label}
                     </Link>
@@ -170,7 +171,7 @@ export function Nav() {
                   <form action="/auth/signout" method="POST">
                     <button
                       type="submit"
-                      className="block w-full px-3 py-1.5 text-left text-[13px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+                      className="block w-full px-3 py-1.5 text-left text-[13px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)] outline-none focus-visible:bg-[var(--color-ink-2)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]"
                     >
                       Sign out
                     </button>
@@ -182,13 +183,13 @@ export function Nav() {
             <>
               <Link
                 href="/login"
-                className="rounded-md px-3 py-1.5 text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-ink-2)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+                className="rounded-md px-3 py-1.5 text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-ink-2)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
               >
                 Sign in
               </Link>
               <Link
                 href="/login?mode=signup"
-                className="rounded-md bg-[var(--color-fg-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)] transition-[background] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+                className="rounded-md bg-[var(--color-fg-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)] transition-[background] duration-[var(--dur-fast)] ease-[var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
               >
                 Get started
               </Link>
@@ -206,97 +207,104 @@ export function Nav() {
 }
 
 /**
- * Footer — four-column trust footer. Brand block on the left, then
- * Product · Open source · Company · Social. Same on every page.
+ * Footer — four-column directory on desktop, stacked on mobile.
  *
- * Why we expanded from the previous single-row footer: launching on
- * Product Hunt means anyone-can-arrive-anywhere — the footer needs to
- * carry trust signals (Privacy, Terms, Refund) and prove we&apos;re a
- * real OSS-friendly project, not a black box.
+ * The earlier three-link footer was deliberately minimal to avoid leaking
+ * conversion mid-funnel. Post-launch we want the opposite: a comprehensive
+ * site directory so search engines see structure, prospects can verify
+ * we're a real company, and developers can find the SDK / OSS engine /
+ * status page without rummaging.
+ *
+ * Connect column doubles as a trust signal — real X handle, real GitHub,
+ * Discord coming soon (don't fake it).
  */
 
-type FooterLink = {
-  href: string;
-  label: string;
-  external?: boolean;
-};
+type FooterLink = { href: string; label: string; external?: boolean };
+type FooterColumn = { title: string; links: FooterLink[] };
 
-const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
+const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Product",
     links: [
       { href: "/pricing", label: "Pricing" },
       { href: "/marketplace", label: "Marketplace" },
-      { href: "/status", label: "Status" },
-      { href: "https://github.com/rushikeshsonu/Stealth-Scraper#readme", label: "Docs", external: true },
-      { href: "https://github.com/rushikeshsonu/Stealth-Scraper/tree/master/backend#api-reference", label: "API reference", external: true },
+      { href: "/templates", label: "Templates" },
+      { href: "/ai-extract", label: "AI Extract" },
+      { href: "/launch", label: "Launch demo" },
+      { href: "https://docs.stealthscraper.dev", label: "API Docs", external: true },
     ],
   },
   {
-    title: "Open source",
+    title: "Developers",
     links: [
-      { href: "https://github.com/rushikeshsonu/Stealth-Scraper", label: "GitHub", external: true },
-      { href: "https://github.com/rushikeshsonu/Stealth-Scraper/tree/master/oss/stealth-browser", label: "stealth-browser", external: true },
-      { href: "https://github.com/rushikeshsonu/Stealth-Scraper/tree/master/oss/mcp-server", label: "MCP server", external: true },
+      { href: "https://github.com/Rusheesonu/Stealth-Scraper", label: "GitHub", external: true },
+      { href: "https://github.com/Rusheesonu/stealth-browser", label: "OSS engine", external: true },
+      { href: "https://pypi.org/project/stealth-scraper", label: "Python SDK", external: true },
+      { href: "https://www.npmjs.com/package/stealth-scraper", label: "TypeScript SDK", external: true },
+      { href: "https://www.npmjs.com/package/stealth-scraper-mcp", label: "MCP server", external: true },
+      { href: "/status", label: "Status page" },
     ],
   },
   {
     title: "Company",
     links: [
+      { href: "/about", label: "About" },
       { href: "/privacy", label: "Privacy" },
       { href: "/terms", label: "Terms" },
-      { href: "/refund-policy", label: "Refund" },
-      { href: "mailto:support@stealthscraper.dev", label: "Contact", external: true },
+      { href: "/refund-policy", label: "Refund policy" },
+      { href: "mailto:rushikesh.koochana@gmail.com", label: "Contact", external: true },
     ],
   },
   {
-    title: "Social",
+    title: "Connect",
     links: [
       { href: "https://x.com/rushikeshsonu", label: "X (@rushikeshsonu)", external: true },
-      // Discord placeholder — switch to the real invite link once the server is live.
-      { href: "#", label: "Discord" },
+      { href: "https://github.com/Rusheesonu", label: "GitHub", external: true },
       { href: "https://news.ycombinator.com/user?id=rushikeshsonu", label: "HN profile", external: true },
+      { href: "#", label: "Discord (soon)", external: true },
     ],
   },
 ];
 
 export function Footer() {
   return (
-    <footer className="mt-auto border-t border-[var(--color-border)]">
+    <footer className="mt-auto border-t border-[var(--color-border)] bg-[var(--color-bg)]">
       <div className="mx-auto max-w-7xl px-6 py-12">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-2 md:grid-cols-5">
-          {/* Brand block — sits beside the four link columns on md+ */}
-          <div className="col-span-2 flex flex-col gap-3 md:col-span-1">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+          {/* Brand + tagline — first column on desktop, spans both on mobile. */}
+          <div className="col-span-2 md:col-span-1">
             <Brand />
-            <p className="max-w-xs text-[12px] text-[var(--color-fg-muted)]">
-              Structured web data for AI agents. Point, click, extract — or
-              describe it in plain English.
+            <p className="mt-3 max-w-[24ch] text-[12px] leading-[1.6] text-[var(--color-fg-muted)]">
+              The reliable web-data layer for AI agents. Point, click, extract.
+            </p>
+            <p className="mt-4 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              Made with <span aria-hidden>☕</span> in Bangalore
             </p>
           </div>
 
           {FOOTER_COLUMNS.map((col) => (
-            <div key={col.title} className="flex flex-col gap-3">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            <div key={col.title}>
+              <div className="mb-3 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                 {col.title}
               </div>
-              <ul className="flex flex-col gap-2 text-[12px]">
-                {col.links.map((link) => (
-                  <li key={link.label}>
-                    {link.external ? (
+              <ul className="space-y-2">
+                {col.links.map((l) => (
+                  <li key={l.label}>
+                    {l.external ? (
                       <a
-                        href={link.href}
-                        target={link.href.startsWith("mailto:") ? undefined : "_blank"}
-                        rel={link.href.startsWith("mailto:") ? undefined : "noreferrer"}
-                        className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline"
+                        href={l.href}
+                        target={l.href.startsWith("mailto:") || l.href === "#" ? undefined : "_blank"}
+                        rel={l.href.startsWith("mailto:") || l.href === "#" ? undefined : "noreferrer"}
+                        className="text-[12.5px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
                       >
-                        {link.label}
+                        {l.label}
                       </a>
                     ) : (
                       <Link
-                        href={link.href}
-                        className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline"
+                        href={l.href}
+                        className="text-[12.5px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
                       >
-                        {link.label}
+                        {l.label}
                       </Link>
                     )}
                   </li>
@@ -306,16 +314,17 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-10 flex flex-col items-start gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3 text-[11px] text-[var(--color-fg-subdued)]">
-            <span className="font-mono">© 2026 Stealth-Scraper · Built in India</span>
-          </div>
-          <div className="flex items-center gap-4 text-[11px]">
-            <Link href="/privacy" className="text-[var(--color-fg-subdued)] hover:text-[var(--color-fg-muted)]">Privacy</Link>
-            <Link href="/terms" className="text-[var(--color-fg-subdued)] hover:text-[var(--color-fg-muted)]">Terms</Link>
-            <Link href="/refund-policy" className="text-[var(--color-fg-subdued)] hover:text-[var(--color-fg-muted)]">Refund</Link>
-            <Link href="/design" className="text-[var(--color-fg-subdued)] hover:text-[var(--color-fg-muted)]">Design</Link>
-          </div>
+        {/* Bottom row — copyright + dev affordance. */}
+        <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center">
+          <p className="font-mono text-[11px] text-[var(--color-fg-subdued)]">
+            © 2026 Stealth-Scraper · All rights reserved
+          </p>
+          <Link
+            href="/design"
+            className="font-mono text-[11px] text-[var(--color-fg-subdued)] transition-colors hover:text-[var(--color-fg-muted)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
+          >
+            Design system →
+          </Link>
         </div>
       </div>
     </footer>

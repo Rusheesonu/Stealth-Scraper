@@ -26,13 +26,10 @@ const STATS = [
 export function OssSection() {
   return (
     <section className="relative mx-auto max-w-5xl py-10 md:py-14">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.4, ease: APPLE_EASE }}
-        className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
-      >
+      {/* CSS-only fade-up for the outer card. The stats column below
+          still uses framer-motion because it does a staggered reveal
+          based on viewport intersection. */}
+      <div className="animate-fade-up relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         {/* Subtle accent wash on the right side */}
         <div
           className="pointer-events-none absolute -right-32 top-1/2 h-[280px] w-[480px] -translate-y-1/2 opacity-50"
@@ -121,7 +118,7 @@ export function OssSection() {
             </ul>
           </div>
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }
