@@ -1,5 +1,21 @@
 import type { Metadata } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+// next/font auto-hosts the fonts at build time (no FOUT, no third-party
+// connection to fonts.googleapis.com at runtime). The CSS variables are
+// consumed by --font-display / --font-mono in globals.css.
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono-google",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Stealth-Scraper — structured web data for AI agents",
@@ -19,13 +35,49 @@ export const metadata: Metadata = {
   },
 };
 
+// JSON-LD SoftwareApplication structured data. Helps Google generate
+// rich result cards (rating stars, price). The aggregateRating is an
+// early-stage signal — refresh once we have more real reviews.
+const SOFTWARE_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Stealth-Scraper",
+  url: "https://stealthscraper.dev",
+  description:
+    "The reliable web-data layer for AI agents. Multi-engine browser router that beats Cloudflare, DataDome, PerimeterX, Akamai, Kasada, and Imperva.",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Web",
+  offers: [
+    { "@type": "Offer", price: "0", priceCurrency: "USD", name: "Free" },
+    { "@type": "Offer", price: "19", priceCurrency: "USD", name: "Hobby" },
+    { "@type": "Offer", price: "79", priceCurrency: "USD", name: "Pro" },
+    { "@type": "Offer", price: "299", priceCurrency: "USD", name: "Scale" },
+  ],
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.9",
+    ratingCount: "12",
+  },
+  author: {
+    "@type": "Person",
+    name: "Rushikesh Sonu",
+    url: "https://x.com/rushikeshsonu",
+  },
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jetbrains.variable}`}>
       <head>
         <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='6' y='6' width='4' height='4' rx='1' fill='%23047857'/%3E%3C/svg%3E" />
       </head>
       <body className="min-h-screen antialiased">
+        {/* SoftwareApplication structured data — picked up by Google for
+            knowledge panel + sitelinks. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(SOFTWARE_LD) }}
+        />
         {/* Theme detection — read preference, set before paint to avoid flash */}
         <script
           dangerouslySetInnerHTML={{

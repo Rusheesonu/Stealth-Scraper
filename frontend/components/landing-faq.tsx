@@ -149,13 +149,10 @@ export function LandingFaq() {
 
   return (
     <section className="relative mx-auto max-w-3xl py-10 md:py-14">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.4, ease: APPLE_EASE }}
-        className="mb-8 text-center"
-      >
+      {/* CSS animate-fade-up — same visual as the previous motion.div but
+          ~no JS. AnimatePresence/spring stays below for the actual
+          accordion mechanics. */}
+      <div className="animate-fade-up mb-8 text-center">
         <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
           <HelpCircle className="h-3 w-3 text-[var(--color-accent)]" />
           Questions you&apos;d ask on a call
@@ -164,7 +161,7 @@ export function LandingFaq() {
           Real answers.
           <span className="text-[var(--color-fg-muted)]"> Not marketing copy.</span>
         </h2>
-      </motion.div>
+      </div>
 
       <div className="divide-y divide-[var(--color-border)] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         {FAQS.map((item, i) => {
@@ -177,6 +174,7 @@ export function LandingFaq() {
                   "flex w-full items-center justify-between gap-4 px-5 py-4 text-left",
                   "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                   "hover:bg-[var(--color-ink-1)]",
+                  "outline-none focus-visible:bg-[var(--color-ink-1)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]",
                   i === 0 && "rounded-t-2xl",
                   i === FAQS.length - 1 && !isOpen && "rounded-b-2xl",
                 )}
