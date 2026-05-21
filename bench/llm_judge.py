@@ -156,24 +156,43 @@ async def judge_page(
         "max_tokens": 600,
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
-            res = await client.post(
-                f"{LLM_BASE_URL}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {LLM_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-    except Exception as e:
-        return Verdict(verdict="error", error=f"{type(e).__name__}: {e}",
-                       raw_text_chars=len(text))
+    # Retry with exponential backoff on 429 (Groq free-tier rate limit).
+    # Groq's 429 response usually means "wait ~30s for the per-minute
+    # bucket to refill" — the Retry-After header is honored if present,
+    # otherwise we fall back to 30s, 60s, 90s.
+    import asyncio
+    res = None
+    for attempt in range(4):  # 1 initial + 3 retries
+        try:
+            async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
+                res = await client.post(
+                    f"{LLM_BASE_URL}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {LLM_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+        except Exception as e:
+            return Verdict(verdict="error", error=f"{type(e).__name__}: {e}",
+                           raw_text_chars=len(text))
 
-    if res.status_code >= 400:
+        if res.status_code != 429:
+            break
+        # 429 — back off and retry. Honor Retry-After if Groq sent one.
+        retry_after = res.headers.get("retry-after")
+        try:
+            wait_s = float(retry_after) if retry_after else 30.0 * (attempt + 1)
+        except ValueError:
+            wait_s = 30.0 * (attempt + 1)
+        wait_s = min(wait_s, 90.0)  # cap so a bench doesn't hang for hours
+        await asyncio.sleep(wait_s)
+
+    if res is None or res.status_code >= 400:
         return Verdict(
             verdict="error",
-            error=f"LLM HTTP {res.status_code}: {res.text[:200]}",
+            error=f"LLM HTTP {res.status_code if res else 'no-response'}: "
+                  f"{(res.text[:200] if res else '')}",
             raw_text_chars=len(text),
         )
 

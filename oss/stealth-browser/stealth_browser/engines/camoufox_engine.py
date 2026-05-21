@@ -215,15 +215,22 @@ class CamoufoxEngine:
                 except Exception:
                     pass
 
-                # NOTE: tried `asyncio.sleep(6.0)` here for fingerprint-test
-                # hints (creepjs / amiunique need client-side compute time).
-                # REVERTED — the long sleep inside the AsyncCamoufox context
-                # triggered "Browser.close: Connection closed" errors on 6/9
-                # sites (camoufox's keepalive ping timed out during the
-                # sleep). Better path: use page.wait_for_function() to
-                # poll for a verdict-rendered DOM signal, or move the wait
-                # to the bench layer (after page.content() captured but
-                # before judge_page). Tracked in setup_needed.md TODO.
+                # Detection sites (creepjs, fingerprint.com, amiunique)
+                # compute verdicts CLIENT-SIDE after networkidle — they
+                # probe canvas/WebGL/audio for 4-7s after load. Without
+                # this wait, the LLM judge reads the "computing..." state
+                # instead of the verdict.
+                #
+                # Iter 12 tried `asyncio.sleep(6)` here — it killed
+                # camoufox's websocket keepalive ("Browser.close" on 6/9
+                # sites). Fix: use Playwright-native `page.wait_for_timeout`
+                # which keeps the connection alive (it's a yield inside
+                # the page's event loop, not a Python-level sleep).
+                if requirements.vendor_hint == "fingerprint-test":
+                    try:
+                        await page.wait_for_timeout(6000)
+                    except Exception:
+                        pass
 
                 # Single-shot title — avoid the double round-trip.
                 raw_title = await page.title()

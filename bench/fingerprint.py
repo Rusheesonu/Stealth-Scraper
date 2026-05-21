@@ -218,7 +218,12 @@ async def run(site_filter: str | None) -> int:
 
     t0 = time.perf_counter()
     results: list[SiteResult] = []
-    for url, site_id in urls:
+    for idx, (url, site_id) in enumerate(urls):
+        # Pace LLM judge calls 3s apart so we don't burst into Groq's
+        # free-tier RPM cap. With 9 sites that adds ~24s to total bench
+        # time, well worth it to avoid the 429-cascade we saw in iter 15.
+        if idx > 0 and is_configured():
+            await asyncio.sleep(3.0)
         print(f"  -> {site_id}: {url}")
         r = await test_one(url, site_id)
         # ASCII glyphs — render reliably in CI logs.
