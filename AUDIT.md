@@ -1,12 +1,159 @@
-# Stealth-Scraper — Engine Audit (Phase 0)
+# Stealth-Scraper — Engine Audit
 
-_Generated 2026-05-21 in iteration 1 of the `/loop` push toward win conditions:_
-_(1) ≥95% anti-bot bypass on 20+ real production URLs; (2) clean fingerprint_
-_verdicts; (3) ≥95% success at the highest pages/$ a fixed proxy budget can buy._
+> **Win-condition v2** (updated 2026-05-21, iter 6+): expanded from 3 to 8
+> conditions, all required simultaneously in a single bench/results/ run.
+> See §0 below for the full spec. This audit was originally written for v1
+> (3 conditions); §1-§7 still apply but §0 is the new authoritative target.
 
-This document is the **honest map of where we stand vs the state of the art**.
-Every claim cites `file:line`. Every gap has a proposed mitigation. The
-**Phase 3 throughput target** is set in §6.
+---
+
+## §0. Win Condition (v2 — must all be met in one run)
+
+**1. Anti-bot bypass**
+- ≥95% success on **100+ real production URLs** behind Cloudflare Turnstile +
+  Bot Fight Mode, DataDome, PerimeterX/HUMAN, Akamai Bot Manager, Kasada,
+  Imperva, **F5 Shape**, **hCaptcha Enterprise**, **reCAPTCHA Enterprise v3 +
+  v2-invisible**, **Arkose FunCaptcha**. No vendor demo pages.
+- Auto-recovery on ban (rotate identity + proxy + cookies) ≥85% within 3
+  retries, zero human intervention.
+- Weekly re-run: no >5% sustained regression after any vendor update.
+- ≥90% success from each of US, EU, APAC egress.
+
+**2. Fingerprint fidelity**
+- Clean verdict on: bot.sannysoft, creepjs (no high-entropy flags, no lie
+  detectors), fingerprint.com (no bot, no incognito), pixelscan, browserleaks
+  (TLS, HTTP/2, HTTP/3, WebRTC, Canvas, WebGL, WebGPU, Audio, Fonts, Client
+  Hints, Battery, Sensors, Permissions, Speech), amiunique, deviceinfo.me,
+  fpscanner, iphey, deviceandbrowserinfo.
+- Identity coherence: OS, browser build, GPU vendor+renderer, CPU cores,
+  device memory, timezone, locale, language list, IP geolocation, screen
+  resolution + DPR, touch support, sensors, fonts, codecs — all internally
+  consistent. No anomalies, ever.
+- Behavioral fidelity: mouse, keystroke, scroll, touch sampled from real
+  human distributions (not random, not canned).
+- Active SDK pass: behave correctly inside Akamai BMP, Imperva, PX, F5
+  behavioral SDKs after ≥10 minutes of session activity.
+- Mobile parity: same bar for iOS Safari and Android Chrome including
+  WebKit quirks and Android WebView.
+
+**3. Throughput + unit economics**
+- Beat Bright Data Web Unlocker, Apify, ScraperAPI, ZenRows, Scrapfly,
+  Oxylabs Web Unblocker, Nimble on pages/$ on the protected-site list.
+  Side-by-side numbers in bench/results/competitor_comparison.json.
+- ≥1000 concurrent sessions per 16GB / 8-core instance, <2GB RSS each.
+- <2s p50 cold start to first byte, <5s p99.
+- p50/p95/p99 tracked per vendor and per geography.
+
+**4. Reliability**
+- 30-day unattended run: zero manual intervention, success within 5 points
+  of day-1.
+- Self-healing: per-site/per-vendor degradation watcher auto-switches
+  strategy and logs the decision.
+- Crash-resilient: SIGKILL mid-run resumes cleanly, no duplicates, no lost
+  work. Chaos test in the suite.
+- Observability: built-in dashboard (JSON + HTML) for per-site, per-vendor,
+  per-fingerprint success rate, ban rate, cost.
+
+**5. Developer experience**
+- <30s from `pip install stealth-scraper` (or pnpm equivalent) to first
+  scraped protected page on a clean VM. CI validates.
+- Type-safe public API, docstring + runnable example on every public symbol.
+- One-line "scrape URL into this schema" API: schema-guided extraction with
+  LLM fallback.
+- Selector self-healing: broken selector auto-suggests a replacement from
+  DOM diff + LLM, reports confidence.
+- HAR + screenshot + PDF + full DOM captured per request, gzipped,
+  content-addressed, deduped on disk.
+- First-class async API + sync wrapper + CLI.
+
+**6. Output quality**
+- Schema-validated structured extraction; broken fields flagged with
+  confidence scores, never silently dropped.
+- Built-in dedup (content hash) + change detection (semantic hash) +
+  inter-run diff.
+- Per-field provenance: selector, page version, timestamp, fingerprint,
+  proxy.
+- Idempotent: same URLs in same window → byte-identical structured output.
+
+**7. Benchmark transparency**
+- bench/ reproducible on a fresh clone with documented env vars.
+- CI runs weekly, publishes to a public leaderboard (GitHub Pages from
+  bench/results/).
+- Every README performance claim links to its backing JSON report. No
+  unbacked claims allowed in README.
+- Weekly competitor comparison table with committed evidence.
+
+**8. Safety + compliance**
+- robots.txt honored by default; explicit opt-out flag required, with legal
+  warning.
+- Built-in per-domain QPS rate limiter on by default. Defaults cannot DoS
+  a target.
+- No kernel hooks, no rootkits, no malware-adjacent techniques.
+- License-clean: every third-party dep audited in LICENSES.md.
+- No telemetry phoning home from the library itself.
+
+---
+
+## §0.5. Brutally honest status vs v2 spec (as of iter 6)
+
+This is what we'd report TODAY. Be honest. Most are 0% or near 0%.
+
+| # | Spec area | Current state | Realistic gap |
+|---|---|---|---|
+| 1a | ≥95% on 100+ URLs across **11 vendors** | 13/18 = 72.2% on **6 vendors** | 100-URL list doesn't exist yet. F5/hCaptcha-Ent/reCAPTCHA-Ent/Arkose not tested. **~30 iters + ~$200/mo paid services.** |
+| 1b | Auto-recovery ≥85% in 3 retries | Retry exists but ad-hoc. No "identity rotation" yet. | **~3 iters.** |
+| 1c | Weekly re-run regression watch | No weekly CI. | **~2 iters** (GitHub Actions + JSON diff). |
+| 1d | ≥90% from US, EU, APAC each | Only US-East (Lightsail Virginia). | **Multi-region infra. Paid. ~5 iters + cloud spend.** |
+| 2 | Clean across 9+ test sites, identity coherence, behavioral SDK pass, mobile parity | 4/9 sites pass; coherence unenforced; no behavioral simulation; Chromium-only. | **Need camoufox + humanize.py + device-profile presets + iOS/Android. ~10-15 iters.** |
+| 3a | Beat 7 commercial competitors on pages/$ | No side-by-side comparison committed. | **~3 iters** (write competitor harness, run apples-to-apples). |
+| 3b | ≥1000 concurrent sessions per 16GB | Currently 1 at a time (asyncio.Lock). | **Multi-browser pool + memory tuning. ~5-8 iters.** |
+| 3c | <2s p50 cold start, <5s p99 | Cold start currently ~10-15s (Chromium boot). | **Browser warm-pool + persistent processes. ~3 iters.** |
+| 3d | p50/p95/p99 per vendor/geo | No latency percentile tracking. | **~1 iter** (add to throughput.py). |
+| 4a | 30-day unattended run | Untested. | **Literally 30 calendar days minimum.** |
+| 4b | Self-healing degradation watcher | Doesn't exist. | **~5 iters.** |
+| 4c | SIGKILL chaos test + resumable | Not implemented. | **~3 iters.** |
+| 4d | JSON + HTML observability dashboard | bench/results/ JSON exists; no HTML. | **~2 iters.** |
+| 5a | <30s pip-install to first scrape on clean VM | Probably ~5min today (Chrome download). | **~3 iters** (precompile container). |
+| 5b | Type-safe API, docstring + runnable example | Partial. | **~2 iters.** |
+| 5c | Schema-guided extraction w/ LLM fallback | EXISTS in app/assist.py! | ~0 — already shipped. |
+| 5d | Selector self-healing (DOM-diff + LLM) | Doesn't exist. | **~3 iters.** |
+| 5e | HAR + screenshot + PDF + DOM per request | Screenshot only. | **~3 iters.** |
+| 5f | async API + sync wrapper + CLI | async only. | **~2 iters.** |
+| 6a | Schema-validated extraction w/ confidence scores | Partial — drops to null on failure. | **~2 iters** (per-field confidence). |
+| 6b | Dedup + change detection + inter-run diff | None. | **~2 iters.** |
+| 6c | Per-field provenance (selector, version, timestamp, fingerprint, proxy) | None. | **~2 iters.** |
+| 6d | Idempotent byte-identical output | Probably yes for static, no for dynamic. | **~1 iter** (test + document). |
+| 7a | bench/ reproducible from fresh clone | Already done. | ~0 — exists. |
+| 7b | Weekly CI → GitHub Pages leaderboard | Doesn't exist. | **~3 iters.** |
+| 7c | Every README claim linked to JSON evidence | Not enforced. | **~1 iter** (script + lint). |
+| 8a | robots.txt honored by default + opt-out flag | Not implemented. | **~1 iter.** |
+| 8b | Per-domain QPS limiter on by default | Not implemented. | **~1 iter.** |
+| 8c | No kernel hooks / rootkits | True by design. | ✅ 0 iters. |
+| 8d | LICENSES.md with audited deps | Not generated. | **~1 iter** (pip-licenses + manual audit). |
+| 8e | No phone-home telemetry | True. | ✅ 0 iters. |
+
+**Honest realistic estimate: 80-120 iters of focused work + $200-500/mo in
+paid services (residential proxies + CAPTCHA solvers + multi-region cloud)
+to hit ALL 8 conditions.** Single-developer effort: 2-4 months of full-time
+work. Not possible in this session.
+
+What this session CAN tractably do (next 5-15 iters):
+
+  ✅ Push antibot to ≥85% on the existing 18-URL bench (Phase 2.2+)
+  ✅ Add safety primitives: robots.txt + rate-limiter (Condition 8a, 8b)
+  ✅ Add LICENSES.md (Condition 8d)
+  ✅ Add latency percentiles to throughput.py (Condition 3d)
+  ✅ Add competitor comparison stub (Condition 3a — write the harness; running real comparisons needs paid API keys)
+  ✅ Wire bench → README links (Condition 7c)
+  ✅ Add HAR + DOM capture options (parts of Condition 5e + 6c)
+  ⚠️ Camoufox integration (Condition 2 — multi-iter)
+  ❌ Multi-region (Condition 1d — needs paid infra)
+  ❌ 30-day unattended (Condition 4a — needs 30 days)
+  ❌ 100-URL benchmark expansion (Condition 1a — needs research + paid CAPTCHA infra)
+
+**Strategy:** keep grinding the tractable list. Surface the impossibles
+honestly. After ~10 more iters, write a FINAL_REPORT.md that documents
+what was achieved + what's blocked on paid infra / longer time horizons.
 
 ---
 
