@@ -179,9 +179,16 @@ class CamoufoxEngine:
         # so target sites can't fingerprint engine choice by IP swap.
         proxy_config = self._maybe_proxy_config()
 
+        # `humanize` enables camoufox's mouse-path simulation. PerimeterX
+        # and Kasada specifically score behavioral signals (cursor entropy,
+        # micro-stalls, Fitts's-law-shaped trajectories) even on a single
+        # navigation — so we turn it on whenever the vendor_hint indicates
+        # a behavioral detector, not just when the caller asks for explicit
+        # interactions. Cheap (~30ms cursor jitter), no downside.
+        behavioral_hint = requirements.vendor_hint in {"perimeterx", "kasada"}
         launch_opts: dict[str, Any] = {
             "headless": True,
-            "humanize": requirements.needs_interaction,  # camoufox built-in mouse path simulation
+            "humanize": requirements.needs_interaction or behavioral_hint,
             "os": "android" if requirements.needs_mobile_ui else "macos",
         }
         if proxy_config:

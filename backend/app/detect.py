@@ -110,10 +110,16 @@ def detect_block(
         )
 
     # ── PerimeterX / HUMAN — the "Press & Hold" people ──────────────────
+    # "Access to this page has been denied" is the modern PX denial title
+    # (e.g. zillow.com when PX flags a request). It's a quiet block —
+    # no visible challenge widget, just the denial. Added in iter 10
+    # after bench classified the zillow refusal as ambiguous instead
+    # of as a PX block.
     if (
         "press &amp; hold" in html_lc
         or "press & hold" in html_lc
         or "are you a human" in html_lc.replace("(and not a bot)", "")
+        or "access to this page has been denied" in title_lc
         or any(k.startswith("_px") for k in cookies)
         or "px-captcha" in html_lc
         or "px-captcha" in title_lc

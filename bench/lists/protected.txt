@@ -33,7 +33,9 @@ https://www.airfrance.com/                                                 datad
 
 # ── PERIMETERX / HUMAN
 https://www.zillow.com/                                                    perimeterx
-https://www.crunchbase.com/discover/organization.companies/                perimeterx
+# Re-tagged from perimeterx → cloudflare in iter 10 after bench showed this
+# URL serves a Cloudflare "Just a moment..." challenge, not a PX widget.
+https://www.crunchbase.com/discover/organization.companies/                cloudflare
 https://www.glassdoor.com/                                                 perimeterx
 
 # ── AKAMAI BOT MANAGER
