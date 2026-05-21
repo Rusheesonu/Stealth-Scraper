@@ -8,11 +8,11 @@ fingerprint test page). You should see most checks pass.
 
 import asyncio
 
-from stealth_browser import BrowserPool
+from stealth_browser import StealthBrowser
 
 
 async def main():
-    pool = BrowserPool()
+    pool = StealthBrowser()
     await pool.start()
     try:
         async with pool.tab("https://bot.sannysoft.com/") as tab:

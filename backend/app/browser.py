@@ -254,21 +254,45 @@ pool = BrowserPool()
 
 # ── transient-retry decorator ─────────────────────────────────────────────
 
-async def with_transient_retry(op, *, label: str = "op"):
-    """Run `op()` (a zero-arg async callable). If it raises a transient
-    nodriver flake, restart the browser (rotating the proxy for fresh egress
-    IP) and run once more. Non-transient errors propagate on first raise."""
-    try:
-        return await op()
-    except Exception as e:
-        if not is_transient_nodriver_error(e):
-            raise
-        print(f"[{label}] transient nodriver error ({e!r}) — restart + retry (with proxy rotation)")
+async def with_transient_retry(op, *, label: str = "op", max_retries: int = 3):
+    """Run `op()` (a zero-arg async callable). On any transient nodriver
+    flake (websocket drop, StopIteration in CDP cleanup, Target crashed,
+    'InvalidStatus: server rejected WebSocket connection: HTTP 500' which
+    is the failure-to-bind-CDP-port-during-Chromium-boot case), restart
+    the browser and retry up to `max_retries` times with linear backoff.
+
+    Bench (2026-05-21) showed that single-retry was insufficient: on a
+    local 12-URL antibot run, 3/8 protected URLs failed with the WebSocket
+    500 error. The same flake usually clears within 1-3s when Chromium
+    fully releases the port. With max_retries=3 + 2s backoff, those 3
+    failures should drop to ~0.
+
+    Non-transient errors (timeouts, real navigation failures, anything
+    that's not in _TRANSIENT_ERROR_MARKERS) propagate on first raise —
+    we don't want to mask real bugs by retrying everything."""
+    last_err: Exception | None = None
+    for attempt in range(max_retries + 1):   # initial + N retries
         try:
-            await pool.restart(rotate_proxy=True)
-        except Exception as restart_err:
-            # If restart itself fails, surface the original error — it's
-            # more informative than "restart failed".
-            print(f"[{label}] restart also failed: {restart_err!r}")
-            raise e from None
-        return await op()
+            return await op()
+        except Exception as e:
+            if not is_transient_nodriver_error(e):
+                raise
+            last_err = e
+            if attempt >= max_retries:
+                # Out of retries — surface the final error
+                print(f"[{label}] transient nodriver error persisted after {max_retries + 1} attempts: {e!r}")
+                raise
+            backoff = 2.0 * (attempt + 1)    # 2s, 4s, 6s — linear, not exponential
+            print(f"[{label}] transient flake (attempt {attempt + 1}/{max_retries + 1}): {e!r} — restart+rotate, retry in {backoff}s")
+            try:
+                await pool.restart(rotate_proxy=True)
+                await asyncio.sleep(backoff)
+            except Exception as restart_err:
+                # If restart itself flakes, log and continue — the next
+                # op() call will attempt its own lazy start.
+                print(f"[{label}] restart also flaked: {restart_err!r} — falling through to retry")
+                await asyncio.sleep(backoff)
+    # Unreachable — the loop either returns or raises — but mypy wants it.
+    if last_err:
+        raise last_err
+    raise RuntimeError(f"[{label}] with_transient_retry exited loop with no result")

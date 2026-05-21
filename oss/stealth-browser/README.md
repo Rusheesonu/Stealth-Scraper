@@ -5,9 +5,9 @@ The undetected headless browser pool that powers [Stealth-Scraper](https://steal
 > A drop-in Python pool around [`nodriver`](https://github.com/ultrafunkamsterdam/nodriver) with **25+ modern fingerprint patches**, **CDP-level proxy auth**, and **structured bot-challenge detection** — extracted from a production scraper that handles ~50k requests/day.
 
 ```python
-from stealth_browser import BrowserPool
+from stealth_browser import StealthBrowser
 
-pool = BrowserPool(proxy_url="http://user:pass@1.2.3.4:6543")
+pool = StealthBrowser(proxy_url="http://user:pass@1.2.3.4:6543")
 async with pool.tab("https://www.amazon.com/dp/B08N5WRWNW") as tab:
     title = await tab.find("span#productTitle")
     print(title.text_content())
@@ -64,12 +64,12 @@ Requires Python 3.10+, [nodriver](https://github.com/ultrafunkamsterdam/nodriver
 
 ```python
 import asyncio
-from stealth_browser import BrowserPool
+from stealth_browser import StealthBrowser
 
 async def main():
-    pool = BrowserPool()                    # direct (no proxy)
+    pool = StealthBrowser()                    # direct (no proxy)
     # Or with rotating proxies:
-    # pool = BrowserPool(proxies=[
+    # pool = StealthBrowser(proxies=[
     #     "http://user:pass@1.2.3.4:6543",
     #     "http://user:pass@5.6.7.8:6543",
     # ])
@@ -88,7 +88,7 @@ asyncio.run(main())
 ## Detecting bot walls
 
 ```python
-from stealth_browser import BrowserPool, detect_block
+from stealth_browser import StealthBrowser, detect_block
 
 async with pool.tab("https://www.zillow.com") as tab:
     html = await tab.get_html()
@@ -106,7 +106,7 @@ async with pool.tab("https://www.zillow.com") as tab:
 Chromium's `--proxy-server` flag doesn't support inline auth. You have to wire up a CDP `Fetch.authRequired` handler. This library does that automatically:
 
 ```python
-pool = BrowserPool(proxy_url="http://user:pass@proxy.example.com:6543")
+pool = StealthBrowser(proxy_url="http://user:pass@proxy.example.com:6543")
 # Auth handler is registered when the browser starts. Works with HTTPS
 # auth challenges that would otherwise pop up a basic-auth dialog and
 # hang every request forever in headless mode.
@@ -120,7 +120,7 @@ The auth handler is the most common scraper bug — most tutorials just say "pas
 stealth_browser/
 ├── stealth.py        # 20 fingerprint patches as a single JS init script
 ├── chromium_args.py  # ~30 Chromium command-line flags for max stealth
-├── browser.py        # BrowserPool with proxy + CDP auth + transient retry
+├── browser.py        # StealthBrowser with proxy + CDP auth + transient retry
 ├── humanize.py       # Mouse-path + typing-rhythm simulation (optional)
 └── detect.py         # Structured bot-wall detection (vendor + suggestion)
 ```

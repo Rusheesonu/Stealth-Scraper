@@ -67,6 +67,9 @@ async def _grab_page_text(url: str) -> tuple[str, str, int, str | None]:
         tab = await pool.open_tab(url)
         # Wait for the detection script to run. 5s is the sweet spot —
         # fast pages render in <2s; creepjs needs ~4s to compute trust.
+        # Tested 9s in iter 4: NO delta on chars or verdicts (amiunique +
+        # browserleaks-webgl text is thin for other reasons, not slow-render).
+        # Reverted to 5s to keep run fast.
         await asyncio.sleep(5.0)
         title_raw = await tab.evaluate("document.title")
         # nodriver result-shape varies; normalize to scalar string.

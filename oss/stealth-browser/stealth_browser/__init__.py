@@ -2,7 +2,7 @@
 
 Public API:
 
-    from stealth_browser import BrowserPool, detect_block
+    from stealth_browser import StealthBrowser, detect_block
     from stealth_browser.stealth import ULTRA_STEALTH_JS, ULTRA_STEALTH_CHROMIUM_ARGS
 
 The lower-level modules (`stealth`, `detect`, `browser`) are also importable
@@ -31,10 +31,10 @@ __all__ = [
 
 
 def __getattr__(name: str):
-    # Lazy-load BrowserPool so `pip install stealth-browser` with no
+    # Lazy-load StealthBrowser so `pip install stealth-browser` with no
     # nodriver doesn't error on import. Only when you reach for the pool
     # do we need nodriver.
-    if name == "BrowserPool":
-        from .browser import BrowserPool
-        return BrowserPool
+    if name == "StealthBrowser":
+        from .browser import StealthBrowser
+        return StealthBrowser
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

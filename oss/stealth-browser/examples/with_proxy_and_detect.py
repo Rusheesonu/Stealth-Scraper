@@ -12,7 +12,7 @@ Demonstrates the two production features most people skip:
 
 import asyncio
 
-from stealth_browser import BrowserPool, detect_block
+from stealth_browser import StealthBrowser, detect_block
 
 
 # Plug in real proxies — Webshare, BrightData, Oxylabs, whatever.
@@ -30,7 +30,7 @@ TARGETS = [
 
 
 async def main():
-    pool = BrowserPool(proxies=PROXIES)
+    pool = StealthBrowser(proxies=PROXIES)
     await pool.start()
     try:
         for url in TARGETS:
