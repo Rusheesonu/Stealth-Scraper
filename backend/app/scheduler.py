@@ -21,15 +21,60 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
+import socket
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import httpx
 
 from app import db
 from app.extract import extract as extract_fields
+
+
+# Re-check webhook URLs at delivery time as well as create time — a DNS
+# flip between create and tick could turn a previously-safe hostname into
+# an SSRF target (rebinding, or just a user editing their DNS). Cheap
+# (~ms via cached DNS) and runs at most 1/min via the scheduler.
+_IMDS_HOSTS = frozenset({"169.254.169.254", "metadata.google.internal", "metadata.azure.com"})
+
+
+def _is_safe_url(url: str) -> tuple[bool, str]:
+    """Mirror of main._is_safe_url — duplicated here so scheduler doesn't
+    import from main (would create a circular dep)."""
+    if not url:
+        return False, "empty URL"
+    try:
+        p = urlparse(url)
+    except Exception as e:
+        return False, f"unparseable: {e}"
+    scheme = (p.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        return False, f"scheme {scheme!r} not allowed"
+    host = (p.hostname or "").lower()
+    if not host:
+        return False, "no host"
+    if host in _IMDS_HOSTS:
+        return False, "metadata endpoint blocked"
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as e:
+        return False, f"DNS lookup failed: {e}"
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr.split("%", 1)[0])
+        except ValueError:
+            return False, f"invalid resolved IP: {addr}"
+        if (
+            ip.is_private or ip.is_loopback or ip.is_link_local
+            or ip.is_multicast or ip.is_reserved or ip.is_unspecified
+        ):
+            return False, f"host resolves to non-public IP {ip}"
+    return True, "ok"
 
 
 # Map of supported cron strings → minute interval. Keep aligned with the
@@ -102,6 +147,13 @@ async def _run_one_job(job: dict[str, Any]) -> str:
         return f"error: extract {str(e)[:80]}"
 
     if job.get("webhook_url"):
+        # Re-validate the webhook URL right before POSTing. The create-
+        # time check already ran, but DNS might have flipped (rebinding
+        # attack) or the user might have edited the row directly. If
+        # the host now resolves into a private IP, refuse to deliver.
+        safe, reason = _is_safe_url(job["webhook_url"])
+        if not safe:
+            return f"ok+webhook_blocked: {reason[:60]}"
         # Get user's first non-revoked API key as the HMAC signing secret —
         # so the receiver can recover the secret from their account without
         # us minting a separate per-job secret.

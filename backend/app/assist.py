@@ -41,6 +41,21 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "30"))
 
+# Fallback provider — used automatically when the primary 429s on a model.
+# Groq's free tier (30 RPM / 14k RPD) gets exhausted by a single viral
+# tweet on launch day; we MUST have a second key on a different provider
+# to keep the AI-suggest path alive when that happens. OpenRouter is the
+# default because it's OpenAI-compatible (no client changes), has a free
+# tier of its own, and aggregates many models so a single Llama-70b 429
+# doesn't take everyone down. Set LLM_API_KEY_FALLBACK to enable.
+LLM_API_KEY_FALLBACK = os.getenv("LLM_API_KEY_FALLBACK", "")
+LLM_BASE_URL_FALLBACK = os.getenv(
+    "LLM_BASE_URL_FALLBACK", "https://openrouter.ai/api/v1"
+).rstrip("/")
+LLM_MODEL_FALLBACK = os.getenv(
+    "LLM_MODEL_FALLBACK", "meta-llama/llama-3.3-70b-instruct"
+)
+
 # Default model chain for Groq (the default provider). Order matters:
 # we try [0] first, fall through on model-level errors. Keep this list
 # narrow but resilient — two currently-supported flagship models. When
@@ -707,19 +722,86 @@ async def _call_one_model(
     *,
     model: str,
     user_msg: str,
+    use_fallback: bool = False,
 ) -> httpx.Response:
     """Single POST to the configured provider with a specific model.
-    Caller decides what to do with the result."""
-    payload = _build_payload(model, _SYSTEM_PROMPT, user_msg)
+    Caller decides what to do with the result.
+
+    `use_fallback=True` routes the request to the fallback provider
+    (LLM_*_FALLBACK env vars) — used when the primary returned 429 on
+    launch-day spikes. Caller is responsible for picking the right model
+    name (fallback uses LLM_MODEL_FALLBACK regardless of `model`).
+    """
+    if use_fallback:
+        base_url = LLM_BASE_URL_FALLBACK
+        api_key = LLM_API_KEY_FALLBACK
+        actual_model = LLM_MODEL_FALLBACK
+    else:
+        base_url = LLM_BASE_URL
+        api_key = LLM_API_KEY
+        actual_model = model
+    payload = _build_payload(actual_model, _SYSTEM_PROMPT, user_msg)
     async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
         return await client.post(
-            f"{LLM_BASE_URL}/chat/completions",
+            f"{base_url}/chat/completions",
             headers={
-                "Authorization": f"Bearer {LLM_API_KEY}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
             json=payload,
         )
+
+
+def _fallback_configured() -> bool:
+    """True if a fallback provider key is set. Read at call-time, not
+    import-time, so tests can monkey-patch the env after import."""
+    return bool(LLM_API_KEY_FALLBACK)
+
+
+def _is_rate_limit_error(status: int, body_text: str) -> bool:
+    """Does this provider response mean 'slow down' / 'try later'?
+
+    Covered:
+      * 429 — standard rate-limit status.
+      * 400/503 + body mentions 'rate limit' / 'rate_limit_exceeded'
+        / 'quota' — some providers fold quota errors into other codes.
+    Not covered (intentionally):
+      * 5xx without rate-limit body — that's a server problem, fallback
+        won't help because the issue isn't ours and the fallback provider
+        is unrelated.
+    """
+    if status == 429:
+        return True
+    lower = body_text.lower()
+    if status in (400, 503) and (
+        "rate_limit" in lower
+        or "rate limit" in lower
+        or "quota" in lower
+        or "too many requests" in lower
+    ):
+        return True
+    return False
+
+
+def _log_rate_limit(model: str, status: int, msg: str) -> None:
+    """Log the rate-limit hit. Tries sentry-sdk breadcrumb if available,
+    else falls back to logging.warning. Either way the rate-limit hit is
+    visible — we MUST notice when fallback gets exercised so we know if
+    free-tier quotas are repeatedly blown."""
+    try:
+        import sentry_sdk  # type: ignore[import-not-found]
+        sentry_sdk.add_breadcrumb(
+            category="llm",
+            message=f"primary rate-limited (model={model} status={status})",
+            level="warning",
+            data={"model": model, "status": status, "msg": msg[:200]},
+        )
+    except Exception:
+        pass
+    log.warning(
+        "LLM primary rate-limited model=%s status=%d msg=%s — retrying via fallback",
+        model, status, msg[:200],
+    )
 
 
 async def auto_suggest_template(
@@ -981,6 +1063,51 @@ async def generate_template(
             log.warning("LLM model dead model=%s status=%d: %s", model, res.status_code, body_text[:200])
             _DEAD_MODELS.add(model)
             continue  # Try next model in chain.
+
+        # 429 / rate-limit: try the fallback provider before giving up.
+        # The whole reason fallback exists — Groq's 30 RPM is gone the
+        # moment a viral tweet lands. OpenRouter / OpenAI on a separate
+        # bucket gets us through the spike.
+        if (
+            res is not None
+            and _is_rate_limit_error(res.status_code, body_text)
+            and _fallback_configured()
+        ):
+            _log_rate_limit(model, res.status_code, body_text)
+            try:
+                fb_res = await _call_one_model(
+                    model=model, user_msg=user_msg, use_fallback=True,
+                )
+            except (httpx.TimeoutException, httpx.HTTPError) as e:
+                log.warning("LLM fallback transport error: %s", e)
+                # Treat as non-model error and continue chain.
+                last_non_model_error = (res.status_code, _extract_error_message(body_text))
+                continue
+            if fb_res.status_code < 400:
+                log.info(
+                    "LLM fallback ok provider=%s model=%s (primary %s 429'd)",
+                    LLM_BASE_URL_FALLBACK, LLM_MODEL_FALLBACK, model,
+                )
+                template = _parse_response(fb_res, model=f"fallback:{LLM_MODEL_FALLBACK}")
+                return _validate_selectors(
+                    template, catalog=trimmed, all_elements=elements,
+                    model=f"fallback:{LLM_MODEL_FALLBACK}",
+                )
+            # Fallback also failed — extract its error so we can surface
+            # the right reason (e.g. BOTH 429 → keep rate_limit kind).
+            fb_body = fb_res.text
+            log.warning(
+                "LLM fallback also failed status=%d: %s",
+                fb_res.status_code, fb_body[:200],
+            )
+            # If both primary AND fallback hit a rate limit, surface as
+            # 429. Otherwise prefer the primary's status (more relevant
+            # to the operator).
+            if _is_rate_limit_error(fb_res.status_code, fb_body):
+                last_non_model_error = (429, "primary + fallback both rate-limited")
+            else:
+                last_non_model_error = (res.status_code, _extract_error_message(body_text))
+            continue
 
         # Non-model error (auth, rate-limit, 5xx) — don't burn the chain on
         # it. Remember it and break; if no model succeeds we'll report this.

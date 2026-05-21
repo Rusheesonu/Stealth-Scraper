@@ -33,6 +33,19 @@ LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
 LLM_FAST_MODEL = os.getenv("LLM_FAST_MODEL", "llama-3.1-8b-instant")
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "30"))
 
+# Fallback provider — same env contract as app.assist. Used on 429 from
+# the primary so the bench keeps progressing through long runs without
+# stalling on Groq's per-minute bucket. The bench isn't the hot path for
+# users (it's CI infra) but a 90s sleep × N tests × Y backoffs blows the
+# CI budget anyway, so a transparent fallback is genuinely cheaper.
+LLM_API_KEY_FALLBACK = os.getenv("LLM_API_KEY_FALLBACK", "")
+LLM_BASE_URL_FALLBACK = os.getenv(
+    "LLM_BASE_URL_FALLBACK", "https://openrouter.ai/api/v1"
+).rstrip("/")
+LLM_MODEL_FALLBACK = os.getenv(
+    "LLM_MODEL_FALLBACK", "meta-llama/llama-3.3-70b-instruct"
+)
+
 # Tiered judge thresholds. The 8b model is fast + has 5x the TPM headroom
 # on Groq free tier (30K TPM vs 6K for 70b). We trust 8b's verdict when
 # it shows strong evidence (specific quoted text >= 20 chars) AND the
@@ -199,8 +212,11 @@ async def _call_judge_model(
     # Retry with exponential backoff on 429 (Groq free-tier rate limit).
     # Groq's 429 response usually means "wait ~30s for the per-minute
     # bucket to refill" — Retry-After honored if present, else 30/60/90s.
+    # If a fallback provider is configured we first try ONE fallback call
+    # before sleeping (saves the long backoff for CI runs).
     import asyncio
     res = None
+    fallback_tried = False
     for attempt in range(1 + backoff_retries):
         try:
             async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
@@ -218,6 +234,30 @@ async def _call_judge_model(
 
         if res.status_code != 429:
             break
+
+        # Primary 429'd. Try fallback once (silent on success — bench
+        # keeps marching), then fall through to backoff sleep if fallback
+        # also 429's or isn't configured.
+        if not fallback_tried and LLM_API_KEY_FALLBACK:
+            fallback_tried = True
+            fb_payload = {**payload, "model": LLM_MODEL_FALLBACK}
+            try:
+                async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
+                    fb_res = await client.post(
+                        f"{LLM_BASE_URL_FALLBACK}/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {LLM_API_KEY_FALLBACK}",
+                            "Content-Type": "application/json",
+                        },
+                        json=fb_payload,
+                    )
+            except Exception:
+                fb_res = None
+            if fb_res is not None and fb_res.status_code < 400:
+                res = fb_res
+                break
+            # Fallback also failed — continue to the sleep + retry primary.
+
         retry_after = res.headers.get("retry-after")
         try:
             wait_s = float(retry_after) if retry_after else 30.0 * (attempt + 1)
