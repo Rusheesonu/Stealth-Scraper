@@ -1,0 +1,43 @@
+{
+  "name": "fingerprint",
+  "iso_timestamp": "2026-05-21T09:48:31.182534Z",
+  "commit_sha": "003237a",
+  "backend_endpoint": "local-nodriver + Groq judge (bench.llm_judge)",
+  "duration_s": 7.75,
+  "config": {
+    "site_filter": "browserleaks-canvas",
+    "wait_after_load_s": 5.0,
+    "judge_model": "llama-3.3-70b-versatile",
+    "judge_configured": true
+  },
+  "summary": {
+    "total_sites": 1,
+    "by_verdict": {
+      "pass": 0,
+      "partial": 0,
+      "fail": 1,
+      "unknown": 0,
+      "error": 0
+    },
+    "judgeable": 1,
+    "pass_rate_of_judgeable": 0.0,
+    "sannysoft": null
+  },
+  "results": [
+    {
+      "site_id": "browserleaks-canvas",
+      "url": "https://browserleaks.com/canvas",
+      "elapsed_s": 7.75,
+      "raw_title": "Canvas Fingerprinting - BrowserLeaks",
+      "raw_text_sample": "Home Page\nIP Address\nJavaScript\nWebRTC Leak Test\nCanvas Fingerprint\nWebGL Report\nFont Fingerprinting\nGeolocation API\nFeatures Detection\nTLS Client Test\nContent Filters\nMore Tools\nSettings\nCanvas Fingerprinting\n\nThe Canvas API, which is designed for drawing graphics via JavaScript and HTML, can also be used for online tracking via browser fingerprinting. This technique relies on variations in how canvas images are rendered on different web browsers and platforms to create a personalized digital fingerprint of a user's browser.\n\nCanvas Support Detection\nCanvas 2D API\t\n\u2714\nTrue\nText API for Canvas\t\n\u2714\nTrue\nCanvas toDataURL\t\n\u2714\nTrue\nCanvas Fingerprint\nSignature\tB7618D5D1213AC073F42DD09687A32BA\nUniqueness\t100% (The signature is unique to our database)\nImage File Details\t\n\nFile Size\t7148 bytes\nNumbe",
+      "visible_text_chars": 1228,
+      "verdict": "fail",
+      "score": null,
+      "tests_passed": 3,
+      "tests_total": 3,
+      "evidence": "Uniqueness: 100% (The signature is unique to our database)",
+      "notes": "Canvas fingerprint is unique, indicating potential tracking",
+      "error": null
+    }
+  ]
+}

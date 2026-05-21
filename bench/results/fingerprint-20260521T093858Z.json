@@ -1,0 +1,48 @@
+{
+  "name": "fingerprint",
+  "iso_timestamp": "2026-05-21T09:38:58.747534Z",
+  "commit_sha": "251605f",
+  "backend_endpoint": "local-nodriver + Groq judge (bench.llm_judge)",
+  "duration_s": 7.75,
+  "config": {
+    "site_filter": "sannysoft",
+    "wait_after_load_s": 5.0,
+    "judge_model": "llama-3.3-70b-versatile",
+    "judge_configured": true
+  },
+  "summary": {
+    "total_sites": 1,
+    "by_verdict": {
+      "pass": 1,
+      "partial": 0,
+      "fail": 0,
+      "unknown": 0,
+      "error": 0
+    },
+    "judgeable": 1,
+    "pass_rate_of_judgeable": 1.0,
+    "sannysoft": {
+      "verdict": "pass",
+      "passed": 34,
+      "total": 34,
+      "evidence": "WebDriver (New): missing (passed)"
+    }
+  },
+  "results": [
+    {
+      "site_id": "sannysoft",
+      "url": "https://bot.sannysoft.com/",
+      "elapsed_s": 7.75,
+      "raw_title": "Antibot",
+      "raw_text_sample": "Intoli.com tests + additions\nTest Name\tResult\nUser Agent\n(Old)\n\tMozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36\nWebDriver\n(New)\n\tmissing (passed)\nWebDriver Advanced\tpassed\nChrome\n(New)\n\tpresent (passed)\nPermissions\n(New)\n\tprompt\nPlugins Length\n(Old)\n\t5\nPlugins is of type PluginArray\tpassed\nLanguages\n(Old)\n\ten-US,en;q=0.9\nWebGL Vendor\tCanvas has no webgl context\nWebGL Renderer\tCanvas has no webgl context\nBroken Image Dimensions\t16x16\nFingerprint Scanner tests\nPHANTOM_UA\tok\t\n{\n     \"userAgent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36\"\n}\n\nPHANTOM_PROPERTIES\tok\t\n{\n     \"attributesFound\": [\n          false,\n          false,\n          false\n     ]\n}\n\nPHANTOM_ET",
+      "visible_text_chars": 15001,
+      "verdict": "pass",
+      "score": null,
+      "tests_passed": 34,
+      "tests_total": 34,
+      "evidence": "WebDriver (New): missing (passed)",
+      "notes": "All tests passed, no bot detection",
+      "error": null
+    }
+  ]
+}
