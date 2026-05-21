@@ -3,14 +3,72 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
+import logging
+import socket
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 from nodriver import cdp
 
 from app.actions import run_actions, BrowserAction
 from app.browser import pool, with_transient_retry
 from app.extract_js import COLLECT_ELEMENTS_JS
+
+
+log = logging.getLogger(__name__)
+
+
+# ── SSRF guard ────────────────────────────────────────────────────────────
+# Untrusted URLs flow into `take_snapshot` from /snapshot, /extract, and the
+# anonymous /public/snapshot-and-suggest endpoint. Without an allowlist a
+# visitor could ask us to fetch `http://169.254.169.254/latest/meta-data/`
+# (AWS IMDS) or `http://10.0.0.0/8` services on the host network, leaking
+# cloud credentials or pivoting onto an internal LAN. We resolve EVERY
+# A/AAAA record (defeats DNS rebinding at lookup time) and reject if any
+# resolves to a non-public address.
+
+def _is_safe_url(url: str) -> tuple[bool, str]:
+    """Returns (ok, reason). Blocks SSRF to private/loopback/link-local.
+
+    Resolves DNS at check time. There's a TOCTOU window between this
+    resolve and the actual fetch by Chrome — full bulletproofing would
+    require pinning the address into Chrome's resolver. For our threat
+    model (random landing-page visitors, not nation-state attackers
+    paying for ms-precision DNS rebinding), this is good enough.
+    """
+    try:
+        p = urlparse(url)
+    except Exception:
+        return False, "unparseable URL"
+    if p.scheme not in ("http", "https"):
+        return False, f"scheme {p.scheme!r} not allowed"
+    host = p.hostname
+    if not host:
+        return False, "missing host"
+    # Reject literal addresses too — e.g. `http://0/` resolves to 0.0.0.0
+    # on Linux which then maps to localhost.
+    try:
+        addrs = socket.getaddrinfo(host, None)
+    except Exception as e:
+        return False, f"DNS resolution failed: {e}"
+    for fam, _, _, _, sockaddr in addrs:
+        ip = sockaddr[0]
+        try:
+            ip_obj = ipaddress.ip_address(ip.split("%")[0])  # strip IPv6 zone id
+        except ValueError:
+            continue
+        if (
+            ip_obj.is_private
+            or ip_obj.is_loopback
+            or ip_obj.is_link_local
+            or ip_obj.is_reserved
+            or ip_obj.is_multicast
+            or ip_obj.is_unspecified
+        ):
+            return False, f"target resolves to non-public address {ip}"
+    return True, "ok"
 
 
 @dataclass
@@ -96,10 +154,10 @@ async def _warmup_session(target_url: str) -> None:
         # under 2s misses some challenges, over 3s adds noticeable latency.
         await asyncio.sleep(2.5)
         _warmed_hosts.add(host)
-        print(f"[warmup] warmed {host}")
+        log.info("warmup.complete", extra={"host": host})
     except Exception as e:
         # Don't poison the cache on error — let the next attempt retry.
-        print(f"[warmup] {host} warmup failed (continuing anyway): {e!r}")
+        log.warning("warmup.failed", extra={"host": host, "error": repr(e)})
     finally:
         if warmup_tab is not None:
             try: await warmup_tab.close()
@@ -120,6 +178,10 @@ async def _snapshot_inner(
 ) -> SnapshotResult:
     """Order matters more than anything in this function.
 
+    SSRF: we re-check URL safety inside the retry loop so that even if a
+    transient retry sees a DNS change between attempts (rebinding), each
+    attempt still validates before opening the tab.
+
     The hard lesson: any viewport resize after navigation fires a window
     `resize` event, which triggers re-layouts + lazy mount of things
     like Amazon's filter sidebar. That means bboxes and the screenshot
@@ -138,6 +200,13 @@ async def _snapshot_inner(
          bboxes are already frozen and the pixel-to-bbox mapping stays
          correct.
     """
+    # SSRF gate — first thing before we open a tab. Raises ValueError
+    # that the routes translate into HTTP 422 with a {kind, message}
+    # detail body.
+    ok, reason = _is_safe_url(url)
+    if not ok:
+        raise ValueError(f"unsafe URL: {reason}")
+
     tab = await pool.open_tab("about:blank")
     try:
         # Set the viewport ONCE, before we navigate. We never touch it
@@ -175,7 +244,7 @@ async def _snapshot_inner(
                 # start collecting elements / taking screenshots.
                 await asyncio.sleep(0.4)
             except Exception as e:
-                print(f"[snapshot] actions failed: {e!r}")
+                log.warning("snapshot.actions_failed", extra={"url": url, "error": repr(e)})
 
         # 3. Force-eager all currently-known lazy images. Belt and
         # suspenders alongside the observer in case the observer
@@ -273,9 +342,14 @@ async def _snapshot_inner(
         ))
         screenshot_b64 = shot if isinstance(shot, str) else str(shot)
 
-        print(
-            f"[snapshot] {url} → {len(data.get('elements', []))} elements "
-            f"(page {data.get('page', {}).get('width')}×{data.get('page', {}).get('height')})"
+        log.info(
+            "snapshot.complete",
+            extra={
+                "url": url,
+                "elements": len(data.get("elements", [])),
+                "page_width": data.get("page", {}).get("width"),
+                "page_height": data.get("page", {}).get("height"),
+            },
         )
 
         return SnapshotResult(
@@ -503,15 +577,15 @@ async def _evaluate_json(tab, expression: str) -> dict:
 
     if exc is not None:
         text = getattr(exc, "text", None) or getattr(exc, "exception", None)
-        print(f"[snapshot] in-page eval raised: {text!r}")
+        log.warning("snapshot.eval_raised", extra={"text": repr(text)})
         return {"elements": [], "viewport": {}, "page": {}}
 
     value = getattr(remote, "value", None)
     if value is None:
-        print("[snapshot] CDP returned no value (type may not be serializable)")
+        log.warning("snapshot.cdp_no_value")
         return {"elements": [], "viewport": {}, "page": {}}
     if not isinstance(value, dict):
-        print(f"[snapshot] CDP returned {type(value).__name__} instead of dict")
+        log.warning("snapshot.cdp_wrong_type", extra={"type": type(value).__name__})
         return {"elements": [], "viewport": {}, "page": {}}
     return value
 

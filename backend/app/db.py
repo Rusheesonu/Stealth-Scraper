@@ -77,6 +77,18 @@ async def init() -> None:
                 "Schema not initialized — run the migration in Supabase SQL editor "
                 "or `python -m app.migrate`. See backend/migrations/initial.sql."
             )
+        # Late-add table — webhook idempotency was bolted on after the
+        # initial migration was already applied to prod, so self-create
+        # here for backwards compat. Idempotent CREATE IF NOT EXISTS.
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS processed_webhook_events (
+                event_id      TEXT PRIMARY KEY,
+                received_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                payload       JSONB
+            )
+            """
+        )
 
 
 async def close() -> None:
@@ -308,6 +320,28 @@ async def upsert_subscription(
         )
 
 
+async def record_processed_webhook(event_id: str, payload: dict[str, Any]) -> bool:
+    """Insert (event_id, payload) into processed_webhook_events.
+
+    Returns True on a fresh insert, False if the event_id was already
+    processed (duplicate delivery). Idempotency is enforced by the table's
+    PRIMARY KEY on event_id — UniqueViolationError on conflict means we've
+    seen this exact webhook before and the caller should short-circuit
+    rather than re-apply state.
+    """
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        try:
+            await conn.execute(
+                "INSERT INTO processed_webhook_events (event_id, payload) "
+                "VALUES ($1, $2::jsonb)",
+                event_id, json.dumps(payload),
+            )
+            return True
+        except asyncpg.UniqueViolationError:
+            return False
+
+
 async def update_subscription_status(*, ls_subscription_id: str, status: str) -> None:
     pool = await _get_pool()
     async with pool.acquire() as conn:
@@ -343,6 +377,46 @@ async def increment_usage_count(user_id: str, year_month: str, by: int = 1) -> N
             """,
             user_id, year_month, by,
         )
+
+
+async def try_increment_usage(
+    user_id: str, year_month: str, max_allowed: int, by: int = 1,
+) -> tuple[bool, int]:
+    """Atomically increment usage if (current + by) <= max_allowed.
+
+    Returns (allowed, count_after). When NOT allowed the count is left
+    untouched and the caller should raise 403. This collapses the old
+    read-then-write pattern (which races under N concurrent requests
+    landing on the same user_id+month row) into a single round-trip.
+
+    The UPDATE...RETURNING is the atomic part: Postgres holds a row-level
+    lock from the WHERE-match through the SET, so two concurrent calls
+    serialize on the same row. The one that pushes past `max_allowed`
+    fails the WHERE clause and gets a NULL row back.
+    """
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        # Ensure the row exists. The UNIQUE constraint on (user_id,
+        # year_month) is enforced by the PRIMARY KEY in migrations/initial.sql.
+        await conn.execute(
+            "INSERT INTO usage_counts (user_id, year_month, count) "
+            "VALUES ($1, $2, 0) "
+            "ON CONFLICT (user_id, year_month) DO NOTHING",
+            user_id, year_month,
+        )
+        row = await conn.fetchrow(
+            "UPDATE usage_counts SET count = count + $4, updated_at = NOW() "
+            "WHERE user_id = $1 AND year_month = $2 AND count + $4 <= $3 "
+            "RETURNING count",
+            user_id, year_month, max_allowed, by,
+        )
+        if row is None:
+            current = await conn.fetchval(
+                "SELECT count FROM usage_counts WHERE user_id = $1 AND year_month = $2",
+                user_id, year_month,
+            )
+            return False, int(current or 0)
+        return True, int(row["count"])
 
 
 # ── API Keys ──────────────────────────────────────────────────────────────

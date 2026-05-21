@@ -51,6 +51,15 @@ pyjwt[crypto]>=2.9      # Supabase JWT verification (ES256 via JWKS endpoint)
 python-dotenv>=1.0
 apscheduler>=3.10       # cron'd scrapes + webhook delivery retries
 
+# ── Observability ────────────────────────────────────────────────────────
+# Sentry — production error reporting. Optional at runtime: if SENTRY_DSN
+# is unset we skip init and the SDK no-ops. The [fastapi] extra installs
+# starlette + asgi integrations so unhandled HTTPExceptions, slow request
+# breadcrumbs, and stack traces show up in the Sentry UI with the route
+# attached. PII (user IDs, scraped URL query strings) is scrubbed in
+# `app.main._scrub_event` before send.
+sentry-sdk[fastapi]>=2.14
+
 # ── AI-assisted schema generation ────────────────────────────────────────
 # Any OpenAI-compatible endpoint via raw httpx (Groq is the default —
 # free tier). No SDK lock-in.
