@@ -70,8 +70,12 @@ services:
           memory: 1024M
     # Health check — Docker uses this to know if the container is alive.
     # `restart: unless-stopped` + health check = auto-recover from hangs.
+    # Uses python stdlib (urllib) because the python:3.12-slim base image
+    # has no curl — the previous `curl -f …` test always failed with
+    # "executable file not found", leaving the container permanently
+    # marked "unhealthy" even when serving fine.
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:7860/status"]
+      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7860/status', timeout=5).status == 200 else 1)"]
       interval: 30s
       timeout: 10s
       retries: 3
