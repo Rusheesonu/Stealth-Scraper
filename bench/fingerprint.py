@@ -65,6 +65,7 @@ class SiteResult:
     error: str | None = None
     engine_used: str | None = None       # which engine the router picked
     escalation_path: list[str] | None = None
+    judged_by: str = ""                  # which LLM model gave the verdict ("8b" | "70b")
 
 
 async def _grab_page(url: str) -> tuple[str, str, int, str | None, str | None, list[str]]:
@@ -138,6 +139,7 @@ async def test_one(url: str, site_id: str) -> SiteResult:
     r.tests_total = verdict.tests_total
     r.evidence = verdict.evidence
     r.notes = verdict.notes
+    r.judged_by = verdict.judged_by
     if verdict.error:
         r.error = verdict.error
     return r

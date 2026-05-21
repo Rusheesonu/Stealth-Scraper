@@ -30,7 +30,17 @@ import httpx
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
 LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+LLM_FAST_MODEL = os.getenv("LLM_FAST_MODEL", "llama-3.1-8b-instant")
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "30"))
+
+# Tiered judge thresholds. The 8b model is fast + has 5x the TPM headroom
+# on Groq free tier (30K TPM vs 6K for 70b). We trust 8b's verdict when
+# it shows strong evidence (specific quoted text >= 20 chars) AND the
+# verdict is not "unknown". Anything weaker escalates to the 70b judge.
+# Tuned in iter 16 based on observed 8b failure mode (sannysoft 34/34
+# was misjudged as FAIL with empty/generic evidence — that pattern
+# matches our "weak evidence → escalate" rule).
+_MIN_EVIDENCE_CHARS = 20
 
 
 @dataclass
@@ -53,6 +63,7 @@ class Verdict:
     notes: str = ""
     raw_text_chars: int = 0                    # how much page text the LLM saw
     error: Optional[str] = None
+    judged_by: str = ""                        # which model gave the final verdict ("8b" | "70b" | "")
 
 
 SYSTEM_PROMPT = """\
@@ -113,6 +124,15 @@ async def judge_page(
 ) -> Verdict:
     """Send the rendered page text to the LLM and parse the verdict.
 
+    Iter 16 experimented with a tiered 8b→70b judge to dodge Groq's 6K
+    TPM cap on the 70b model. REVERTED — 8b hallucinated evidence
+    (e.g. invented "Your fingerprint is unique among 1,234,567 observed"
+    on sannysoft, a string that doesn't exist on that page) and
+    confidently returned false-fail verdicts. False fails are strictly
+    worse than honest unknowns for benchmark trust. Going forward,
+    fingerprint measurement is upgrade-bound: either pay for a Groq
+    plan to raise TPM on the 70b model, or run a self-hosted 70b.
+
     Truncates the text to `max_chars` because detection pages can be
     huge (creepjs ships ~50KB of debug output) — past 4-5K we're paying
     tokens for noise that doesn't affect the verdict.
@@ -137,6 +157,26 @@ async def judge_page(
             raw_text_chars=0,
         )
 
+    v = await _call_judge_model(
+        model=LLM_MODEL,
+        url=url, title=title, text=text, max_chars=max_chars,
+        backoff_retries=3,
+    )
+    v.judged_by = "70b"
+    return v
+
+
+async def _call_judge_model(
+    *,
+    model: str,
+    url: str,
+    title: str,
+    text: str,
+    max_chars: int,
+    backoff_retries: int,
+) -> Verdict:
+    """One LLM round-trip. Returns a Verdict (never raises). Caller
+    decorates with `judged_by`."""
     truncated = text[:max_chars]
     user_msg = (
         f"URL: {url}\n"
@@ -146,7 +186,7 @@ async def judge_page(
     )
 
     payload = {
-        "model": LLM_MODEL,
+        "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_msg},
@@ -158,11 +198,10 @@ async def judge_page(
 
     # Retry with exponential backoff on 429 (Groq free-tier rate limit).
     # Groq's 429 response usually means "wait ~30s for the per-minute
-    # bucket to refill" — the Retry-After header is honored if present,
-    # otherwise we fall back to 30s, 60s, 90s.
+    # bucket to refill" — Retry-After honored if present, else 30/60/90s.
     import asyncio
     res = None
-    for attempt in range(4):  # 1 initial + 3 retries
+    for attempt in range(1 + backoff_retries):
         try:
             async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
                 res = await client.post(
@@ -179,19 +218,18 @@ async def judge_page(
 
         if res.status_code != 429:
             break
-        # 429 — back off and retry. Honor Retry-After if Groq sent one.
         retry_after = res.headers.get("retry-after")
         try:
             wait_s = float(retry_after) if retry_after else 30.0 * (attempt + 1)
         except ValueError:
             wait_s = 30.0 * (attempt + 1)
-        wait_s = min(wait_s, 90.0)  # cap so a bench doesn't hang for hours
+        wait_s = min(wait_s, 90.0)
         await asyncio.sleep(wait_s)
 
     if res is None or res.status_code >= 400:
         return Verdict(
             verdict="error",
-            error=f"LLM HTTP {res.status_code if res else 'no-response'}: "
+            error=f"LLM HTTP {res.status_code if res else 'no-response'} ({model}): "
                   f"{(res.text[:200] if res else '')}",
             raw_text_chars=len(text),
         )
@@ -211,7 +249,7 @@ async def judge_page(
     except Exception as e:
         return Verdict(
             verdict="error",
-            error=f"could not parse LLM response: {type(e).__name__}: {e}",
+            error=f"could not parse LLM response ({model}): {type(e).__name__}: {e}",
             raw_text_chars=len(text),
         )
 
