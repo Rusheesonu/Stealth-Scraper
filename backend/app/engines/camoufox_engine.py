@@ -215,6 +215,16 @@ class CamoufoxEngine:
                 except Exception:
                     pass
 
+                # NOTE: tried `asyncio.sleep(6.0)` here for fingerprint-test
+                # hints (creepjs / amiunique need client-side compute time).
+                # REVERTED — the long sleep inside the AsyncCamoufox context
+                # triggered "Browser.close: Connection closed" errors on 6/9
+                # sites (camoufox's keepalive ping timed out during the
+                # sleep). Better path: use page.wait_for_function() to
+                # poll for a verdict-rendered DOM signal, or move the wait
+                # to the bench layer (after page.content() captured but
+                # before judge_page). Tracked in setup_needed.md TODO.
+
                 # Single-shot title — avoid the double round-trip.
                 raw_title = await page.title()
                 title = (raw_title or "")[:200]
