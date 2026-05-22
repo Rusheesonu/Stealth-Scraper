@@ -387,10 +387,19 @@ async def _snapshot_inner(
         # Cookies are tiny + the most reliable bot-wall fingerprint.
         html_excerpt = ""
         full_html = ""
+        # Use nodriver's canonical `tab.get_content()` (CDP DOM.getOuterHTML)
+        # NOT `tab.evaluate("document.documentElement.outerHTML")`. The
+        # evaluate path returns over CDP Runtime.evaluate which serializes
+        # the return value through the websocket protocol — large strings
+        # (>~1MB) come back truncated or stringified-to-undefined on real
+        # e-commerce pages. Symptom: the in-page element catalog included
+        # `#productTitle` but `snap.html` did not, and every selector at
+        # extract-time returned "selector matched zero nodes" — exactly
+        # the bug a user hit on `/ai-extract` against Amazon (May 22).
+        # `DOM.getOuterHTML` returns the full document over a dedicated
+        # CDP call without that limitation.
         try:
-            raw_html = await tab.evaluate("document.documentElement.outerHTML")
-            if isinstance(raw_html, tuple):
-                raw_html = raw_html[0]
+            raw_html = await tab.get_content()
             if isinstance(raw_html, str):
                 html_excerpt = raw_html[:8192]
                 # 2MB cap — covers 99.9% of real pages including Amazon
