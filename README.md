@@ -21,7 +21,8 @@ schemas it figures out for you.
 ## What you actually get
 
 ```python
-# pip install stealth-scraper        (sources: sdks/python/)
+# Install from source until v1 hits PyPI (coming soon):
+# pip install git+https://github.com/Rusheesonu/Stealth-Scraper.git#subdirectory=sdks/python
 
 from stealth_scraper import StealthClient
 
@@ -44,7 +45,8 @@ result = client.run_template(template_id="t_hn_frontpage", url="https://news.yco
 TypeScript/JS:
 
 ```bash
-npm install stealth-scraper          # sources: sdks/typescript/
+# Install from source until v1 hits npm (coming soon):
+npm install github:Rusheesonu/Stealth-Scraper#path:sdks/typescript
 ```
 
 ```ts
@@ -56,8 +58,10 @@ const snap = await client.snapshot('https://news.ycombinator.com/');
 For AI agents that need real-time tool use:
 
 ```bash
-# MCP server (Anthropic Model Context Protocol) — sources: sdks/mcp/
-npx @stealth-scraper/mcp
+# MCP server — sources: sdks/mcp/. Until we publish to npm, install from
+# the cloned repo:  git clone … && cd sdks/mcp && npm install && npm run build
+# Then point Claude Desktop / Cursor at: node /absolute/path/to/sdks/mcp/dist/index.js
+node ./sdks/mcp/dist/index.js
 # → adds `scrape_url`, `extract_structured`, `list_templates`, `run_template`
 #   tools to Claude Desktop / Cursor / Cline / etc.
 ```
@@ -155,7 +159,7 @@ python -m bench.throughput    # 30 URLs, pages/$ + engine mix
 | **Scheduled scrapes** | Cron-like scheduling per template. Webhook delivery on completion. |
 | **Batch mode** | Newline list of URLs → JSON/CSV bundle. |
 | **Recipe marketplace** | Publish + clone public templates. |
-| **API + SDKs** | REST + Python (`pip install stealth-scraper`, sources in `sdks/python/`) + TypeScript (`npm i stealth-scraper`, sources in `sdks/typescript/`) + MCP server (`npx @stealth-scraper/mcp`, sources in `sdks/mcp/`). |
+| **API + SDKs** | REST + Python (`sdks/python/` — install from git, PyPI release coming) + TypeScript (`sdks/typescript/` — install from git, npm release coming) + MCP server (`sdks/mcp/` — build locally + point Claude Desktop at the binary). |
 | **Usage dashboard** | Monthly scrapes vs plan limit, success rate, average latency. |
 
 ---

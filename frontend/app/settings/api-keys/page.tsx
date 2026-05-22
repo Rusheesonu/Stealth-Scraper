@@ -20,19 +20,27 @@ const SDK_TABS: { id: Lang; label: string; iconText: string }[] = [
 
 function buildSnippets(apiKey: string): Record<Lang, string> {
   return {
-    python: `# pip install stealth-scraper
+    // SDK sources live at github.com/Rusheesonu/Stealth-Scraper/tree/master/sdks
+    // until we publish to PyPI / npm (coming soon). Install from git in
+    // the meantime — both pip and npm support git+https URLs natively.
+    python: `# install from source until v1 hits PyPI:
+# pip install git+https://github.com/Rusheesonu/Stealth-Scraper.git#subdirectory=sdks/python
+
 from stealth_scraper import StealthClient
 
 client = StealthClient(api_key="${apiKey}")
 result = client.snapshot("https://news.ycombinator.com/")
 print(result.elements[:3])`,
-    typescript: `// npm install stealth-scraper
+    typescript: `// install from source until v1 hits npm:
+// npm install github:Rusheesonu/Stealth-Scraper#path:sdks/typescript
+
 import { StealthClient } from 'stealth-scraper';
 
 const client = new StealthClient({ apiKey: '${apiKey}' });
 const result = await client.snapshot('https://news.ycombinator.com/');
 console.log(result.elements.slice(0, 3));`,
-    curl: `curl -X POST https://api.stealthscraper.dev/snapshot \\
+    curl: `# Works today — the API itself is live.
+curl -X POST https://api.stealthscraper.dev/snapshot \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{"url":"https://news.ycombinator.com/"}'`,

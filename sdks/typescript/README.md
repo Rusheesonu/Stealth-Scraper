@@ -2,16 +2,19 @@
 
 Official TypeScript/JavaScript SDK for [Stealth Scraper](https://stealthscraper.dev) — the anti-bot-resistant web scraping API.
 
-> **Status:** beta. Public API is stable; we follow semver from `1.0.0` onward.
+> **Status:** beta — npm release coming with the Product Hunt launch
+> (June 1, 2026). Until then, install from git (works today).
 
 ## Install
 
 ```bash
+# During beta — install directly from GitHub:
+npm install github:Rusheesonu/Stealth-Scraper#path:sdks/typescript
+
+# After June 1 npm release:
 npm install stealth-scraper
-# or
-pnpm add stealth-scraper
-# or
-yarn add stealth-scraper
+# or pnpm add stealth-scraper
+# or yarn add stealth-scraper
 ```
 
 ## Quickstart
