@@ -402,12 +402,15 @@ async def _snapshot_inner(
             raw_html = await tab.get_content()
             if isinstance(raw_html, str):
                 html_excerpt = raw_html[:8192]
-                # 2MB cap — covers 99.9% of real pages including Amazon
-                # PDPs (~700KB typical), nytimes article pages (~400KB),
-                # GitHub README pages (~300KB). Mega-pages (catalogs,
-                # forums with deep threads) get truncated; better than
-                # a memory blow per concurrent request.
-                full_html = raw_html[: 2 * 1024 * 1024]
+                # 5MB cap. Earlier 2MB cap was clipping Amazon product
+                # pages (a single Invicta PDP runs ~2MB; with the
+                # `Customers also bought` carousel + reviews it's
+                # >2.5MB). Truncation past 2MB lost important elements
+                # in the user-reported `/ai-extract` failure. 5MB gives
+                # headroom for Amazon / Walmart / Best Buy class pages
+                # without runaway memory under concurrency: 5MB × 4
+                # workers = 20MB peak, acceptable.
+                full_html = raw_html[: 5 * 1024 * 1024]
         except Exception:
             pass
         cookies_dict: dict[str, str] = {}
