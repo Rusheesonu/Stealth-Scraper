@@ -829,14 +829,36 @@ async def public_snapshot_and_suggest(
 
     # 3. If we got a template, run extraction so the visitor sees live
     # values, not just selectors. Cap at 5 fields for the preview.
+    #
+    # /extract now returns the FieldResult envelope (2026-05-22 structural
+    # fix — every field carries {value, source, confidence, selector_used,
+    # reason_if_null} so silent nulls are structurally impossible). The
+    # frontend preview UI still expects bare values keyed by label, so we
+    # expose BOTH shapes for the transition:
+    #
+    #   sample_values    — legacy bare-value dict (what the preview UI
+    #                      reads today; flatten .value from envelopes)
+    #   sample_envelope  — full FieldResult per field — new consumers
+    #                      get confidence + source + reason_if_null
+    #
+    # When the landing-preview UI is updated to display confidence /
+    # reasons, it switches to `sample_envelope` and we drop the legacy.
     sample_values: dict[str, Any] = {}
+    sample_envelope: dict[str, Any] = {}
     if template:
         from app.extract import extract as extract_fields  # local import keeps cold-start light
         async with scrape_slot():
             try:
                 preview_template = template[:3]
                 res = await extract_fields(snap.url, preview_template)  # type: ignore[arg-type]
-                sample_values = res.get("fields", {}) if isinstance(res, dict) else {}
+                envelope_fields = res.get("fields", {}) if isinstance(res, dict) else {}
+                if isinstance(envelope_fields, dict):
+                    sample_envelope = envelope_fields
+                    # Flatten to bare values for the legacy preview UI.
+                    sample_values = {
+                        label: (f.get("value") if isinstance(f, dict) else f)
+                        for label, f in envelope_fields.items()
+                    }
             except Exception as e:
                 # Same logic as suggest — extraction failure shouldn't kill the
                 # preview. We at least show the suggested schema.
@@ -848,7 +870,8 @@ async def public_snapshot_and_suggest(
         "screenshot": snap.screenshot_base64,
         "page_type": page_type,
         "template": template[:3],
-        "sample_values": sample_values,
+        "sample_values": sample_values,         # legacy — bare values, kept for UI compat
+        "sample_envelope": sample_envelope,     # canonical — FieldResult per field
         "element_count": len(snap.elements),
         "rate_limit": {
             "limit": PUBLIC_SNAPSHOT_LIMIT,

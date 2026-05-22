@@ -50,6 +50,81 @@ class Field(TypedDict, total=False):
     transforms: list[Transform]
 
 
+# Provenance of an extracted value. The point: the user can ALWAYS see
+# why a field has the value it does — selector hit, LLM guess, heuristic
+# fallback, or honest "we didn't find it."
+FieldSource = Literal["selector", "xpath", "llm", "heuristic", "none"]
+
+
+class FieldResult(TypedDict):
+    """The confidence envelope for one extracted field.
+
+    Every field returned by /extract carries this envelope so a
+    `null` value is ALWAYS paired with a `reason_if_null` and a
+    `confidence`. No more silent failures — if extraction misses,
+    the response says so explicitly.
+
+    Schema introduced 2026-05-22 per the pre-launch audit ("Update
+    API, frontend display, all 4 SDKs, docs. This is the structural
+    fix — do it right."). This is a BREAKING CHANGE — the prior
+    response had `result["fields"][label] = <bare_value>`. The new
+    shape is `result["fields"][label] = FieldResult`. See CHANGELOG
+    and the SDK migration note.
+
+    Fields:
+      value          — extracted value (str | int | float | list | None)
+      source         — provenance — "selector" / "xpath" / "llm" /
+                       "heuristic" / "none"
+      confidence     — 0.0–1.0 — 1.0 for a CSS selector that matched,
+                       0.0 for a missing field, 0.5 for a heuristic
+                       guess, varies for LLM
+      selector_used  — the actual CSS / XPath that produced the
+                       value (or attempted, if value is None). Null
+                       for non-selector sources (e.g. LLM-only).
+      reason_if_null — human-readable explanation when value is None.
+                       Always set when value is None; null otherwise.
+    """
+    value: Any
+    source: FieldSource
+    confidence: float
+    selector_used: str | None
+    reason_if_null: str | None
+
+
+def _envelope(
+    value: Any,
+    *,
+    source: FieldSource,
+    confidence: float,
+    selector_used: str | None,
+    reason_if_null: str | None = None,
+) -> FieldResult:
+    """Build a FieldResult, enforcing the rule that `value is None`
+    requires a non-null `reason_if_null`. Catches the silent-null bug
+    structurally — a null without a reason is a programming error,
+    not a runtime state.
+    """
+    # Treat empty string + empty list as "no value" for the purposes of
+    # the reason invariant — they're not OBJECTIVELY null, but for the
+    # silent-failure narrative they're the same shape.
+    is_empty = value is None or value == "" or value == []
+    if is_empty and not reason_if_null:
+        # Default reason when caller forgot — keeps the envelope
+        # honest even when the call site is sloppy.
+        reason_if_null = "extractor returned empty without specifying a reason"
+    if not is_empty:
+        # Non-null values clear any reason — caller may have set one
+        # speculatively; this normalizes.
+        reason_if_null = None
+    return FieldResult(
+        value=value,
+        source=source,
+        confidence=max(0.0, min(1.0, float(confidence))),
+        selector_used=selector_used,
+        reason_if_null=reason_if_null,
+    )
+
+
 async def extract(
     url: str,
     template: list[Field],
@@ -158,11 +233,44 @@ async def _extract_inner(
                     all_pages_html.append(page_html)
 
         # Merge: parse each page, run template, concat list fields, keep scalars from p1.
-        merged_fields: dict[str, Any] = {}
+        #
+        # Every field is now a FieldResult envelope per the 2026-05-22
+        # structural fix. The legacy bare-value `result["fields"]` shape
+        # is gone — callers read `result["fields"][label]["value"]`.
+        # Per-row list extractor still returns raw values; we wrap them
+        # into envelopes here so the response is uniform.
+        merged_fields: dict[str, FieldResult] = {}
         for i, page_html in enumerate(all_pages_html):
             tree = lxml_html.fromstring(page_html)
             row_values, row_labels = _pull_lists_per_row(tree, template)
-            page_fields: dict[str, Any] = dict(row_values)
+            # Wrap row-extractor results in envelopes (source=selector,
+            # confidence=1.0 if non-empty; honest null otherwise).
+            page_fields: dict[str, FieldResult] = {}
+            for label, value in row_values.items():
+                # The row extractor produced a list of values aligned
+                # across the template's list fields. Find the matching
+                # field's selector for `selector_used`.
+                matching_field = next(
+                    (f for f in template if (f.get("label") or f.get("selector") or "field") == label),
+                    None,
+                )
+                used = (matching_field or {}).get("selector") if matching_field else None
+                if value:
+                    page_fields[label] = _envelope(
+                        value,
+                        source="selector",
+                        confidence=1.0,
+                        selector_used=used,
+                    )
+                else:
+                    page_fields[label] = _envelope(
+                        [],
+                        source="selector",
+                        confidence=0.5,
+                        selector_used=used,
+                        reason_if_null="per-row extractor produced empty result",
+                    )
+            # Non-row-handled fields go through the single-field pull.
             for field in template:
                 label = field.get("label") or field.get("selector") or "field"
                 if label in row_labels:
@@ -172,15 +280,34 @@ async def _extract_inner(
                 except Exception as e:
                     if i == 0:
                         result["errors"][label] = str(e)
-                    page_fields[label] = None
+                    page_fields[label] = _envelope(
+                        None,
+                        source="none",
+                        confidence=0.0,
+                        selector_used=field.get("selector") or field.get("xpath") or None,
+                        reason_if_null=f"extraction raised: {type(e).__name__}: {str(e)[:120]}",
+                    )
 
             if i == 0:
                 merged_fields = page_fields
             else:
-                # Concat list values; keep scalar values from page 1.
+                # Concat list values across pages; keep scalar values
+                # from page 1. Both sides are FieldResult envelopes.
                 for k, v in page_fields.items():
-                    if isinstance(v, list) and isinstance(merged_fields.get(k), list):
-                        merged_fields[k] = merged_fields[k] + v
+                    prev = merged_fields.get(k)
+                    if not prev:
+                        merged_fields[k] = v
+                        continue
+                    if isinstance(prev["value"], list) and isinstance(v["value"], list):
+                        # Build a new envelope with concatenated lists +
+                        # merged provenance (selector from p1; confidence
+                        # max across pages).
+                        merged_fields[k] = _envelope(
+                            (prev["value"] or []) + (v["value"] or []),
+                            source=prev["source"],
+                            confidence=max(prev["confidence"], v["confidence"]),
+                            selector_used=prev["selector_used"],
+                        )
 
         result["fields"] = merged_fields
         if len(all_pages_html) > 1:
@@ -220,48 +347,108 @@ def _html_to_markdown(html_content: str) -> str:
             return html_content
 
 
-def _pull(tree, field: Field) -> Any:
+def _pull(tree, field: Field) -> FieldResult:
+    """Extract one field, returning the FieldResult envelope.
+
+    Provenance: tries CSS selector first, then xpath. Reports which
+    one matched in `selector_used`. If neither matched, returns a
+    null-value envelope with a precise `reason_if_null`.
+
+    Confidence: 1.0 for a deterministic selector match (the CSS /
+    XPath unambiguously produced the value). 0.0 when no nodes
+    matched. Future iters can lower confidence based on heuristic
+    flags (e.g. selector matched but result was empty string).
+    """
     selector = (field.get("selector") or "").strip()
     xpath = (field.get("xpath") or "").strip()
     kind = field.get("kind", "text")
     attr = field.get("attr", "")
 
+    # If no selector AND no xpath, the field is unspecified.
+    if not selector and not xpath:
+        return _envelope(
+            [] if kind == "list" else None,
+            source="none",
+            confidence=0.0,
+            selector_used=None,
+            reason_if_null="field has neither selector nor xpath",
+        )
+
+    # Try CSS first, then XPath. Record which one was the source.
     nodes: list[Any] = []
+    source: FieldSource = "none"
+    used: str | None = None
     if selector:
         try:
             nodes = tree.cssselect(selector)
+            if nodes:
+                source = "selector"
+                used = selector
         except Exception:
             nodes = []
     if not nodes and xpath:
         try:
             nodes = tree.xpath(xpath)
+            if nodes:
+                source = "xpath"
+                used = xpath
         except Exception:
             nodes = []
 
+    # Selector did not match anything.
     if not nodes:
-        return [] if kind == "list" else None
+        # Distinguish "selector ran cleanly but matched zero nodes"
+        # vs "selector was syntactically invalid" — both end up here
+        # but the reason is the most useful one we can give.
+        attempted = selector or xpath
+        return _envelope(
+            [] if kind == "list" else None,
+            source="none",
+            confidence=0.0,
+            selector_used=attempted,
+            reason_if_null=f"selector matched zero nodes ({attempted!r})",
+        )
 
+    # Selector matched — pull values per kind.
     if kind == "list":
-        # If `attr` is set on a list field, return a list of attribute
-        # values (one per match) — the natural "list of hrefs / srcs"
-        # semantic. Without this, listing pages can't express
-        # `image_url: list` or `link: list` and the LLM is forced to
-        # downgrade to scalar `kind: attr` which returns just the first
-        # match. That's why books.toscrape used to show one image_url
-        # and one link instead of 20 each.
         if attr:
-            raw = [_read(n, "attr", attr) for n in nodes]
+            raw_values = [_read(n, "attr", attr) for n in nodes]
         else:
-            raw = [_read(n, "text", "") for n in nodes]
+            raw_values = [_read(n, "text", "") for n in nodes]
+        # Filter out None / empty — partial nulls inside a list are
+        # noise, the user wants the actual values.
+        raw = [v for v in raw_values if v not in (None, "")]
     else:
         raw = _read(nodes[0], kind, attr)
 
+    # Apply transforms.
     transforms = field.get("transforms") or []
-    if not transforms:
-        return raw
-    if kind == "list" and isinstance(raw, list):
-        return [_apply_transforms(v, transforms) for v in raw]
-    return _apply_transforms(raw, transforms)
+    if transforms:
+        if kind == "list" and isinstance(raw, list):
+            raw = [_apply_transforms(v, transforms) for v in raw]
+        else:
+            raw = _apply_transforms(raw, transforms)
+
+    # Post-transform null / empty check — selector matched but the
+    # text was empty. Honest report.
+    if raw in (None, "", []):
+        return _envelope(
+            [] if kind == "list" else None,
+            source=source,
+            confidence=0.5,  # selector hit but value was empty — half-credit
+            selector_used=used,
+            reason_if_null=(
+                f"selector matched but extracted value was empty "
+                f"({len(nodes)} node(s), kind={kind!r})"
+            ),
+        )
+
+    return _envelope(
+        raw,
+        source=source,
+        confidence=1.0,
+        selector_used=used,
+    )
 
 
 # ── Transform pipeline ──────────────────────────────────────────────────────
