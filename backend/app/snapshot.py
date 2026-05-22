@@ -161,22 +161,17 @@ async def _warmup_session(target_url: str) -> None:
         _warmed_hosts.add(host)
         return
 
-    warmup_tab = None
     try:
-        warmup_tab = await pool.open_tab(root)
-        # Brief pause for any CF/DataDome challenge JS to execute and set
-        # the clearance cookie. 2.5s is the sweet spot per testing —
-        # under 2s misses some challenges, over 3s adds noticeable latency.
-        await asyncio.sleep(2.5)
-        _warmed_hosts.add(host)
-        log.info("warmup.complete", extra={"host": host})
+        async with pool.tab(root) as warmup_tab:
+            # Brief pause for any CF/DataDome challenge JS to execute and set
+            # the clearance cookie. 2.5s is the sweet spot per testing —
+            # under 2s misses some challenges, over 3s adds noticeable latency.
+            await asyncio.sleep(2.5)
+            _warmed_hosts.add(host)
+            log.info("warmup.complete", extra={"host": host})
     except Exception as e:
         # Don't poison the cache on error — let the next attempt retry.
         log.warning("warmup.failed", extra={"host": host, "error": repr(e)})
-    finally:
-        if warmup_tab is not None:
-            try: await warmup_tab.close()
-            except Exception: pass
 
 
 def reset_warmup_cache() -> None:
@@ -222,8 +217,7 @@ async def _snapshot_inner(
     if not ok:
         raise ValueError(f"unsafe URL: {reason}")
 
-    tab = await pool.open_tab("about:blank")
-    try:
+    async with pool.tab("about:blank") as tab:
         # Set the viewport ONCE, before we navigate. We never touch it
         # again in this function — that's the whole point.
         try:
@@ -375,11 +369,8 @@ async def _snapshot_inner(
             page=data.get("page", {"width": viewport_width, "height": viewport_height}),
             elements=data.get("elements", []),
         )
-    finally:
-        try:
-            await tab.close()
-        except Exception:
-            pass
+    # `pool.tab()` context manager closes the tab and returns the
+    # worker to the queue automatically — no explicit close needed.
 
 
 async def _wait_for_images(tab, timeout: float) -> None:

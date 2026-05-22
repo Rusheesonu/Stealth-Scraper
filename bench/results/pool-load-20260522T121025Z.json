@@ -1,0 +1,176 @@
+{
+  "url": "https://httpbin.org/html",
+  "concurrency": 20,
+  "total": 20,
+  "pool_size": 4,
+  "wallclock_s": 48.694,
+  "success": 20,
+  "failure": 0,
+  "success_rate": 100.0,
+  "collapse_marker_hits": 0,
+  "p50_s": 25.095,
+  "p95_s": 47.285,
+  "error_classes": {},
+  "results": [
+    {
+      "idx": 0,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 4.535,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 1,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 5.732,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 2,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 6.448,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 3,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 7.009,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 4,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 13.165,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 5,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 14.437,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 6,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 15.254,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 7,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 16.855,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 8,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 44.835,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 9,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 23.664,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 10,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 23.883,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 11,
+      "ok": true,
+      "title": "",
+      "elapsed_s": 25.095,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 12,
+      "ok": true,
+      "title": "503 Service Temporarily Unavailable",
+      "elapsed_s": 31.523,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 13,
+      "ok": true,
+      "title": "503 Service Temporarily Unavailable",
+      "elapsed_s": 32.542,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 14,
+      "ok": true,
+      "title": "503 Service Temporarily Unavailable",
+      "elapsed_s": 33.921,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 15,
+      "ok": true,
+      "title": "503 Service Temporarily Unavailable",
+      "elapsed_s": 39.357,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 16,
+      "ok": true,
+      "title": "503 Service Temporarily Unavailable",
+      "elapsed_s": 40.393,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 17,
+      "ok": true,
+      "title": "503 Service Temporarily Unavailable",
+      "elapsed_s": 41.952,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 18,
+      "ok": true,
+      "title": "503 Service Temporarily Unavailable",
+      "elapsed_s": 47.285,
+      "err": null,
+      "collapse_marker": false
+    },
+    {
+      "idx": 19,
+      "ok": true,
+      "title": "503 Service Temporarily Unavailable",
+      "elapsed_s": 48.563,
+      "err": null,
+      "collapse_marker": false
+    }
+  ]
+}
