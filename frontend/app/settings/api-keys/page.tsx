@@ -20,12 +20,7 @@ const SDK_TABS: { id: Lang; label: string; iconText: string }[] = [
 
 function buildSnippets(apiKey: string): Record<Lang, string> {
   return {
-    // SDK sources live at github.com/Rusheesonu/Stealth-Scraper/tree/master/sdks
-    // until we publish to PyPI / npm (coming soon). Install from git in
-    // the meantime — both pip and npm support git+https URLs natively.
-    python: `# install from source until v1 hits PyPI:
-# pip install git+https://github.com/Rusheesonu/Stealth-Scraper.git#subdirectory=sdks/python
-
+    python: `# pip install stealth-scraper
 from stealth_scraper import StealthClient
 
 client = StealthClient(api_key="${apiKey}")

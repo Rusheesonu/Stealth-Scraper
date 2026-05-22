@@ -2,16 +2,11 @@
 
 Official Python SDK for [Stealth Scraper](https://stealthscraper.dev) — the anti-bot-resistant web scraping API.
 
-> **Status:** beta — PyPI release coming with the Product Hunt launch
-> (June 1, 2026). Until then, install from git (one-liner, works today).
+> **Status:** beta. Public API is stable; we follow semver from `1.0.0` onward.
 
 ## Install
 
 ```bash
-# During beta — install directly from GitHub:
-pip install git+https://github.com/Rusheesonu/Stealth-Scraper.git#subdirectory=sdks/python
-
-# After June 1 PyPI release:
 pip install stealth-scraper
 ```
 

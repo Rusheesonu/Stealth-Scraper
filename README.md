@@ -21,8 +21,7 @@ schemas it figures out for you.
 ## What you actually get
 
 ```python
-# Install from source until v1 hits PyPI (coming soon):
-# pip install git+https://github.com/Rusheesonu/Stealth-Scraper.git#subdirectory=sdks/python
+# pip install stealth-scraper
 
 from stealth_scraper import StealthClient
 
