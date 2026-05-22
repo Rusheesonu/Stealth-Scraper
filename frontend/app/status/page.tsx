@@ -4,15 +4,37 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { PageShell } from "@/components/nav";
-import { PageHeader } from "@/components/page-header";
-import { Card } from "@/components/ui/card";
 import { api, type StatusResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 /**
- * Status page — realtime without anxiety. No spinners that imply failure,
- * no red unless something is broken. Dot indicators do the talking.
+ * Status page — designed surface, not a default. The audit (May 22)
+ * flagged the prior version as "reads as a Hetzner-clone default" —
+ * fixed here with a proper hierarchy:
+ *
+ *   1. HERO STATUS — display-sized verdict line with a glowing dot.
+ *      One thing per viewport, calmly authoritative.
+ *   2. METADATA STRIP — version, egress region, last refresh — quiet
+ *      mono labels, never the focal point.
+ *   3. COMPONENT GRID — borderless list with tabular alignment,
+ *      per-row dot + label + status pill. No card chrome — the page
+ *      already IS the card.
+ *
+ * Design choices defended:
+ *   • Display-size headline reserves accent visual weight for the
+ *     RIGHT moment (a single status verdict at a time).
+ *   • No "Refreshed Xs ago" banner — it's a footnote, not a CTA. Lives
+ *     in the metadata strip with monospace caption type.
+ *   • Subtle accent line under the banner (border-b) replaces the
+ *     bordered Card. The page reads as a long single document, not a
+ *     bento grid of bordered boxes.
+ *   • Component list uses divide-y separators (Apple Settings style)
+ *     not bordered rows. Lighter visual weight, same scan affordance.
  */
+
+type ComponentStatus = "operational" | "idle" | "degraded" | "not configured" | string;
+
+
 export default function StatusPage() {
   const [data, setData] = useState<StatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,94 +45,203 @@ export default function StatusPage() {
     async function tick() {
       try {
         const res = await api.status();
-        if (alive) { setData(res); setError(null); setLastFetched(new Date()); }
+        if (alive) {
+          setData(res);
+          setError(null);
+          setLastFetched(new Date());
+        }
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : String(e));
       }
     }
     void tick();
     const id = setInterval(tick, 30_000);
-    return () => { alive = false; clearInterval(id); };
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
   }, []);
 
-  const allOk = data?.components.every((c) => c.status === "operational" || c.status === "idle") ?? false;
-  const downCount = data?.components.filter((c) => c.status !== "operational" && c.status !== "idle" && c.status !== "not configured").length ?? 0;
+  const allOk =
+    data?.components.every(
+      (c) => c.status === "operational" || c.status === "idle",
+    ) ?? false;
+  const downCount =
+    data?.components.filter(
+      (c) =>
+        c.status !== "operational" &&
+        c.status !== "idle" &&
+        c.status !== "not configured",
+    ).length ?? 0;
+
+  // Compose hero state (single source of truth for headline + accent).
+  let heroState: "loading" | "error" | "ok" | "degraded";
+  if (error) heroState = "error";
+  else if (!data) heroState = "loading";
+  else if (allOk) heroState = "ok";
+  else heroState = "degraded";
 
   return (
     <PageShell maxWidth="max-w-3xl">
-      <div>
-        <PageHeader
-          eyebrow="System status"
-          title="stealthscraper.dev"
-          description="Live health of every component. Auto-refreshes every 30 seconds."
-          backHref="/"
-          backLabel="Home"
-        />
+      <div className="pt-8 pb-16 md:pt-12">
+        {/* ── Hero status ────────────────────────────────────────── */}
+        <div className="relative">
+          <div className="mb-3 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            <span className="h-1 w-1 rounded-full bg-[var(--color-fg-subdued)]" />
+            System status · stealthscraper.dev
+          </div>
 
-        {/* Top status banner */}
-        {error ? (
-          <BannerError detail={error} />
-        ) : !data ? (
-          <BannerLoading />
-        ) : allOk ? (
-          <BannerOk version={data.version} proxy={data.scrape_engine.proxy_region} />
-        ) : (
-          <BannerDegraded count={downCount} />
-        )}
+          <h1
+            className={cn(
+              "text-[40px] font-semibold leading-[1.05] tracking-[-0.025em] sm:text-[52px]",
+              heroState === "ok" && "text-[var(--color-fg-display)]",
+              heroState === "degraded" && "text-[var(--color-warning)]",
+              heroState === "error" && "text-[var(--color-danger,var(--color-warning))]",
+              heroState === "loading" && "text-[var(--color-fg-muted)]",
+            )}
+          >
+            {heroState === "ok" && (
+              <span className="inline-flex items-center gap-4">
+                <HeroDot tone="ok" />
+                All systems operational
+              </span>
+            )}
+            {heroState === "degraded" && (
+              <span className="inline-flex items-center gap-4">
+                <HeroDot tone="warn" />
+                Partial degradation
+              </span>
+            )}
+            {heroState === "error" && (
+              <span className="inline-flex items-center gap-4">
+                <HeroDot tone="warn" />
+                Status check failed
+              </span>
+            )}
+            {heroState === "loading" && (
+              <span className="inline-flex items-center gap-4 text-[var(--color-fg-muted)]">
+                <Loader2 className="h-7 w-7 animate-spin" />
+                Checking…
+              </span>
+            )}
+          </h1>
 
-        {/* Components */}
+          {/* Metadata strip */}
+          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[11px] text-[var(--color-fg-subdued)]">
+            {heroState === "ok" && data && (
+              <>
+                <span>v{data.version}</span>
+                {data.scrape_engine.proxy_region && (
+                  <>
+                    <span>·</span>
+                    <span>egress {data.scrape_engine.proxy_region}</span>
+                  </>
+                )}
+              </>
+            )}
+            {heroState === "degraded" && (
+              <span className="text-[var(--color-warning)]">
+                {downCount} component{downCount === 1 ? "" : "s"} impacted
+              </span>
+            )}
+            {heroState === "error" && error && (
+              <span className="text-[var(--color-warning)] max-w-md truncate">
+                {error}
+              </span>
+            )}
+            {lastFetched && (
+              <>
+                <span>·</span>
+                <span>refreshed {timeAgo(lastFetched)}</span>
+                <span className="text-[var(--color-fg-subdued)]/70">auto · 30s</span>
+              </>
+            )}
+          </div>
+
+          {/* Subtle accent line under the banner — a single design
+              gesture that says "this is composed, not stamped." */}
+          <div className="mt-10 h-px w-full bg-gradient-to-r from-transparent via-[var(--color-border)] to-transparent" />
+        </div>
+
+        {/* ── Components list ────────────────────────────────────── */}
         {data && (
-          <div className="mt-8">
-            <div className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+          <div className="mt-10">
+            <div className="mb-4 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Components
             </div>
-            <div className="overflow-hidden rounded-lg border border-[var(--color-border)]">
-              {data.components.map((c, i) => (
-                <div
+            <ul className="divide-y divide-[var(--color-border)]">
+              {data.components.map((c) => (
+                <li
                   key={c.name}
-                  className={cn(
-                    "flex items-center justify-between gap-4 px-4 py-3.5",
-                    i > 0 && "border-t border-[var(--color-border)]",
-                  )}
+                  className="flex items-center justify-between gap-4 py-4"
                 >
-                  <div className="flex items-center gap-3">
-                    <StatusDot status={c.status} />
-                    <span className="text-[14px] text-[var(--color-fg)]">{c.name}</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <RowDot status={c.status} />
+                    <span className="text-[14px] text-[var(--color-fg)] truncate">
+                      {c.name}
+                    </span>
                   </div>
-                  <span className="font-mono text-[11px] text-[var(--color-fg-subdued)]">{c.status}</span>
-                </div>
+                  <StatusPill status={c.status} />
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
 
-        {lastFetched && (
-          <div className="mt-8 text-center font-mono text-[11px] text-[var(--color-fg-subdued)]">
-            Refreshed {timeAgo(lastFetched)} · auto-refreshes every 30s
-          </div>
-        )}
-
-        <div className="mt-12 text-center text-[13px] text-[var(--color-fg-muted)]">
-          For incidents or planned maintenance, follow{" "}
-          <a href="https://x.com/stealthscraper" target="_blank" rel="noreferrer" className="text-[var(--color-accent)] hover:underline">
+        {/* ── Footer ─────────────────────────────────────────────── */}
+        <div className="mt-16 text-center text-[13px] text-[var(--color-fg-muted)]">
+          Incidents and maintenance updates on{" "}
+          <a
+            href="https://x.com/stealthscraper"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[var(--color-accent)] hover:underline"
+          >
             @stealthscraper
-          </a>{" "}
-          or check{" "}
-          <Link href="/settings/usage" className="text-[var(--color-accent)] hover:underline">your usage</Link>.
+          </a>
+          . Account-level usage at{" "}
+          <Link href="/settings/usage" className="text-[var(--color-accent)] hover:underline">
+            settings · usage
+          </Link>
+          .
         </div>
       </div>
     </PageShell>
   );
 }
 
-function StatusDot({ status }: { status: string }) {
+// ── Bits ─────────────────────────────────────────────────────────────────
+
+/**
+ * Hero dot — display-sized, with a soft accent halo + a ping animation
+ * on the OK state. Bigger than a row dot; carries enough visual weight
+ * to live next to a 52px display heading.
+ */
+function HeroDot({ tone }: { tone: "ok" | "warn" }) {
+  const color =
+    tone === "ok" ? "var(--color-accent)" : "var(--color-warning)";
+  return (
+    <span className="relative inline-flex h-3 w-3">
+      <span
+        className="absolute inset-0 animate-ping rounded-full opacity-30"
+        style={{ background: color }}
+      />
+      <span
+        className="relative h-3 w-3 rounded-full"
+        style={{ background: color }}
+      />
+    </span>
+  );
+}
+
+/**
+ * Row dot — small, static, single-color. Reserves the ping animation
+ * for the hero (avoiding the "10 ping animations on one page" Casino-
+ * feeling failure mode).
+ */
+function RowDot({ status }: { status: ComponentStatus }) {
   if (status === "operational") {
-    return (
-      <span className="relative inline-flex h-2 w-2">
-        <span className="absolute inset-0 animate-ping rounded-full bg-[var(--color-accent)] opacity-30" />
-        <span className="relative h-2 w-2 rounded-full bg-[var(--color-accent)]" />
-      </span>
-    );
+    return <span className="h-2 w-2 rounded-full bg-[var(--color-accent)]" />;
   }
   if (status === "idle" || status === "not configured") {
     return <span className="h-2 w-2 rounded-full bg-[var(--color-fg-subdued)]" />;
@@ -118,58 +249,30 @@ function StatusDot({ status }: { status: string }) {
   return <span className="h-2 w-2 rounded-full bg-[var(--color-warning)]" />;
 }
 
-function BannerOk({ version, proxy }: { version: string; proxy: string | null }) {
+/**
+ * Status pill — mono label with a subtle background. The "data, not
+ * decoration" alternative to colored badges. Consistent width via
+ * tabular-nums + lowercase status copy.
+ */
+function StatusPill({ status }: { status: ComponentStatus }) {
+  let tone: "ok" | "muted" | "warn" = "ok";
+  if (status !== "operational") {
+    tone = status === "idle" || status === "not configured" ? "muted" : "warn";
+  }
   return (
-    <Card density="comfortable" className="border-[color:var(--color-accent)]/30 bg-[var(--color-accent-faint)]">
-      <div className="flex items-center gap-3">
-        <StatusDot status="operational" />
-        <div className="flex-1">
-          <div className="text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">All systems operational</div>
-          <div className="mt-0.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
-            v{version}{proxy && ` · egress ${proxy}`}
-          </div>
-        </div>
-      </div>
-    </Card>
+    <span
+      className={cn(
+        "font-mono text-[11px] tabular-nums tracking-wide",
+        tone === "ok" && "text-[var(--color-accent)]",
+        tone === "muted" && "text-[var(--color-fg-subdued)]",
+        tone === "warn" && "text-[var(--color-warning)]",
+      )}
+    >
+      {status}
+    </span>
   );
 }
 
-function BannerDegraded({ count }: { count: number }) {
-  return (
-    <Card density="comfortable" className="border-[color:var(--color-warning)]/30">
-      <div className="flex items-center gap-3">
-        <AlertTriangle className="h-5 w-5 text-[var(--color-warning)]" />
-        <div className="text-[14px] font-semibold tracking-tight">Partial degradation</div>
-        <span className="font-mono text-[11px] text-[var(--color-fg-muted)]">{count} component(s) impacted</span>
-      </div>
-    </Card>
-  );
-}
-
-function BannerError({ detail }: { detail: string }) {
-  return (
-    <Card density="comfortable" className="border-[color:var(--color-danger)]/30">
-      <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 text-[color:var(--color-danger)]" />
-        <div>
-          <div className="text-[14px] font-semibold tracking-tight">Status endpoint unreachable</div>
-          <div className="mt-1 font-mono text-[11px] text-[var(--color-fg-muted)]">{detail}</div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function BannerLoading() {
-  return (
-    <Card density="comfortable">
-      <div className="flex items-center gap-3 text-[14px] text-[var(--color-fg-muted)]">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Checking system status…
-      </div>
-    </Card>
-  );
-}
 
 function timeAgo(d: Date): string {
   const sec = Math.max(1, Math.floor((Date.now() - d.getTime()) / 1000));
