@@ -52,11 +52,15 @@ async function main(): Promise<void> {
   }));
 
   // CallTool: route to the dispatcher in tools.ts.
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  // Cast to `any` so a future MCP SDK refactor of the ServerResult union
+  // (Nov-2025 spec introduced an optional `task` field for streaming
+  // progress notifications) doesn't break our build. Our ToolResult
+  // shape is a strict subset of the accepted union.
+  server.setRequestHandler(CallToolRequestSchema, (async (request: any) => {
     const name = request.params.name;
     const args = (request.params.arguments ?? {}) as Record<string, unknown>;
     return dispatch(client, name, args);
-  });
+  }) as any);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

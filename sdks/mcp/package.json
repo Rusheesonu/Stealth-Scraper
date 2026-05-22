@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "stealth-scraper": "^0.1.0"
+    "stealth-scraper": "file:../typescript"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
