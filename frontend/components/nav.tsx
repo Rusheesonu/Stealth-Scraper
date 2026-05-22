@@ -276,7 +276,7 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Brand />
             <p className="mt-3 max-w-[24ch] text-[12px] leading-[1.6] text-[var(--color-fg-muted)]">
-              The reliable web-data layer for AI agents. Point, click, extract.
+              The visual scraper for AI agents. Point, click, save, ship.
             </p>
             <p className="mt-4 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Built solo

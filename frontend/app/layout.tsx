@@ -54,7 +54,7 @@ const SOFTWARE_LD = {
   name: "Stealth-Scraper",
   url: "https://stealthscraper.dev",
   description:
-    "The reliable web-data layer for AI agents. Multi-engine browser router that beats Cloudflare, DataDome, PerimeterX, Akamai, Kasada, and Imperva.",
+    "The visual scraper for AI agents. Point, click, save, ship. Multi-engine browser router that beats Cloudflare, DataDome, PerimeterX, Akamai, Kasada, and Imperva.",
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Web",
   offers: [

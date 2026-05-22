@@ -9,7 +9,7 @@ import { ImageResponse } from "next/og";
  * grid (matches /components/brand.tsx) sits next to the wordmark.
  */
 export const runtime = "edge";
-export const alt = "Stealth-Scraper — the reliable web-data layer for AI agents";
+export const alt = "Stealth-Scraper — the visual scraper for AI agents";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -87,7 +87,7 @@ export default async function OG() {
               color: strong,
             }}
           >
-            The reliable web-data layer for AI agents.
+            The visual scraper for AI agents.
           </div>
           <div
             style={{
@@ -98,8 +98,8 @@ export default async function OG() {
               maxWidth: 880,
             }}
           >
-            Point, click, extract — or describe what you want in plain English.
-            Clean JSON from any website.
+            Point, click, save, ship. Click any element, save the recipe,
+            run it forever — with selectors you can actually debug.
           </div>
         </div>
 

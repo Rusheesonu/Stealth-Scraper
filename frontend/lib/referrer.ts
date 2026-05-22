@@ -115,9 +115,12 @@ export const COHORT_COPY: Record<Cohort, CohortCopy> = {
     primaryCta: "Start free",
   },
   generic: {
-    headline: "The reliable web-data layer for AI agents.",
+    // Restored from the pre-1ed2ad5 hero — leads with the visual picker
+    // (the actual differentiator) instead of a generic "data layer" claim
+    // that Firecrawl / Apify / Bright Data all already make.
+    headline: "The visual scraper for AI agents. Point, click, save, ship.",
     subhead:
-      "Multi-engine router. Visual point-and-click picker. AI-assisted schema generation. MCP + SDK. Refunds for failed scrapes.",
+      "Other scrapers ask you to prompt and pray. We let you see what you're extracting — click any element, save the recipe, run it forever. With selectors you can actually debug.",
     primaryCta: "Try it free",
   },
 };
