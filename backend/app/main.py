@@ -111,6 +111,20 @@ if sentry_sdk is not None and os.getenv("SENTRY_DSN"):
 SCRAPE_SEMAPHORE = asyncio.Semaphore(int(os.getenv("MAX_CONCURRENT_SCRAPES", "8")))
 SCRAPE_ACQUIRE_TIMEOUT_S = float(os.getenv("SCRAPE_ACQUIRE_TIMEOUT_S", "5.0"))
 
+# Per-user concurrency cap. The global semaphore above protects the host
+# from OOM, but doesn't stop ONE user from queueing 100 requests and
+# starving everyone else. Cap each authed user (identified by Supabase
+# user_id) to PER_USER_CONCURRENCY_CAP in-flight scrapes; acquired BEFORE
+# the global semaphore so a heavy user backs up against their own cap and
+# waits in their own queue instead of holding global slots.
+#
+# Public/anonymous endpoints skip this cap (no user_id) — they're already
+# IP-rate-limited and still subject to the global cap.
+PER_USER_CAP = int(os.getenv("PER_USER_CONCURRENCY_CAP", "3"))
+_per_user_semaphores: defaultdict[str, asyncio.Semaphore] = defaultdict(
+    lambda: asyncio.Semaphore(PER_USER_CAP)
+)
+
 
 @asynccontextmanager
 async def scrape_slot():
@@ -130,6 +144,26 @@ async def scrape_slot():
         yield
     finally:
         SCRAPE_SEMAPHORE.release()
+
+
+@asynccontextmanager
+async def per_user_slot(user_id: str):
+    """Acquire a per-user concurrency slot. Acquired BEFORE the global
+    semaphore so noisy users self-throttle without blocking the global
+    pool. Same 503 shape as scrape_slot on timeout — frontend already
+    knows how to render it."""
+    sem = _per_user_semaphores[user_id]
+    try:
+        await asyncio.wait_for(sem.acquire(), timeout=SCRAPE_ACQUIRE_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=503,
+            detail={"kind": "overloaded", "retry_after_s": 10},
+        )
+    try:
+        yield
+    finally:
+        sem.release()
 
 
 def _unsafe_url_http422(reason: str) -> HTTPException:
@@ -154,11 +188,23 @@ async def lifespan(app: FastAPI):
     await db.close()
 
 
+# Disable the interactive docs + OpenAPI schema in production. They leak
+# the full route surface (including admin/internal endpoints) to anyone
+# who curls /openapi.json, and we don't need them after launch — the SDKs
+# already pin their schema. Keep them on in dev/staging so the local loop
+# is unaffected.
+_DOCS_KWARGS: dict[str, Any] = (
+    {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    if os.getenv("ENV") == "production"
+    else {}
+)
+
 app = FastAPI(
     title="Stealth-Scraper v2",
     description="Visual point-and-click web scraper. No XPath required.",
     version="2.0.0",
     lifespan=lifespan,
+    **_DOCS_KWARGS,
 )
 
 # CORS — locked down for production. The Next.js frontend on Vercel
@@ -464,7 +510,7 @@ async def snapshot_endpoint(
         if cached_body is not None:
             return cached_body
 
-    async with scrape_slot():
+    async with per_user_slot(user_id), scrape_slot():
         actions_payload: list[BrowserAction] | None = None
         if req.actions:
             actions_payload = [a.model_dump() for a in req.actions]  # type: ignore[misc]
@@ -825,7 +871,7 @@ async def extract_endpoint(
     # Pagination > 1 counts as N scrapes; charge the extra now.
     if req.max_pages > 1:
         await enforce_plan_bulk(user_id, n=req.max_pages - 1)
-    async with scrape_slot():
+    async with per_user_slot(user_id), scrape_slot():
         try:
             return await extract_fields(
                 str(req.url),
@@ -898,7 +944,7 @@ async def assist_schema(
             status_code=503,
             detail="AI schema generation not configured on this instance (LLM_API_KEY missing).",
         )
-    async with scrape_slot():
+    async with per_user_slot(user_id), scrape_slot():
         try:
             snap = await take_snapshot(
                 str(req.url),
