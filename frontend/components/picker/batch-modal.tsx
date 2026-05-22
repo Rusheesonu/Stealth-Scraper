@@ -5,6 +5,7 @@ import { X, Layers, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { IconButton } from "@/components/ui/icon-button";
 import { Modal } from "@/components/motion-primitives";
 
 type Props = {
@@ -55,13 +56,13 @@ export function BatchModal({ defaultUrl, onCancel, onRun }: Props) {
               page, in order.
             </p>
           </div>
-          <button
+          <IconButton
             onClick={onCancel}
-            className="rounded-md p-1 text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+            size="xs"
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
-          </button>
+            <X className="h-3.5 w-3.5" />
+          </IconButton>
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertCircle, X } from "lucide-react";
 import { api, type UsageStatus } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
+import { IconButton } from "@/components/ui/icon-button";
 
 /**
  * At-90%-usage warning banner. Renders above the nav so the user sees it
@@ -98,13 +99,13 @@ export function UsageWarningBanner() {
           </Link>{" "}
           for {upgrade.limit}.
         </div>
-        <button
+        <IconButton
           onClick={dismiss}
+          size="xs"
           aria-label="Dismiss"
-          className="rounded-md p-1 text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
         >
           <X className="h-3.5 w-3.5" />
-        </button>
+        </IconButton>
       </div>
     </div>
   );

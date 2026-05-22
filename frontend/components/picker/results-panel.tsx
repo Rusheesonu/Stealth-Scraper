@@ -5,6 +5,7 @@ import { Copy, Download, X, Check, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { IconButton } from "@/components/ui/icon-button";
 import { cn } from "@/lib/utils";
 import type { ExtractResponse } from "@/lib/api";
 import { downloadBlob, toCsv } from "@/lib/utils";
@@ -130,13 +131,13 @@ export function ResultsPanel({ results, url, onClose }: Props) {
                 {url}
               </p>
             </div>
-            <button
+            <IconButton
               onClick={onClose}
-              className="rounded-md p-1.5 text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+              size="sm"
               aria-label="Close"
             >
               <X className="h-4 w-4" />
-            </button>
+            </IconButton>
           </header>
 
           {/* Toolbar */}

@@ -10,6 +10,7 @@ import { Brand } from "@/components/brand";
 import { PageShell } from "@/components/nav";
 import { UrlForm } from "@/components/url-form";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { LabelModal } from "@/components/picker/label-modal";
@@ -852,13 +853,13 @@ function BatchResultsPanel({
             <Button variant="ghost" size="sm" onClick={exportCsv}>
               <Download className="h-3 w-3" /> CSV
             </Button>
-            <button
+            <IconButton
               onClick={onClose}
-              className="rounded-md p-1.5 text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+              size="sm"
               aria-label="Close"
             >
               <X className="h-4 w-4" />
-            </button>
+            </IconButton>
           </div>
         </header>
 

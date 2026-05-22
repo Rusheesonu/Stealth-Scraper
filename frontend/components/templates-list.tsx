@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Play, Trash2, ExternalLink } from "lucide-react";
 import { api, type ExtractResponse, type SavedTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ResultsPanel } from "@/components/picker/results-panel";
@@ -108,13 +109,13 @@ export function TemplatesList() {
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
-              <button
+              <IconButton
                 onClick={() => remove(t.id)}
-                className="text-[var(--color-muted)] hover:text-red-400"
+                tone="danger"
                 aria-label="Delete"
               >
                 <Trash2 className="h-4 w-4" />
-              </button>
+              </IconButton>
             </div>
 
             <div className="mb-3 flex flex-wrap gap-1.5">

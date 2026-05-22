@@ -9,6 +9,7 @@ import {
   ShieldAlert, ArrowUpRight, RotateCcw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { IconButton } from "@/components/ui/icon-button";
 import { PlanLimitText } from "@/components/plan-limit-text";
 import { cn, truncate } from "@/lib/utils";
 import type { AntiBotBlockDetail, PublicSnapshotResponse } from "@/lib/api";
@@ -125,13 +126,13 @@ export function LandingPreviewModal({
             className="relative flex w-full max-w-6xl max-h-[92vh] flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-modal)]"
           >
             {/* Close button — top right */}
-            <button
+            <IconButton
               onClick={onClose}
               aria-label="Close preview"
-              className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+              className="absolute right-3 top-3 z-10"
             >
               <X className="h-4 w-4" />
-            </button>
+            </IconButton>
 
             <AnimatePresence mode="wait">
               {antiBotBlock ? (

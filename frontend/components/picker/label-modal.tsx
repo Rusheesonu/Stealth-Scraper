@@ -5,6 +5,7 @@ import { ArrowUp, Check, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { Badge, Kbd } from "@/components/ui/badge";
 import { Modal } from "@/components/motion-primitives";
 import { cn } from "@/lib/utils";
@@ -116,13 +117,13 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
               Give it a name you&apos;ll recognize in the output JSON.
             </p>
           </div>
-          <button
+          <IconButton
             onClick={onCancel}
-            className="rounded-md p-1 text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+            size="xs"
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
-          </button>
+            <X className="h-3.5 w-3.5" />
+          </IconButton>
         </div>
       </div>
 
