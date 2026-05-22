@@ -1,0 +1,57 @@
+{
+  "name": "stealth-scraper",
+  "version": "0.1.0",
+  "description": "Official TypeScript/JavaScript SDK for Stealth Scraper — anti-bot-resistant web scraping API.",
+  "license": "MIT",
+  "author": "Stealth Scraper <hello@stealthscraper.dev>",
+  "homepage": "https://stealthscraper.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stealth-scraper/stealth-scraper"
+  },
+  "bugs": {
+    "url": "https://github.com/stealth-scraper/stealth-scraper/issues"
+  },
+  "keywords": [
+    "scraping",
+    "web-scraping",
+    "anti-bot",
+    "stealth",
+    "playwright",
+    "automation",
+    "extraction"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
