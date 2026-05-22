@@ -65,6 +65,10 @@ services:
       # FastAPI / uvicorn settings
       PORT: 7860
       PYTHONUNBUFFERED: "1"
+      # Production env signal — gates /docs /redoc /openapi.json off
+      # (so HN screenshotters can't enumerate the 26-route API surface)
+      # and may be checked elsewhere for debug-feature kill-switches.
+      ENV: production
       # Allow Chromium to write its sandbox to /tmp inside the container
       CHROME_USER_DATA_DIR: /tmp/chrome-user-data
       # SuccessTracker history — per-(host, engine) win-rate the router
