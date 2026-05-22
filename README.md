@@ -44,8 +44,7 @@ result = client.run_template(template_id="t_hn_frontpage", url="https://news.yco
 TypeScript/JS:
 
 ```bash
-# Install from source until v1 hits npm (coming soon):
-npm install github:Rusheesonu/Stealth-Scraper#path:sdks/typescript
+npm install stealth-scraper
 ```
 
 ```ts
@@ -57,10 +56,10 @@ const snap = await client.snapshot('https://news.ycombinator.com/');
 For AI agents that need real-time tool use:
 
 ```bash
-# MCP server — sources: sdks/mcp/. Until we publish to npm, install from
-# the cloned repo:  git clone … && cd sdks/mcp && npm install && npm run build
-# Then point Claude Desktop / Cursor at: node /absolute/path/to/sdks/mcp/dist/index.js
-node ./sdks/mcp/dist/index.js
+# MCP server (Anthropic Model Context Protocol)
+npx @stealth-scraper/mcp
+# → adds `scrape_url`, `extract_structured`, `list_templates`, `run_template`
+#   tools to Claude Desktop / Cursor / Cline / etc.
 # → adds `scrape_url`, `extract_structured`, `list_templates`, `run_template`
 #   tools to Claude Desktop / Cursor / Cline / etc.
 ```
@@ -158,7 +157,7 @@ python -m bench.throughput    # 30 URLs, pages/$ + engine mix
 | **Scheduled scrapes** | Cron-like scheduling per template. Webhook delivery on completion. |
 | **Batch mode** | Newline list of URLs → JSON/CSV bundle. |
 | **Recipe marketplace** | Publish + clone public templates. |
-| **API + SDKs** | REST + Python (`sdks/python/` — install from git, PyPI release coming) + TypeScript (`sdks/typescript/` — install from git, npm release coming) + MCP server (`sdks/mcp/` — build locally + point Claude Desktop at the binary). |
+| **API + SDKs** | REST + Python (`pip install stealth-scraper`) + TypeScript (`npm install stealth-scraper`) + MCP server (`npx @stealth-scraper/mcp`). All published v0.1.0. |
 | **Usage dashboard** | Monthly scrapes vs plan limit, success rate, average latency. |
 
 ---

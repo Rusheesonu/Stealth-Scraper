@@ -7,10 +7,11 @@
   "homepage": "https://stealthscraper.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/stealth-scraper/stealth-scraper"
+    "url": "git+https://github.com/Rusheesonu/Stealth-Scraper.git",
+    "directory": "sdks/mcp"
   },
   "bugs": {
-    "url": "https://github.com/stealth-scraper/stealth-scraper/issues"
+    "url": "https://github.com/Rusheesonu/Stealth-Scraper/issues"
   },
   "keywords": [
     "mcp",
@@ -23,9 +24,7 @@
   ],
   "type": "module",
   "main": "./dist/index.js",
-  "bin": {
-    "stealth-scraper-mcp": "./dist/index.js"
-  },
+  "bin": "./dist/index.js",
   "files": [
     "dist",
     "README.md",
@@ -35,7 +34,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/index.js",
     "start": "node dist/index.js",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build"
