@@ -99,7 +99,7 @@ export default function SchedulesPage() {
           <div className="rounded-lg border border-dashed border-[var(--color-border)] p-12 text-center">
             <Clock className="mx-auto mb-3 h-5 w-5 text-[var(--color-fg-subdued)]" />
             <div className="text-[14px] font-medium text-[var(--color-fg)]">You need a saved template first</div>
-            <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+            <p className="mt-1.5 text-[13px] text-[var(--color-fg-muted)]">
               Schedules run an existing template against a URL on a cron.{" "}
               <a href="/pick" className="text-[var(--color-accent)] hover:underline">Create one →</a>
             </p>

@@ -136,11 +136,11 @@ export default function ApiKeysPage() {
               <Key className="h-4 w-4 text-[var(--color-accent)]" />
               Key created — copy now. This is the only time you&apos;ll see it.
             </div>
-            <p className="mb-3 text-[12px] text-[var(--color-fg-muted)]">
+            <p className="mb-3 text-[13px] text-[var(--color-fg-muted)]">
               <strong className="text-[var(--color-fg)]">{justCreated.name}</strong> — store somewhere safe (1Password, env var).
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded-md border border-[color:var(--color-accent)]/30 bg-[var(--color-bg)] px-3 py-2 font-mono text-[12px] text-[var(--color-fg)]">
+              <code className="flex-1 truncate rounded-md border border-[color:var(--color-accent)]/30 bg-[var(--color-bg)] px-3 py-2 font-mono text-[13px] text-[var(--color-fg)]">
                 {justCreated.key}
               </code>
               <Button onClick={copyKey} variant="secondary" size="sm">
@@ -185,7 +185,7 @@ export default function ApiKeysPage() {
           <div className="rounded-lg border border-dashed border-[var(--color-border)] p-12 text-center">
             <Key className="mx-auto mb-3 h-5 w-5 text-[var(--color-fg-subdued)]" />
             <div className="text-[14px] font-medium text-[var(--color-fg)]">No API keys yet</div>
-            <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+            <p className="mt-1.5 text-[13px] text-[var(--color-fg-muted)]">
               Create one above to start calling Stealth-Scraper from your code.
             </p>
           </div>
@@ -211,7 +211,7 @@ export default function ApiKeysPage() {
                       <td className="px-4 py-3">
                         <div className="text-[13px] font-medium text-[var(--color-fg)]">{k.name}</div>
                         {revoked && (
-                          <div className="mt-0.5 font-mono text-[10px] text-[color:var(--color-danger)]">
+                          <div className="mt-0.5 font-mono text-[11px] text-[color:var(--color-danger)]">
                             revoked {timeAgo(k.revoked_at!)}
                           </div>
                         )}
@@ -249,7 +249,7 @@ export default function ApiKeysPage() {
                     key={id}
                     onClick={() => setSdkTab(id)}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium",
+                      "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium",
                       "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                       active
                         ? "bg-[var(--color-surface)] text-[var(--color-fg-strong)] ring-1 ring-[var(--color-border)]"
@@ -257,7 +257,7 @@ export default function ApiKeysPage() {
                     )}
                   >
                     <span className={cn(
-                      "inline-flex h-4 w-4 items-center justify-center rounded-sm font-mono text-[9px]",
+                      "inline-flex h-4 w-4 items-center justify-center rounded-sm font-mono text-[11px]",
                       active
                         ? "bg-[var(--color-accent-faint)] text-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent-line)]"
                         : "bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]",
@@ -271,23 +271,23 @@ export default function ApiKeysPage() {
             </div>
             <button
               onClick={copySnippet}
-              className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[10.5px] text-[var(--color-fg-muted)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)]"
+              className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[11px] text-[var(--color-fg-muted)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)]"
               title="Copy snippet"
             >
               {sdkCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
               {sdkCopied ? "copied" : "copy"}
             </button>
           </div>
-          <pre className="overflow-x-auto bg-[var(--color-ink-1)] px-5 py-4 font-mono text-[12px] leading-[1.65] text-[var(--color-fg)]">
+          <pre className="overflow-x-auto bg-[var(--color-ink-1)] px-5 py-4 font-mono text-[13px] leading-[1.65] text-[var(--color-fg)]">
 {snippets[sdkTab]}
           </pre>
           {!justCreated && (
-            <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+            <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
               Replace <code>ssk_xxx</code> with the key shown when you create one above.
             </div>
           )}
           {justCreated && (
-            <div className="border-t border-[color:var(--color-accent)]/30 bg-[var(--color-accent-faint)] px-5 py-2.5 font-mono text-[10.5px] text-[var(--color-fg-muted)]">
+            <div className="border-t border-[color:var(--color-accent)]/30 bg-[var(--color-accent-faint)] px-5 py-2.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
               Snippet contains your new key — copy and save it now.
             </div>
           )}
@@ -310,7 +310,7 @@ export default function ApiKeysPage() {
       {/* Toast — Apple-style floating pill, same chrome as picker. */}
       {toast && (
         <div
-          className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full px-4 py-2 font-mono text-[12px] text-white shadow-[var(--shadow-popover)]"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full px-4 py-2 font-mono text-[13px] text-white shadow-[var(--shadow-popover)]"
           style={{
             background: "color-mix(in srgb, var(--color-ink-9) 92%, transparent)",
             backdropFilter: "blur(10px)",

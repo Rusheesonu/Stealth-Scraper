@@ -235,7 +235,7 @@ function TemplateCard({ card, index }: { card: Card; index: number }) {
         )}
       </div>
 
-      <p className="mb-3 line-clamp-2 text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
+      <p className="mb-3 line-clamp-2 text-[13px] leading-[1.55] text-[var(--color-fg)]">
         {"description" in card && card.description
           ? truncate(card.description, 110)
           : "Saved extraction recipe."}
@@ -256,7 +256,7 @@ function TemplateCard({ card, index }: { card: Card; index: number }) {
       </div>
 
       {/* Hover CTA */}
-      <div className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] group-hover:text-[var(--color-accent)]">
+      <div className="mt-4 inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] group-hover:text-[var(--color-accent)]">
         Try this →
       </div>
     </motion.button>

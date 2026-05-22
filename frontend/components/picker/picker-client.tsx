@@ -448,7 +448,7 @@ export function PickerClient() {
             <UrlForm autoFocus />
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12px]">
+          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px]">
             <span className="text-[var(--color-fg-subdued)]">Try one:</span>
             {[
               { url: "https://news.ycombinator.com", label: "news.ycombinator.com" },
@@ -594,7 +594,7 @@ export function PickerClient() {
               className="pointer-events-none fixed bottom-8 left-1/2 z-30 -translate-x-1/2"
             >
               <div
-                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12.5px] text-white shadow-[var(--shadow-popover)]"
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] text-white shadow-[var(--shadow-popover)]"
                 style={{
                   background: "color-mix(in srgb, var(--color-ink-9) 92%, transparent)",
                   backdropFilter: "blur(10px)",
@@ -632,13 +632,13 @@ export function PickerClient() {
                 </div>
                 <PlanLimitText
                   text={loadError}
-                  className="mb-4 block text-[12.5px] leading-[1.55] text-[var(--color-fg-muted)]"
+                  className="mb-4 block text-[13px] leading-[1.55] text-[var(--color-fg-muted)]"
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   {isPlanLimit && (
                     <Link
                       href="/pricing"
-                      className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-3 text-[12.5px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-3 text-[13px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]"
                     >
                       See pricing
                     </Link>
@@ -758,7 +758,7 @@ export function PickerClient() {
           so it reads against both light page chrome and screenshot bg. */}
       {toast && (
         <div
-          className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full px-4 py-2 font-mono text-[12px] text-white shadow-[var(--shadow-popover)]"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full px-4 py-2 font-mono text-[13px] text-white shadow-[var(--shadow-popover)]"
           style={{
             background: "color-mix(in srgb, var(--color-ink-9) 92%, transparent)",
             backdropFilter: "blur(10px)",
@@ -838,10 +838,10 @@ function BatchResultsPanel({
               </Badge>
               {running && <Loader2 className="h-3 w-3 animate-spin text-[var(--color-fg-muted)]" />}
             </div>
-            <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+            <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
               Batch extract
             </h2>
-            <p className="mt-0.5 text-[12px] text-[var(--color-fg-muted)]">
+            <p className="mt-0.5 text-[13px] text-[var(--color-fg-muted)]">
               {running ? "Results land as each page finishes." : "All URLs processed."}
             </p>
           </div>
@@ -887,7 +887,7 @@ function BatchResultsPanel({
                     </div>
                     <div className="space-y-1">
                       {Object.entries(data.fields).map(([k, v]) => (
-                        <div key={k} className="flex gap-2 text-[12.5px]">
+                        <div key={k} className="flex gap-2 text-[13px]">
                           <span className="shrink-0 font-mono text-[11px] font-semibold text-[var(--color-accent)]">
                             {k}
                           </span>

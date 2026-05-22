@@ -337,7 +337,7 @@ function TopBar() {
         </Link>
         <Link
           href="/"
-          className="rounded-md px-2.5 py-1 text-[12px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+          className="rounded-md px-2.5 py-1 text-[13px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
         >
           Skip to product →
         </Link>
@@ -386,7 +386,7 @@ function Hero({
           </span>
           {" "}for you. Right now.
         </h1>
-        <p className="mt-3 max-w-xl text-[14px] leading-[1.6] text-[var(--color-fg-muted)] sm:text-[15px]">
+        <p className="mt-3 max-w-xl text-[14px] leading-[1.6] text-[var(--color-fg-muted)] sm:text-[14px]">
           {subtitle}
         </p>
 
@@ -430,7 +430,7 @@ function PrePhase({ demo }: { demo: DemoConfig }) {
       <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-accent-faint)] ring-1 ring-inset ring-[var(--color-accent-line)]">
         <Loader2 className="h-5 w-5 animate-spin text-[var(--color-accent)]" />
       </div>
-      <p className="text-[15px] font-medium tracking-[-0.005em] text-[var(--color-fg-strong)]">
+      <p className="text-[14px] font-medium tracking-[-0.005em] text-[var(--color-fg-strong)]">
         Preparing your demo…
       </p>
       <p className="mt-1 font-mono text-[11px] text-[var(--color-fg-subdued)]">
@@ -491,7 +491,7 @@ function LoadingPhase({ demo }: { demo: DemoConfig }) {
           <Globe className="h-3 w-3 text-[var(--color-fg-subdued)]" />
           {truncate(demo.url.replace(/^https?:\/\//, ""), 60)}
         </div>
-        <span className="inline-flex items-center gap-1 font-mono text-[10px] text-[var(--color-accent)]">
+        <span className="inline-flex items-center gap-1 font-mono text-[11px] text-[var(--color-accent)]">
           <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
           live
         </span>
@@ -525,7 +525,7 @@ function LoadingPhase({ demo }: { demo: DemoConfig }) {
                 <activeStage.icon className="h-5 w-5 text-[var(--color-accent)]" />
               </span>
               <div className="text-left">
-                <div className="text-[16px] font-semibold leading-tight tracking-[-0.012em] text-[var(--color-fg-display)]">
+                <div className="text-[14px] font-semibold leading-tight tracking-[-0.012em] text-[var(--color-fg-display)]">
                   {activeStage.text}
                 </div>
                 <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
@@ -604,7 +604,7 @@ function LoadingPhase({ demo }: { demo: DemoConfig }) {
           />
         </div>
 
-        <p className="mx-auto mt-4 max-w-md text-center text-[11.5px] leading-[1.55] text-[var(--color-fg-muted)]">
+        <p className="mx-auto mt-4 max-w-md text-center text-[11px] leading-[1.55] text-[var(--color-fg-muted)]">
           First-run cold start can take 10–15s while we warm a fresh Chromium tab.
           Once it&apos;s warm, sub-second.
         </p>
@@ -704,7 +704,7 @@ function ResultPhase({
           </div>
           <button
             onClick={copyJson}
-            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[10.5px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[11px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
           >
             {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             {copied ? "copied" : "copy JSON"}
@@ -735,7 +735,7 @@ function ResultPhase({
               </div>
             </div>
             {shownRecords.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-[var(--color-border)] p-5 text-center text-[12.5px] text-[var(--color-fg-muted)]">
+              <div className="rounded-lg border border-dashed border-[var(--color-border)] p-5 text-center text-[13px] text-[var(--color-fg-muted)]">
                 The scrape returned, but no structured fields were auto-picked.
                 Sign up to open in the picker.
               </div>
@@ -766,7 +766,7 @@ function ResultPhase({
           <div className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-white/80">
             <Clock className="h-3 w-3" /> {seconds}s
           </div>
-          <h2 className="text-[22px] font-semibold leading-[1.15] tracking-[-0.014em] text-white sm:text-[28px]">
+          <h2 className="text-[20px] font-semibold leading-[1.15] tracking-[-0.014em] text-white sm:text-[28px]">
             This took {seconds} seconds.<br className="hidden sm:block" />
             Your scraper. Ready in 30.
           </h2>
@@ -812,7 +812,7 @@ function JsonRecord({ record, index }: { record: Record<string, unknown>; index:
           {entries.length} {entries.length === 1 ? "field" : "fields"}
         </span>
       </div>
-      <pre className="overflow-x-auto p-2.5 font-mono text-[12px] leading-[1.6] text-[var(--color-fg)]">
+      <pre className="overflow-x-auto p-2.5 font-mono text-[13px] leading-[1.6] text-[var(--color-fg)]">
         <span className="text-[var(--color-fg-subdued)]">{"{"}</span>
         {"\n"}
         {entries.map(([k, v], i) => (
@@ -901,7 +901,7 @@ function ErrorPhase({
           )}
         />
       </div>
-      <h2 className="text-[18px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)] sm:text-[20px]">
+      <h2 className="text-[20px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)] sm:text-[20px]">
         {isOverload
           ? "Demo's at capacity right now"
           : isAntiBot
@@ -940,12 +940,12 @@ function TryAnotherStrip({ activeKey }: { activeKey: DemoKey }) {
           <Link key={k} href={`/launch?demo=${k}`} className="block">
             <Card density="compact" interactive>
               <div className="mb-1.5 flex items-center justify-between">
-                <span className="font-mono text-[12px] text-[var(--color-fg-strong)]">
+                <span className="font-mono text-[13px] text-[var(--color-fg-strong)]">
                   {DEMOS[k].host}
                 </span>
                 <ArrowRight className="h-3.5 w-3.5 text-[var(--color-fg-subdued)]" />
               </div>
-              <p className="text-[12px] leading-[1.5] text-[var(--color-fg-muted)]">
+              <p className="text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
                 {DEMOS[k].blurb}
               </p>
             </Card>
@@ -956,12 +956,12 @@ function TryAnotherStrip({ activeKey }: { activeKey: DemoKey }) {
         <Link href="/login?mode=signup&next=/pick" className="block">
           <Card density="compact" interactive className="border-[color:var(--color-accent)]/30 bg-[var(--color-accent-faint)]">
             <div className="mb-1.5 flex items-center justify-between">
-              <span className="font-mono text-[12px] text-[var(--color-accent)]">
+              <span className="font-mono text-[13px] text-[var(--color-accent)]">
                 your-site.com
               </span>
               <ArrowRight className="h-3.5 w-3.5 text-[var(--color-accent)]" />
             </div>
-            <p className="text-[12px] leading-[1.5] text-[var(--color-fg-muted)]">
+            <p className="text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
               Sign up free to paste your own URL.
             </p>
           </Card>
@@ -1010,8 +1010,8 @@ function HowItWorks() {
           const card = (
             <Card density="compact" interactive={Boolean(f.href)}>
               <f.icon className="mb-2.5 h-4 w-4 text-[var(--color-accent)]" />
-              <CardTitle className="mb-1.5 text-[13.5px]">{f.title}</CardTitle>
-              <p className="text-[12px] leading-[1.55] text-[var(--color-fg-muted)]">
+              <CardTitle className="mb-1.5 text-[13px]">{f.title}</CardTitle>
+              <p className="text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
                 {f.body}
               </p>
             </Card>
@@ -1034,7 +1034,7 @@ function HowItWorks() {
 function BottomCta() {
   return (
     <section className="mt-12 text-center">
-      <h2 className="text-[24px] font-semibold leading-[1.15] tracking-[-0.014em] text-[var(--color-fg-display)] sm:text-[28px]">
+      <h2 className="text-[20px] font-semibold leading-[1.15] tracking-[-0.014em] text-[var(--color-fg-display)] sm:text-[28px]">
         Save the recipe. Run it forever.
       </h2>
       <p className="mx-auto mt-3 max-w-md text-[13px] leading-[1.55] text-[var(--color-fg-muted)] sm:text-[14px]">

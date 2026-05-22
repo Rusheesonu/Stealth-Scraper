@@ -290,7 +290,7 @@ function LoadingPhase({ url }: { url: string }) {
               <activeStage.icon className="h-5 w-5 text-[var(--color-accent)]" />
             </span>
             <div className="flex flex-col">
-              <span className="text-[19px] font-semibold leading-[1.15] tracking-[-0.012em] text-[var(--color-fg-display)]">
+              <span className="text-[20px] font-semibold leading-[1.15] tracking-[-0.012em] text-[var(--color-fg-display)]">
                 {activeStage.text}
               </span>
               <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
@@ -322,7 +322,7 @@ function LoadingPhase({ url }: { url: string }) {
               <Globe className="h-3 w-3 text-[var(--color-fg-subdued)]" />
               {truncate(url.replace(/^https?:\/\//, ""), 55)}
             </div>
-            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-[var(--color-accent)]">
+            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-[var(--color-accent)]">
               <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
               live
             </span>
@@ -396,7 +396,7 @@ function LoadingPhase({ url }: { url: string }) {
                     )}
                   </span>
                   <span className={cn(
-                    "flex-1 font-mono text-[12.5px] font-medium",
+                    "flex-1 font-mono text-[13px] font-medium",
                     found ? "text-[var(--color-fg-strong)]" : "text-[var(--color-fg-muted)]",
                   )}>
                     {f.label}
@@ -407,7 +407,7 @@ function LoadingPhase({ url }: { url: string }) {
                       initial={{ opacity: 0, scale: 0.7 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.1, duration: 0.2 }}
-                      className="font-mono text-[10.5px] text-[var(--color-accent)]"
+                      className="font-mono text-[11px] text-[var(--color-accent)]"
                     >
                       ×{f.matches}
                     </motion.span>
@@ -417,7 +417,7 @@ function LoadingPhase({ url }: { url: string }) {
             })}
 
             {fieldsFoundCount < MOCK_DISCOVERED_FIELDS.length && (
-              <div className="flex items-center gap-1.5 pt-1 font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+              <div className="flex items-center gap-1.5 pt-1 font-mono text-[11px] text-[var(--color-fg-muted)]">
                 <span className="inline-flex h-1 w-1 animate-pulse rounded-full bg-[var(--color-fg-subdued)]" />
                 scanning more elements…
               </div>
@@ -430,7 +430,7 @@ function LoadingPhase({ url }: { url: string }) {
       <div className="relative mt-6 space-y-3">
         {/* Live stat counters — small but moving, completes the
             "real software is processing data" feel */}
-        <div className="mx-auto flex max-w-lg items-center justify-center gap-5 font-mono text-[11.5px]">
+        <div className="mx-auto flex max-w-lg items-center justify-center gap-5 font-mono text-[11px]">
           <StatCounter label="elements" value={elementCount} />
           <span className="text-[var(--color-fg-subdued)]">·</span>
           <StatCounter label="patterns" value={patternCount} />
@@ -462,7 +462,7 @@ function LoadingPhase({ url }: { url: string }) {
           />
         </div>
 
-        <p className="mx-auto max-w-md text-center text-[11.5px] leading-[1.55] text-[var(--color-fg-muted)]">
+        <p className="mx-auto max-w-md text-center text-[11px] leading-[1.55] text-[var(--color-fg-muted)]">
           First load can take 10–15s while we warm a fresh Chromium tab.
           Subsequent scrapes on this site are sub-second.
         </p>
@@ -498,7 +498,7 @@ function ScanningCard({ active, selector }: { active: boolean; selector: string 
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.95 }}
             transition={{ duration: 0.22, ease: APPLE_EASE }}
-            className="absolute -top-2.5 right-2 z-10 inline-flex -translate-y-full items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-2 py-1 font-mono text-[10px] text-[var(--color-bg)] shadow-[var(--shadow-card)]"
+            className="absolute -top-2.5 right-2 z-10 inline-flex -translate-y-full items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-2 py-1 font-mono text-[11px] text-[var(--color-bg)] shadow-[var(--shadow-card)]"
           >
             <span className="text-[var(--color-accent)]">▸</span>
             {selector}
@@ -720,7 +720,7 @@ function ResultPhase({
               </div>
               <button
                 onClick={copyJson}
-                className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[10.5px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
+                className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
               >
                 {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                 {copied ? "copied" : "copy all"}
@@ -728,7 +728,7 @@ function ResultPhase({
             </div>
 
             {template.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-[var(--color-border)] p-5 text-center text-[12.5px] text-[var(--color-fg-muted)]">
+              <div className="rounded-lg border border-dashed border-[var(--color-border)] p-5 text-center text-[13px] text-[var(--color-fg-muted)]">
                 We grabbed the page but couldn&apos;t auto-pick fields. Open in
                 the picker and click what you want.
               </div>
@@ -822,8 +822,8 @@ function CtaButton({
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[12.5px] font-medium leading-none">{label}</span>
-        <span className={cn("mt-1 block text-[10.5px] leading-none", primary ? "text-white/70" : "text-[var(--color-fg-muted)]")}>
+        <span className="block text-[13px] font-medium leading-none">{label}</span>
+        <span className={cn("mt-1 block text-[11px] leading-none", primary ? "text-white/70" : "text-[var(--color-fg-muted)]")}>
           {subtitle}
         </span>
       </span>
@@ -844,7 +844,7 @@ function JsonRecord({ record, index }: { record: Record<string, unknown>; index:
       {/* Tiny header strip — record index + accent dot. Makes each card
           feel like a "row" not just a block of code. */}
       <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-1.5">
-        <div className="flex items-center gap-1.5 font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+        <div className="flex items-center gap-1.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
           <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
           <span>record {String(index + 1).padStart(2, "0")}</span>
         </div>
@@ -852,7 +852,7 @@ function JsonRecord({ record, index }: { record: Record<string, unknown>; index:
           {entries.length} {entries.length === 1 ? "field" : "fields"}
         </span>
       </div>
-      <pre className="overflow-x-auto p-3 font-mono text-[12.5px] leading-[1.65] text-[var(--color-fg)]">
+      <pre className="overflow-x-auto p-3 font-mono text-[13px] leading-[1.65] text-[var(--color-fg)]">
         <span className="text-[var(--color-fg-subdued)]">{"{"}</span>
         {"\n"}
         {entries.map(([k, v], i) => (
@@ -917,7 +917,7 @@ function JsonValue({ value }: { value: unknown }) {
 function BigValueDisplay({ value }: { value: unknown }) {
   if (value === null || value === undefined) {
     return (
-      <div className="font-mono text-[12.5px] text-[var(--color-warning)]">
+      <div className="font-mono text-[13px] text-[var(--color-warning)]">
         null
         <span className="ml-1 text-[11px] text-[var(--color-fg-subdued)]">
           (open in picker to fix)
@@ -940,7 +940,7 @@ function BigValueDisplay({ value }: { value: unknown }) {
             return (
               <span
                 key={i}
-                className="inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] px-1.5 py-0.5 font-mono text-[11.5px] text-[var(--color-fg)]"
+                className="inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--color-fg)]"
               >
                 {text}
               </span>
@@ -949,7 +949,7 @@ function BigValueDisplay({ value }: { value: unknown }) {
           return (
             <div
               key={i}
-              className="break-words font-mono text-[12.5px] leading-[1.55] text-[var(--color-fg)]"
+              className="break-words font-mono text-[13px] leading-[1.55] text-[var(--color-fg)]"
             >
               <span className="text-[var(--color-fg-subdued)]">{i + 1}.</span>{" "}
               {truncate(text, 220)}
@@ -965,7 +965,7 @@ function BigValueDisplay({ value }: { value: unknown }) {
     );
   }
   return (
-    <div className="break-words font-mono text-[13.5px] leading-[1.6] text-[var(--color-fg)]">
+    <div className="break-words font-mono text-[13px] leading-[1.6] text-[var(--color-fg)]">
       {truncate(String(value), 340)}
     </div>
   );
@@ -1048,7 +1048,7 @@ function AntiBotBlockPhase({
           {vendorLabel} blocked this site
         </h3>
 
-        <p className="mt-2 max-w-md text-[13.5px] leading-[1.6] text-[var(--color-fg-muted)]">
+        <p className="mt-2 max-w-md text-[13px] leading-[1.6] text-[var(--color-fg-muted)]">
           {block.message ||
             `${vendorLabel}'s bot manager intercepted the request before the real page loaded.`}
         </p>
@@ -1062,7 +1062,7 @@ function AntiBotBlockPhase({
               <Sparkles className="h-3 w-3" />
               How to get past this
             </div>
-            <p className="text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
+            <p className="text-[13px] leading-[1.55] text-[var(--color-fg)]">
               {block.suggestion}
             </p>
           </div>
@@ -1122,7 +1122,7 @@ function ErrorPhase({ error, onClose }: { error: string; onClose: () => void }) 
       <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-danger-soft)] ring-1 ring-inset ring-[color:var(--color-danger)]/30">
         <AlertTriangle className="h-5 w-5 text-[var(--color-danger)]" />
       </div>
-      <h3 className="text-[16px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)]">
+      <h3 className="text-[14px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)]">
         {isPlanLimit ? "You're out of free scrapes" : "Couldn't snapshot that page"}
       </h3>
       <PlanLimitText

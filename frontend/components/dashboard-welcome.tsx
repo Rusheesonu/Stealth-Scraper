@@ -115,7 +115,7 @@ function FirstTimeWelcome({
           <Sparkles className="h-3 w-3 text-[var(--color-accent)]" />
           Welcome
         </div>
-        <h1 className="text-[26px] font-semibold leading-[1.15] tracking-[-0.02em] text-[var(--color-fg-strong)]">
+        <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.02em] text-[var(--color-fg-strong)]">
           Hi! Let&apos;s run your first scrape.
         </h1>
         <p className="mt-2 max-w-lg text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
@@ -143,14 +143,14 @@ function FirstTimeWelcome({
             Run scrape
           </Button>
         </form>
-        <p className="mt-3 text-[11.5px] text-[var(--color-fg-subdued)]">
+        <p className="mt-3 text-[11px] text-[var(--color-fg-subdued)]">
           The HN demo always works — we use it as our known-good test page.
         </p>
       </Card>
 
       <Card density="comfortable" className="mt-4">
         <div className="text-[14px] font-semibold tracking-tight">Or browse templates other people built</div>
-        <p className="mt-1 text-[12.5px] text-[var(--color-fg-muted)]">
+        <p className="mt-1 text-[13px] text-[var(--color-fg-muted)]">
           Community-shared recipes for common sites. Fork one with a click and customize.
         </p>
         <Link href="/marketplace">
@@ -184,7 +184,7 @@ function ReturningDashboard({
         <div className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
           Dashboard
         </div>
-        <h1 className="text-[24px] font-semibold tracking-[-0.018em] text-[var(--color-fg-strong)]">
+        <h1 className="text-[20px] font-semibold tracking-[-0.018em] text-[var(--color-fg-strong)]">
           Welcome back.
         </h1>
       </div>
@@ -219,7 +219,7 @@ function ReturningDashboard({
         <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
           Recent templates
         </div>
-        <Link href="/templates" className="text-[12px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
+        <Link href="/templates" className="text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
           All templates →
         </Link>
       </div>
@@ -246,7 +246,7 @@ function ReturningDashboard({
                     {t.source_url}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-[12px] text-[var(--color-fg-muted)] group-hover:text-[var(--color-accent)]">
+                <div className="flex items-center gap-1.5 text-[13px] text-[var(--color-fg-muted)] group-hover:text-[var(--color-accent)]">
                   <Play className="h-3 w-3" /> Run
                 </div>
               </Link>

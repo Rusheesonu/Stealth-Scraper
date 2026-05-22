@@ -94,7 +94,7 @@ export function MobileFallback() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.05, ease: APPLE_EASE }}
-          className="text-[26px] font-semibold leading-[1.15] tracking-[-0.018em] text-[var(--color-fg-display)]"
+          className="text-[28px] font-semibold leading-[1.15] tracking-[-0.018em] text-[var(--color-fg-display)]"
         >
           The picker needs a mouse
         </motion.h1>
@@ -209,7 +209,7 @@ function FallbackCta({
         </span>
         <span
           className={[
-            "mt-1 block text-[11.5px] leading-tight",
+            "mt-1 block text-[11px] leading-tight",
             primary ? "text-white/70" : "text-[var(--color-fg-muted)]",
           ].join(" ")}
         >
@@ -321,7 +321,7 @@ function NotifyForm() {
         <button
           type="submit"
           disabled={state === "submitting" || !email}
-          className="inline-flex h-8 items-center gap-1 rounded-md bg-[var(--color-fg-strong)] px-3 text-[12px] font-medium text-[var(--color-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-8 items-center gap-1 rounded-md bg-[var(--color-fg-strong)] px-3 text-[13px] font-medium text-[var(--color-bg)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {state === "submitting" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -333,9 +333,9 @@ function NotifyForm() {
         </button>
       </div>
       {error ? (
-        <p className="text-[11.5px] text-[var(--color-danger)]">{error}</p>
+        <p className="text-[11px] text-[var(--color-danger)]">{error}</p>
       ) : (
-        <p className="text-[11.5px] leading-[1.5] text-[var(--color-fg-subdued)]">
+        <p className="text-[11px] leading-[1.5] text-[var(--color-fg-subdued)]">
           One email when mobile lands. No marketing — promise.
         </p>
       )}

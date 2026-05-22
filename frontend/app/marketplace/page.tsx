@@ -64,8 +64,8 @@ export default function MarketplacePage() {
         {templates && templates.length === 0 && (
           <div className="rounded-lg border border-dashed border-[var(--color-border)] p-16 text-center">
             <Globe className="mx-auto mb-3 h-6 w-6 text-[var(--color-fg-subdued)]" />
-            <div className="text-[15px] font-medium text-[var(--color-fg)]">No public templates yet</div>
-            <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+            <div className="text-[14px] font-medium text-[var(--color-fg)]">No public templates yet</div>
+            <p className="mt-1.5 text-[13px] text-[var(--color-fg-muted)]">
               Be the first. Create a template, then publish it from your <Link href="/templates" className="text-[var(--color-accent)] hover:underline">templates page</Link>.
             </p>
           </div>
@@ -77,7 +77,7 @@ export default function MarketplacePage() {
               <Card key={t.id} density="comfortable" className="flex flex-col">
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="text-[15px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{t.name}</div>
+                    <div className="text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{t.name}</div>
                     <a
                       href={t.source_url}
                       target="_blank" rel="noopener"
@@ -94,7 +94,7 @@ export default function MarketplacePage() {
                 </div>
 
                 {t.description && (
-                  <p className="mb-3 text-[12px] leading-[1.55] text-[var(--color-fg-muted)]">{t.description}</p>
+                  <p className="mb-3 text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">{t.description}</p>
                 )}
 
                 <div className="mb-4 flex flex-wrap gap-1">

@@ -1,0 +1,170 @@
+{
+  "api_base": "https://api.stealthscraper.dev",
+  "wallclock_s": 72.0,
+  "total_urls": 5,
+  "fetch_errors": 2,
+  "fetch_error_detail": [
+    [
+      "https://quotes.toscrape.com",
+      "anti_bot_or_robots"
+    ],
+    [
+      "https://books.toscrape.com",
+      "anti_bot_or_robots"
+    ]
+  ],
+  "field_totals": {
+    "total": 9,
+    "non_null": 9,
+    "null_with_reason": 0,
+    "silent_null": 0,
+    "grounded": 0,
+    "hallucinated": 9
+  },
+  "metrics": {
+    "grounded_rate_pct": 0.0,
+    "hallucinated_rate_pct": 100.0,
+    "honest_null_rate_pct": 0.0,
+    "silent_null_rate_pct": 0.0
+  },
+  "results": [
+    {
+      "url": "https://news.ycombinator.com",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "title": {
+          "value": "[\"If you're an LLM, please read this \u2013 Anna's Blog\", 'Antigravity 2.0 Tops the OpenSCAD Architectural 3D LLM Benchmark', 'The case against boolean logic']\u2026 +27 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#bigbox > td > table > tbody > tr.athing > td.title > span.titleline > a"
+        },
+        "description": {
+          "value": "['janandonly', 'hide', '22 comments']\u2026 +84 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#bigbox > td > table > tbody > tr > td.subtext > span.subline > a"
+        },
+        "title_2": {
+          "value": "['annas-archive.gl', 'modelrift.com', 'abuseofnotation.github.io']\u2026 +27 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#bigbox > td > table > tbody > tr.athing > td.title > span.titleline > span.sitebit > a > span.sitestr"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 0,
+        "hallucinated": 3
+      }
+    },
+    {
+      "url": "https://github.com/trending",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "description": {
+          "value": "['Official, Anthropic-managed directory of high quality Claude Code Plugins.', 'Pre-indexed code knowledge graph for Claude Code, Codex, Cursor, and OpenCode \u2014 fewer tokens, fewer tool calls, 100% local', '\u03c0 RuView turns commodity WiFi signals into real-time spatial intelligence, vital sign monitoring, and presence detection \u2014 all without a single pixel of video.']\u2026 +11 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "body.logged-out > div.logged-out > div.application-main > main > div.position-relative > div.Box > div > article.Box-row > p.col-9"
+        },
+        "description_2": {
+          "value": "['', '', '']\u2026 +11 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "body.logged-out > div.logged-out > div.application-main > main > div.position-relative > div.Box > div > article.Box-row > div.f6 > span.tmp-mr-3 > a.d-inline-block > img.avatar"
+        },
+        "description_3": {
+          "value": "['Star', 'Star', 'Star']\u2026 +11 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "body.logged-out > div.logged-out > div.application-main > main > div.position-relative > div.Box > div > article.Box-row > div.float-right > div.BtnGroup > a.tooltipped"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 0,
+        "hallucinated": 3
+      }
+    },
+    {
+      "url": "https://quotes.toscrape.com",
+      "status": "fetch_error",
+      "fetch_error": "anti_bot_or_robots",
+      "fields": {},
+      "field_summary": {
+        "total": 0,
+        "non_null": 0,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 0,
+        "hallucinated": 0
+      }
+    },
+    {
+      "url": "https://books.toscrape.com",
+      "status": "fetch_error",
+      "fetch_error": "anti_bot_or_robots",
+      "fields": {},
+      "field_summary": {
+        "total": 0,
+        "non_null": 0,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 0,
+        "hallucinated": 0
+      }
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Web_scraping",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "item_text": {
+          "value": [
+            "(Top)"
+          ],
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#toc-mw-content-text > a.vector-toc-link > div.vector-toc-text"
+        },
+        "field": {
+          "value": "['Web scraping, web harvesting, or web data extraction is data scraping used for extracting data from websites.[1] Web scraping software may directly access the World Wide Web using the Hypertext Transfer Protocol or a web browser. While web scraping can be done manually by a software user, the term typically refers to automated processes implemented using a bot or web crawler. It is a form of copying in which specific data is gathered and copied from the web, typically into a central local database or spreadsheet, for later retrieval or analysis.', 'Scraping a web page involves fetching it and then extracting data from it. Fetching is the downloading of a page (which a browser does when a user views a page). Therefore, web crawling is a main component of web scraping, to fetch pages for later processing. Having fetched, extraction can take place. The content of a page may be parsed, searched and reformatted, and its data copied into a spreadsheet or loaded into a database. Web scrapers typically take something out of a page, to make use of it for another purpose somewhere else. An example would be finding and copying names and telephone numbers, companies and their URLs, or e-mail addresses to a list (contact scraping). Another example is collecting competitors product prices for marketing purposes, which can involve gathering large-scale pricing datasets from e-commerce websites and analysing them using data science techniques such as trend analysis, predictive modelling, and competitive benchmarking.', 'Contact scraping is a type of web scraping that is used as a component of applications used for web indexing, web mining and data mining, online price change monitoring and price comparison, product review scraping (to watch the competition), gathering real estate listings, weather data monitoring, website change detection, research, tracking online presence and reputation, web mashup, and web data integration.']\u2026 +33 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#mw-content-text > div.mw-content-ltr > p"
+        },
+        "field_2": {
+          "value": "['Blocking an IP address either manually or based on criteria such as geolocation and DNSRBL. This will also block all browsing from that address.', \"Disabling any web service API that the website's system might expose.\", \"Bots sometimes declare who they are (using user agent strings) and can be blocked on that basis using robots.txt; 'googlebot' is an example. Other bots make no distinction between themselves and a human using a browser.\"]\u2026 +10 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#mw-content-text > div.mw-content-ltr > ul > li"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 0,
+        "hallucinated": 3
+      }
+    }
+  ]
+}

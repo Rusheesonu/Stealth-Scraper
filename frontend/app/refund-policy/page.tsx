@@ -34,7 +34,7 @@ export default function RefundPage() {
 
       <div className="flex flex-col gap-10 text-[14px] leading-[1.65] text-[var(--color-fg)]">
         <Card density="comfortable" className="bg-[var(--color-accent-faint)] border-[var(--color-accent-line)]">
-          <div className="text-[15px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
+          <div className="text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
             The promise, in one line.
           </div>
           <p className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
@@ -131,7 +131,7 @@ export default function RefundPage() {
           </p>
         </Section>
 
-        <div className="border-t border-[var(--color-border)] pt-6 text-[12px] text-[var(--color-fg-subdued)]">
+        <div className="border-t border-[var(--color-border)] pt-6 text-[13px] text-[var(--color-fg-subdued)]">
           See also:{" "}
           <Link href="/terms" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">Terms of Service</Link>
           {" · "}
@@ -147,7 +147,7 @@ export default function RefundPage() {
 function Section({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[18px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+      <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
         {title}
       </h2>
       <div className="flex flex-col gap-3 [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-1.5 [&_ul]:pl-5 [&_ul]:list-disc [&_li]:marker:text-[var(--color-fg-subdued)]">

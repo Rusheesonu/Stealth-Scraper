@@ -66,10 +66,10 @@ function Hero() {
   return (
     <header className="py-16">
       <Badge tone="accent" className="mb-5">v1 · design direction</Badge>
-      <h1 className="mb-6 text-[44px] font-semibold leading-[1.05] tracking-[-0.025em] text-[var(--color-fg-strong)]">
+      <h1 className="mb-6 text-[40px] font-semibold leading-[1.05] tracking-[-0.025em] text-[var(--color-fg-strong)]">
         A precision instrument,<br />not a SaaS dashboard.
       </h1>
-      <p className="max-w-2xl text-[15px] leading-[1.6] text-[var(--color-fg-muted)]">
+      <p className="max-w-2xl text-[14px] leading-[1.6] text-[var(--color-fg-muted)]">
         Stealth-Scraper extracts structured data from the open web. The UI
         treats selectors, URLs, and JSON as first-class — not chrome to be
         hidden. Monospace where it counts, calm color, deliberate density.
@@ -106,7 +106,7 @@ function SwatchRow({ label, swatches }: { label: string; swatches: { token: stri
         {swatches.map((s, i) => (
           <div
             key={s.token}
-            className={`flex items-center gap-4 px-3 py-2.5 text-[12px] ${i > 0 ? "border-t border-[var(--color-border)]" : ""}`}
+            className={`flex items-center gap-4 px-3 py-2.5 text-[13px] ${i > 0 ? "border-t border-[var(--color-border)]" : ""}`}
           >
             <div
               className="h-8 w-12 flex-shrink-0 rounded-sm border border-[var(--color-border)]"
@@ -163,7 +163,7 @@ function SpacingSection() {
       <div className="overflow-hidden rounded-lg border border-[var(--color-border)] p-4">
         <div className="space-y-2">
           {steps.map((s) => (
-            <div key={s} className="flex items-center gap-3 text-[12px]">
+            <div key={s} className="flex items-center gap-3 text-[13px]">
               <div className="w-12 font-mono text-[11px] text-[var(--color-fg-subdued)]">{s * 4}px</div>
               <div className="w-12 font-mono text-[11px] text-[var(--color-fg-muted)]">--space-{s}</div>
               <div className="h-3 rounded-sm bg-[var(--color-accent)]/40" style={{ width: s * 4 }} />
@@ -254,12 +254,12 @@ function ComponentsSection() {
                 <Badge tone="danger">danger</Badge>
                 <Badge tone="info">info</Badge>
                 <Badge tone="muted">muted</Badge>
-                <span className="ml-2 text-[12px] text-[var(--color-fg-muted)]">·</span>
-                <span className="ml-2 text-[12px] text-[var(--color-fg-muted)]">Save selector</span>
+                <span className="ml-2 text-[13px] text-[var(--color-fg-muted)]">·</span>
+                <span className="ml-2 text-[13px] text-[var(--color-fg-muted)]">Save selector</span>
                 <Kbd>⌘</Kbd>
                 <Kbd>S</Kbd>
-                <span className="ml-2 text-[12px] text-[var(--color-fg-muted)]">·</span>
-                <span className="ml-2 text-[12px] text-[var(--color-fg-muted)]">Copy</span>
+                <span className="ml-2 text-[13px] text-[var(--color-fg-muted)]">·</span>
+                <span className="ml-2 text-[13px] text-[var(--color-fg-muted)]">Copy</span>
                 <Kbd>⌘</Kbd>
                 <Kbd>C</Kbd>
               </div>
@@ -290,7 +290,7 @@ function ComponentsSection() {
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Copyable mono · 1-click, 1-frame confirmation</div>
             <Card density="compact">
               <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
-                <code className="flex-1 truncate font-mono text-[12px] text-[var(--color-fg)]">
+                <code className="flex-1 truncate font-mono text-[13px] text-[var(--color-fg)]">
                   div#search &gt; .a-section &gt; h2.titleline &gt; a
                 </code>
                 <button
@@ -339,7 +339,7 @@ function StatesSection() {
         {/* Error */}
         <Card density="compact">
           <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Error</div>
-          <div className="rounded-md border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-dim)] p-3 text-[12px] text-[color:var(--color-danger)]">
+          <div className="rounded-md border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-dim)] p-3 text-[13px] text-[color:var(--color-danger)]">
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
               <div>
@@ -436,7 +436,7 @@ function ConsistencyCheck() {
         </div>
       </Section>
 
-      <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-center text-[12px] text-[var(--color-fg-subdued)]">
+      <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-center text-[13px] text-[var(--color-fg-subdued)]">
         <Shield className="mx-auto mb-2 h-4 w-4" />
         If a stranger screenshots any two pages and they don&apos;t feel like the same product — the system has failed. Hold the line.
       </div>

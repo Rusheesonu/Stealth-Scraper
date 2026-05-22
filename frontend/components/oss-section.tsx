@@ -44,7 +44,7 @@ export function OssSection() {
               <Scale className="h-3 w-3 text-[var(--color-accent)]" />
               Open source at the core
             </div>
-            <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.018em] text-[var(--color-fg-display)] sm:text-[30px]">
+            <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.018em] text-[var(--color-fg-display)] sm:text-[28px]">
               The hard part is open source.
             </h2>
             <p className="mt-3 max-w-md text-[14px] leading-[1.65] text-[var(--color-fg)]">
@@ -63,7 +63,7 @@ export function OssSection() {
             >
               <GithubIcon className="h-3.5 w-3.5" />
               <span>stealth-browser</span>
-              <span className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">/ on GitHub</span>
+              <span className="font-mono text-[11px] text-[var(--color-fg-muted)]">/ on GitHub</span>
               <ArrowRight className="ml-1 h-3 w-3 text-[var(--color-fg-subdued)] transition-transform duration-[var(--dur-fast)] group-hover:translate-x-0.5" />
             </a>
           </div>
@@ -84,8 +84,8 @@ export function OssSection() {
                     <s.icon className="h-3.5 w-3.5 text-[var(--color-accent)]" />
                   </span>
                   <div className="min-w-0">
-                    <div className="text-[12.5px] font-medium text-[var(--color-fg-strong)]">{s.label}</div>
-                    <div className="mt-0.5 text-[12px] leading-[1.5] text-[var(--color-fg-muted)]">{s.sub}</div>
+                    <div className="text-[13px] font-medium text-[var(--color-fg-strong)]">{s.label}</div>
+                    <div className="mt-0.5 text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">{s.sub}</div>
                   </div>
                 </motion.div>
               ))}
@@ -99,7 +99,7 @@ export function OssSection() {
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Open · stealth-browser
             </div>
-            <ul className="space-y-1.5 text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
+            <ul className="space-y-1.5 text-[13px] leading-[1.55] text-[var(--color-fg)]">
               <li className="flex items-start gap-2"><Dot /> Stealth Chromium runtime (nodriver + CDP patches)</li>
               <li className="flex items-start gap-2"><Dot /> Snapshot + element collection engine</li>
               <li className="flex items-start gap-2"><Dot /> Selector resolver (CSS + XPath + transforms)</li>
@@ -110,7 +110,7 @@ export function OssSection() {
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Hosted · stealthscraper.dev
             </div>
-            <ul className="space-y-1.5 text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
+            <ul className="space-y-1.5 text-[13px] leading-[1.55] text-[var(--color-fg)]">
               <li className="flex items-start gap-2"><Dot accent /> Visual point-and-click picker</li>
               <li className="flex items-start gap-2"><Dot accent /> Saved recipes + template marketplace</li>
               <li className="flex items-start gap-2"><Dot accent /> Scheduled scrapes, webhooks, API keys</li>

@@ -75,7 +75,7 @@ function ProblemSection() {
           <Card key={p.title} density="comfortable">
             <p.icon className="mb-3 h-4 w-4 text-[var(--color-accent)]" />
             <CardTitle className="mb-2">{p.title}</CardTitle>
-            <p className="text-[13.5px] leading-[1.65] text-[var(--color-fg)]">{p.body}</p>
+            <p className="text-[13px] leading-[1.65] text-[var(--color-fg)]">{p.body}</p>
           </Card>
         ))}
       </div>
@@ -134,7 +134,7 @@ function AiExtractCta() {
         <div className="grid grid-cols-1 md:grid-cols-3">
           <div className="border-b border-[var(--color-border)] p-7 md:border-b-0 md:border-r">
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You write</div>
-            <p className="font-mono text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
+            <p className="font-mono text-[13px] leading-[1.55] text-[var(--color-fg)]">
               &quot;Get every product&apos;s title, price, rating, and review count.&quot;
             </p>
           </div>
@@ -144,18 +144,18 @@ function AiExtractCta() {
               {["product_title", "price", "rating", "review_count"].map((label) => (
                 <div key={label} className="flex items-center gap-2">
                   <Check className="h-3 w-3 flex-shrink-0 text-[var(--color-accent)]" />
-                  <code className="font-mono text-[11.5px] text-[var(--color-fg)]">{label}</code>
+                  <code className="font-mono text-[11px] text-[var(--color-fg)]">{label}</code>
                 </div>
               ))}
             </div>
           </div>
           <div className="p-7">
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You verify in the picker</div>
-            <p className="mb-3 text-[12.5px] leading-[1.55] text-[var(--color-fg-muted)]">
+            <p className="mb-3 text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
               Open the AI draft in the visual picker. Confirm selectors, edit
               what&apos;s off, save the recipe. <span className="text-[var(--color-fg)]">No more hoping the AI got it right.</span>
             </p>
-            <div className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-accent)] group-hover:underline underline-offset-2">
+            <div className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-accent)] group-hover:underline underline-offset-2">
               Try AI assist <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
             </div>
           </div>
@@ -174,7 +174,7 @@ function PricingTeaser() {
   ];
   return (
     <Section eyebrow="Pricing" title="Pay as you grow. Cancel anytime.">
-      <p className="mx-auto mb-6 max-w-2xl text-center text-[13.5px] leading-[1.6] text-[var(--color-fg)]">
+      <p className="mx-auto mb-6 max-w-2xl text-center text-[13px] leading-[1.6] text-[var(--color-fg)]">
         Every scrape is one <strong className="text-[var(--color-fg)]">new data point</strong>, not a re-prompt.
         Save a recipe once, then 10,000 runs = 10,000 new rows — your saved selectors
         never re-pay for schema generation.
@@ -192,9 +192,9 @@ function PricingTeaser() {
             </div>
             <div className="mb-4 flex items-baseline gap-1">
               <span className="text-[28px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{t.price}</span>
-              <span className="text-[12px] text-[var(--color-fg-muted)]">/mo</span>
+              <span className="text-[13px] text-[var(--color-fg-muted)]">/mo</span>
             </div>
-            <ul className="space-y-1.5 text-[12.5px] text-[var(--color-fg)]">
+            <ul className="space-y-1.5 text-[13px] text-[var(--color-fg)]">
               {t.features.map((f) => (
                 <li key={f} className="flex items-center gap-1.5"><Check className="h-3 w-3 text-[var(--color-accent)]" />{f}</li>
               ))}

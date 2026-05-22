@@ -342,7 +342,7 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
           >
             {f.label ? (
               <div
-                className="absolute -top-6 left-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold text-black"
+                className="absolute -top-6 left-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-black"
                 style={{ background: f.color }}
               >
                 {f.label}
@@ -405,7 +405,7 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
           so it reads over ANY screenshot background. Apple-style tooltip. */}
       {hoverEl && cursorPos && scale > 0 && !isDragging && (
         <div
-          className="pointer-events-none absolute max-w-[320px] rounded-lg px-2.5 py-1.5 font-mono text-[10.5px] leading-[1.5] text-white shadow-[var(--shadow-popover)]"
+          className="pointer-events-none absolute max-w-[320px] rounded-lg px-2.5 py-1.5 font-mono text-[11px] leading-[1.5] text-white shadow-[var(--shadow-popover)]"
           style={{
             left: cursorPos.x * scale + 12,
             top: cursorPos.y * scale + 12,
@@ -439,7 +439,7 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
       {/* Drag hint */}
       {isDragging && cursorPos && scale > 0 && (
         <div
-          className="pointer-events-none absolute rounded-lg px-2.5 py-1.5 font-mono text-[10.5px] text-white shadow-[var(--shadow-popover)]"
+          className="pointer-events-none absolute rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-white shadow-[var(--shadow-popover)]"
           style={{
             left: cursorPos.x * scale + 12,
             top: cursorPos.y * scale + 12,

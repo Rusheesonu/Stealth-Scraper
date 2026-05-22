@@ -69,7 +69,7 @@ function CohortHero() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.12, ease: APPLE_EASE }}
-        className="mx-auto mt-5 max-w-xl text-[15.5px] leading-[1.6] text-[var(--color-fg)]"
+        className="mx-auto mt-5 max-w-xl text-[14px] leading-[1.6] text-[var(--color-fg)]"
       >
         {copy.subhead}
       </motion.p>
@@ -208,7 +208,7 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
             aria-selected={active}
             onClick={() => onChange(id)}
             className={cn(
-              "relative inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium",
+              "relative inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium",
               "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
               active
                 ? "text-[var(--color-fg-strong)]"
@@ -400,7 +400,7 @@ function UrlMode() {
           spellCheck={false}
           autoFocus
           disabled={busy}
-          className="flex-1 bg-transparent pl-5 pr-2 font-mono text-[15px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none disabled:opacity-50"
+          className="flex-1 bg-transparent pl-5 pr-2 font-mono text-[14px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none disabled:opacity-50"
         />
         <motion.button
           type="submit"
@@ -424,7 +424,7 @@ function UrlMode() {
       {/* Loading + error states now live INSIDE the modal — see
           LandingPreviewModal. The form stays clean. */}
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-[12px] text-[var(--color-fg-subdued)]">
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-[13px] text-[var(--color-fg-subdued)]">
         <span>Try</span>
         {TRY_LINKS.map((t) => (
           <button
@@ -524,7 +524,7 @@ function DescribeMode() {
 
         {/* Footer row with submit */}
         <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-2">
-          <div className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+          <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">
             {desc.length}/500
           </div>
           <motion.button
@@ -536,7 +536,7 @@ function DescribeMode() {
               opacity: valid ? 1 : 0.5,
             }}
             transition={{ duration: 0.16, ease: APPLE_EASE }}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md px-3.5 font-medium text-[12.5px] text-white disabled:cursor-not-allowed"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md px-3.5 font-medium text-[13px] text-white disabled:cursor-not-allowed"
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
             Generate scraper
@@ -546,7 +546,7 @@ function DescribeMode() {
 
       {/* Example chips — one-click prefill */}
       <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-left">
-        <span className="mr-1 text-[11.5px] text-[var(--color-fg-subdued)]">Try</span>
+        <span className="mr-1 text-[11px] text-[var(--color-fg-subdued)]">Try</span>
         {DESCRIBE_EXAMPLES.map((ex) => (
           <button
             key={ex.url}
@@ -612,7 +612,7 @@ function DemoStrip() {
                 transition={{ duration: 0.4, delay: 0.6 + i * 0.05, ease: APPLE_EASE }}
                 className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5"
               >
-                <div className="text-[12px] leading-[1.4] text-[var(--color-fg)]">
+                <div className="text-[13px] leading-[1.4] text-[var(--color-fg)]">
                   <span className="rounded-sm bg-[var(--color-accent-soft)] px-0.5 py-px ring-1 ring-[var(--color-accent-line)]">
                     {row.title}
                   </span>
@@ -650,7 +650,7 @@ function DemoStrip() {
               <Check className="h-3 w-3" /> 200 OK · 1.2s
             </div>
           </div>
-          <pre className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-mono text-[12px] leading-[1.6] text-[var(--color-fg)]">
+          <pre className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-mono text-[13px] leading-[1.6] text-[var(--color-fg)]">
 {`[
   {
     "title": "Show HN: A tool for AI agents...",

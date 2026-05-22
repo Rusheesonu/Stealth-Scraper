@@ -17,7 +17,7 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, mono = false, size = "md", ...props }, ref) => {
-    const heightCls = size === "sm" ? "h-8 px-2.5 text-[12px]"
+    const heightCls = size === "sm" ? "h-8 px-2.5 text-[13px]"
       : size === "lg" ? "h-12 px-4 text-[14px]"
       : "h-9 px-3 text-[13px]";
     return (

@@ -90,7 +90,7 @@ export default function StatusPage() {
           </div>
         )}
 
-        <div className="mt-12 text-center text-[12px] text-[var(--color-fg-muted)]">
+        <div className="mt-12 text-center text-[13px] text-[var(--color-fg-muted)]">
           For incidents or planned maintenance, follow{" "}
           <a href="https://x.com/stealthscraper" target="_blank" rel="noreferrer" className="text-[var(--color-accent)] hover:underline">
             @stealthscraper
@@ -124,7 +124,7 @@ function BannerOk({ version, proxy }: { version: string; proxy: string | null })
       <div className="flex items-center gap-3">
         <StatusDot status="operational" />
         <div className="flex-1">
-          <div className="text-[16px] font-semibold tracking-tight text-[var(--color-fg-strong)]">All systems operational</div>
+          <div className="text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">All systems operational</div>
           <div className="mt-0.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
             v{version}{proxy && ` · egress ${proxy}`}
           </div>
@@ -139,7 +139,7 @@ function BannerDegraded({ count }: { count: number }) {
     <Card density="comfortable" className="border-[color:var(--color-warning)]/30">
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-5 w-5 text-[var(--color-warning)]" />
-        <div className="text-[16px] font-semibold tracking-tight">Partial degradation</div>
+        <div className="text-[14px] font-semibold tracking-tight">Partial degradation</div>
         <span className="font-mono text-[11px] text-[var(--color-fg-muted)]">{count} component(s) impacted</span>
       </div>
     </Card>
@@ -152,7 +152,7 @@ function BannerError({ detail }: { detail: string }) {
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 h-5 w-5 text-[color:var(--color-danger)]" />
         <div>
-          <div className="text-[16px] font-semibold tracking-tight">Status endpoint unreachable</div>
+          <div className="text-[14px] font-semibold tracking-tight">Status endpoint unreachable</div>
           <div className="mt-1 font-mono text-[11px] text-[var(--color-fg-muted)]">{detail}</div>
         </div>
       </div>

@@ -29,7 +29,7 @@ export function Badge({
   tone?: Tone;
   size?: "xs" | "sm";
 }) {
-  const sizeCls = size === "xs" ? "h-[18px] px-1.5 text-[10px]" : "h-[20px] px-2 text-[11px]";
+  const sizeCls = size === "xs" ? "h-[18px] px-1.5 text-[11px]" : "h-[20px] px-2 text-[11px]";
   return (
     <span
       className={cn(
@@ -55,7 +55,7 @@ export function Kbd({ children, className }: { children: React.ReactNode; classN
       className={cn(
         "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-sm",
         "border border-[var(--color-border)] bg-[var(--color-elevated)]",
-        "px-1 font-mono text-[10px] text-[var(--color-fg-muted)]",
+        "px-1 font-mono text-[11px] text-[var(--color-fg-muted)]",
         className,
       )}
     >

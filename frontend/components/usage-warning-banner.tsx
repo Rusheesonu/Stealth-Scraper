@@ -88,7 +88,7 @@ export function UsageWarningBanner() {
   // Amber warning bar — not red. They haven't hit the cap yet.
   return (
     <div className="border-b border-[color:var(--color-warning)]/30 bg-[var(--color-warning-dim)]">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-2 text-[12.5px] text-[var(--color-fg)]">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-2 text-[13px] text-[var(--color-fg)]">
         <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--color-warning)]" />
         <div className="flex-1">
           You&apos;re at <strong className="font-semibold">{data.used.toLocaleString()}/{data.limit.toLocaleString()}</strong>{" "}

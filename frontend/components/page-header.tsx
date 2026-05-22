@@ -62,7 +62,7 @@ export function PageHeader({
               href={backHref}
               className={cn(
                 "group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5",
-                "text-[12px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+                "text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
                 "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
               )}
             >
@@ -74,7 +74,7 @@ export function PageHeader({
               onClick={() => router.back()}
               className={cn(
                 "group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5",
-                "text-[12px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+                "text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
                 "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
               )}
             >

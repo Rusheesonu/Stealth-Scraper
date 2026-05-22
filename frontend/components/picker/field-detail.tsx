@@ -121,7 +121,7 @@ export function FieldDetailDrawer({
               <div className="mb-1 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                 Field #{index + 1}
               </div>
-              <h2 className="truncate text-[17px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+              <h2 className="truncate text-[20px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
                 {field.label}
               </h2>
             </div>
@@ -189,7 +189,7 @@ export function FieldDetailDrawer({
                     onChange={(e) => setDraft({ ...draft, xpath: e.target.value })}
                     placeholder="//div[@class='price']"
                   />
-                  <p className="mt-1 text-[10.5px] text-[var(--color-fg-subdued)]">
+                  <p className="mt-1 text-[11px] text-[var(--color-fg-subdued)]">
                     Used only if CSS selector returns nothing.
                   </p>
                 </div>
@@ -204,7 +204,7 @@ export function FieldDetailDrawer({
                     key={k}
                     onClick={() => setDraft({ ...draft, kind: k })}
                     className={cn(
-                      "relative inline-flex items-center justify-center rounded-md px-2 py-1.5 text-[12px] font-medium",
+                      "relative inline-flex items-center justify-center rounded-md px-2 py-1.5 text-[13px] font-medium",
                       "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                       draft.kind === k
                         ? "bg-[var(--color-surface)] text-[var(--color-fg-strong)] shadow-[var(--shadow-card)] ring-1 ring-[var(--color-border)]"
@@ -246,7 +246,7 @@ export function FieldDetailDrawer({
 
           {/* Footer */}
           <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-3">
-            <div className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+            <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">
               {dirty ? "unsaved changes" : "saved"}
             </div>
             <div className="flex items-center gap-1.5">
@@ -272,7 +272,7 @@ function Section({
         {title}
       </div>
       {hint && (
-        <p className="mb-2.5 text-[11.5px] leading-[1.5] text-[var(--color-fg-muted)]">{hint}</p>
+        <p className="mb-2.5 text-[11px] leading-[1.5] text-[var(--color-fg-muted)]">{hint}</p>
       )}
       {children}
     </section>
@@ -288,7 +288,7 @@ function ValuePreview({ value, empty }: { value: unknown; empty: string | null }
 
   if (empty) {
     return (
-      <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[11.5px] text-[var(--color-fg-muted)]">
+      <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[11px] text-[var(--color-fg-muted)]">
         {empty}
       </div>
     );
@@ -297,10 +297,10 @@ function ValuePreview({ value, empty }: { value: unknown; empty: string | null }
   if (value === null || value === undefined) {
     return (
       <div className="rounded-lg border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] px-3 py-2.5">
-        <div className="font-mono text-[12px] text-[var(--color-fg)]">
+        <div className="font-mono text-[13px] text-[var(--color-fg)]">
           <span className="text-[var(--color-fg-subdued)]">null</span>
         </div>
-        <p className="mt-1 text-[10.5px] text-[var(--color-fg-muted)]">
+        <p className="mt-1 text-[11px] text-[var(--color-fg-muted)]">
           Selector didn&apos;t match anything. Try editing it above.
         </p>
       </div>
@@ -316,7 +316,7 @@ function ValuePreview({ value, empty }: { value: unknown; empty: string | null }
           {value.length > 4 && (
             <button
               onClick={() => setExpanded((v) => !v)}
-              className="text-[10.5px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+              className="text-[11px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
             >
               {expanded ? "show less" : `show all ${value.length}`}
             </button>
@@ -336,13 +336,13 @@ function ValuePreview({ value, empty }: { value: unknown; empty: string | null }
   const str = String(value);
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">
-      <div className="whitespace-pre-wrap break-words font-mono text-[12px] leading-[1.55] text-[var(--color-fg)]">
+      <div className="whitespace-pre-wrap break-words font-mono text-[13px] leading-[1.55] text-[var(--color-fg)]">
         {expanded || str.length <= 200 ? str : truncate(str, 200)}
       </div>
       {str.length > 200 && (
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1 text-[10.5px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+          className="mt-1 text-[11px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
         >
           {expanded ? "show less" : "show full"}
         </button>
@@ -385,7 +385,7 @@ function TransformsEditor({
     <div className="space-y-2">
       {transforms.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-3 text-center">
-          <p className="text-[11.5px] text-[var(--color-fg-muted)]">
+          <p className="text-[11px] text-[var(--color-fg-muted)]">
             No cleanup steps. Raw extracted value goes through unchanged.
           </p>
         </div>
@@ -441,7 +441,7 @@ function TransformRow({
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
       <div className="mb-1.5 flex items-center gap-2">
         <span className="font-mono text-[11px] text-[var(--color-fg-muted)]">{index + 1}.</span>
-        <span className="font-mono text-[12px] font-semibold text-[var(--color-fg-strong)]">
+        <span className="font-mono text-[13px] font-semibold text-[var(--color-fg-strong)]">
           {meta?.label || transform.op}
         </span>
         <div className="ml-auto flex items-center gap-0.5">
@@ -549,7 +549,7 @@ function AddOpButton({ onAdd }: { onAdd: (op: TransformOp) => void }) {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--color-border)] px-3 py-2 text-[12px] font-medium text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--color-border)] px-3 py-2 text-[13px] font-medium text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
       >
         <Plus className="h-3 w-3" />
         Add cleanup step
@@ -572,10 +572,10 @@ function AddOpButton({ onAdd }: { onAdd: (op: TransformOp) => void }) {
                     onClick={() => { onAdd(op); setOpen(false); }}
                     className="block w-full rounded-md px-2.5 py-1.5 text-left transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)]"
                   >
-                    <div className="font-mono text-[11.5px] font-semibold text-[var(--color-fg-strong)]">
+                    <div className="font-mono text-[11px] font-semibold text-[var(--color-fg-strong)]">
                       {meta.label}
                     </div>
-                    <div className="text-[10.5px] text-[var(--color-fg-muted)]">{meta.sub}</div>
+                    <div className="text-[11px] text-[var(--color-fg-muted)]">{meta.sub}</div>
                   </button>
                 ))}
               </div>

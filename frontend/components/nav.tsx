@@ -116,7 +116,7 @@ export function Nav() {
               <button
                 onClick={() => setSettingsOpen((v) => !v)}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px]",
+                  "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px]",
                   "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-ink-2)]",
                   "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                   "outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
@@ -138,7 +138,7 @@ export function Nav() {
                   <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                     Signed in as
                   </div>
-                  <div className="mt-0.5 truncate font-mono text-[12px] text-[var(--color-fg)]">
+                  <div className="mt-0.5 truncate font-mono text-[13px] text-[var(--color-fg)]">
                     {email}
                   </div>
                 </div>
@@ -274,7 +274,7 @@ export function Footer() {
           {/* Brand + tagline — first column on desktop, spans both on mobile. */}
           <div className="col-span-2 md:col-span-1">
             <Brand />
-            <p className="mt-3 max-w-[24ch] text-[12px] leading-[1.6] text-[var(--color-fg-muted)]">
+            <p className="mt-3 max-w-[24ch] text-[13px] leading-[1.6] text-[var(--color-fg-muted)]">
               The visual scraper for AI agents. Point, click, save, ship.
             </p>
             <p className="mt-4 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
@@ -316,12 +316,12 @@ export function Footer() {
 
         {/* Bottom row — copyright + dev affordance. */}
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center">
-          <p className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+          <p className="font-mono text-[11px] text-[var(--color-fg-muted)]">
             © 2026 Stealth-Scraper · All rights reserved
           </p>
           <Link
             href="/design"
-            className="font-mono text-[11.5px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
+            className="font-mono text-[11px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
           >
             Design system →
           </Link>

@@ -58,7 +58,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
           )}
         </div>
         <div className="mt-1 flex items-baseline gap-1.5">
-          <span className="text-[24px] font-semibold leading-none tracking-[-0.018em] tabular-nums text-[var(--color-fg-strong)]">
+          <span className="text-[20px] font-semibold leading-none tracking-[-0.018em] tabular-nums text-[var(--color-fg-strong)]">
             {fields.length}
           </span>
           <span className="text-[13px] text-[var(--color-fg-muted)]">
@@ -98,7 +98,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
             <div className="text-[13px] font-medium text-[var(--color-fg)]">
               No fields yet
             </div>
-            <p className="mt-1 max-w-[200px] text-[11.5px] leading-[1.5] text-[var(--color-fg-muted)]">
+            <p className="mt-1 max-w-[200px] text-[11px] leading-[1.5] text-[var(--color-fg-muted)]">
               Hover the snapshot and click something to add a field.
             </p>
           </div>
@@ -138,7 +138,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
                       <KindChip kind={f.kind} attr={f.attr} />
                       {(f.transforms?.length ?? 0) > 0 && (
                         <span
-                          className="inline-flex h-[18px] shrink-0 items-center rounded px-1.5 font-mono text-[10px] leading-none ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]"
+                          className="inline-flex h-[18px] shrink-0 items-center rounded px-1.5 font-mono text-[11px] leading-none ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]"
                           title={`${f.transforms!.length} cleanup step${f.transforms!.length === 1 ? "" : "s"}`}
                         >
                           ƒ {f.transforms!.length}
@@ -172,7 +172,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: APPLE_EASE }}
-            className="flex items-center gap-2 rounded-lg border border-[var(--color-accent-line)] bg-[var(--color-accent-faint)] px-3 py-2 text-[12.5px]"
+            className="flex items-center gap-2 rounded-lg border border-[var(--color-accent-line)] bg-[var(--color-accent-faint)] px-3 py-2 text-[13px]"
           >
             <Check className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-accent)]" />
             <span className="text-[var(--color-fg)]">
@@ -180,7 +180,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
             </span>
             <Link
               href="/templates"
-              className="ml-auto text-[11.5px] font-medium text-[var(--color-accent)] hover:underline"
+              className="ml-auto text-[11px] font-medium text-[var(--color-accent)] hover:underline"
             >
               View →
             </Link>
@@ -247,7 +247,7 @@ function KindChip({ kind, attr }: { kind: PickedField["kind"]; attr?: string }) 
   return (
     <span
       className={cn(
-        "inline-flex h-[18px] shrink-0 items-center rounded px-1.5 font-mono text-[10px] leading-none",
+        "inline-flex h-[18px] shrink-0 items-center rounded px-1.5 font-mono text-[11px] leading-none",
         isList
           ? "bg-[var(--color-accent-faint)] text-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent-line)]"
           : "bg-[var(--color-ink-2)] text-[var(--color-fg-muted)] ring-1 ring-inset ring-[var(--color-border)]",

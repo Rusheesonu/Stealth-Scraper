@@ -43,8 +43,8 @@ export function UrlForm({
   }
 
   const heightCls = size === "lg" ? "h-14" : "h-12";
-  const textCls = size === "lg" ? "text-[15px]" : "text-[14px]";
-  const btnCls = size === "lg" ? "h-10 px-4 text-[13px]" : "h-9 px-3.5 text-[12px]";
+  const textCls = size === "lg" ? "text-[14px]" : "text-[14px]";
+  const btnCls = size === "lg" ? "h-10 px-4 text-[13px]" : "h-9 px-3.5 text-[13px]";
 
   const valid = url.trim().length > 0;
 
@@ -112,7 +112,7 @@ export function UrlForm({
         </motion.button>
       </motion.form>
       {hint && (
-        <div className="mt-3 text-center text-[12px] text-[var(--color-fg-subdued)]">
+        <div className="mt-3 text-center text-[13px] text-[var(--color-fg-subdued)]">
           {hint}
         </div>
       )}

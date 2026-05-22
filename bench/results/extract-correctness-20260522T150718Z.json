@@ -1,0 +1,171 @@
+{
+  "api_base": "https://api.stealthscraper.dev",
+  "wallclock_s": 69.4,
+  "total_urls": 4,
+  "fetch_errors": 0,
+  "fetch_error_detail": [],
+  "field_totals": {
+    "total": 12,
+    "non_null": 12,
+    "null_with_reason": 0,
+    "silent_null": 0,
+    "grounded": 11,
+    "hallucinated": 1
+  },
+  "metrics": {
+    "grounded_rate_pct": 91.7,
+    "hallucinated_rate_pct": 8.3,
+    "honest_null_rate_pct": 0.0,
+    "silent_null_rate_pct": 0.0
+  },
+  "results": [
+    {
+      "url": "https://news.ycombinator.com",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "post_title": {
+          "value": "['Antigravity 2.0 Tops the OpenSCAD Architectural 3D LLM Benchmark', 'If you\u2019re an LLM, please read this', 'Launch HN: Superset (YC P26) \u2013 IDE for the agents era']\u2026 +27 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#bigbox > td > table > tbody > tr.athing > td.title > span.titleline > a"
+        },
+        "author": {
+          "value": "['jetter', 'janandonly', 'avipeltz']\u2026 +26 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#bigbox > td > table > tbody > tr > td.subtext > span.subline > a.hnuser"
+        },
+        "description": {
+          "value": "['jetter', 'hide', '71 comments']\u2026 +84 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#bigbox > td > table > tbody > tr > td.subtext > span.subline > a"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 3,
+        "hallucinated": 0
+      }
+    },
+    {
+      "url": "https://github.com/trending",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "repo_name": {
+          "value": [
+            "anthropics / claude-plugins-official"
+          ],
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "body.logged-out > div.logged-out:nth-of-type(1) > div.application-main:nth-of-type(5) > main > div.position-relative:nth-of-type(3) > div.Box > div:nth-of-type(2) > article.Box-row:nth-of-type(1) > h2.h3 > a.Link"
+        },
+        "repo_stars": {
+          "value": [
+            "24,074"
+          ],
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "body.logged-out > div.logged-out:nth-of-type(1) > div.application-main:nth-of-type(5) > main > div.position-relative:nth-of-type(3) > div.Box > div:nth-of-type(2) > article.Box-row:nth-of-type(1) > div.f6:nth-of-type(2) > a.tmp-mr-3:nth-of-type(1)"
+        },
+        "description": {
+          "value": "['Official, Anthropic-managed directory of high quality Claude Code Plugins.', 'Pre-indexed code knowledge graph for Claude Code, Codex, Cursor, and OpenCode \u2014 fewer tokens, fewer tool calls, 100% local', '\u03c0 RuView turns commodity WiFi signals into real-time spatial intelligence, vital sign monitoring, and presence detection \u2014 all without a single pixel of video.']\u2026 +10 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "body.logged-out > div.logged-out > div.application-main > main > div.position-relative > div.Box > div > article.Box-row > p.col-9"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 3,
+        "hallucinated": 0
+      }
+    },
+    {
+      "url": "https://quotes.toscrape.com",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "quote": {
+          "value": "['\u201cThe world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.\u201d', '\u201cIt is our choices, Harry, that show what we truly are, far more than our abilities.\u201d', '\u201cThere are only two ways to live your life. One is as though nothing is a miracle. The other is as though everything is a miracle.\u201d']\u2026 +7 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "body > div.container > div.row > div.col-md-8 > div.quote > span.text"
+        },
+        "description": {
+          "value": "['change', 'abilities', 'inspirational']\u2026 +7 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "body > div.container > div.row > div.col-md-8 > div.quote > div.tags > a.tag"
+        },
+        "author": {
+          "value": "['Albert Einstein', 'J.K. Rowling', 'Albert Einstein']\u2026 +7 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "body > div.container > div.row > div.col-md-8 > div.quote > span > small.author"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 3,
+        "hallucinated": 0
+      }
+    },
+    {
+      "url": "https://books.toscrape.com",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "image_url": {
+          "value": "['media/cache/2c/da/2cdad67c44b002e7ead0cc35693c0e8b.jpg', 'media/cache/26/0c/260c6ae16bce31c8f8c95daddd9f4a1c.jpg', 'media/cache/3e/ef/3eef99c9d9adef34639f510662022830.jpg']\u2026 +17 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#default > div.container-fluid > div.page_inner > div.row > div.col-sm-8 > section > div > ol.row > li.col-xs-6 > article.product_pod > div.image_container > a > img.thumbnail"
+        },
+        "link": {
+          "value": "['Travel', 'Mystery', 'Historical Fiction']\u2026 +47 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#default > div.container-fluid > div.page_inner > div.row > aside.sidebar > div.side_categories > ul.nav > li > ul > li > a"
+        },
+        "link_2": {
+          "value": "['A Light in the ...', 'Tipping the Velvet', 'Soumission']\u2026 +17 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#default > div.container-fluid > div.page_inner > div.row > div.col-sm-8 > section > div > ol.row > li.col-xs-6 > article.product_pod > h3 > a"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 2,
+        "hallucinated": 1
+      }
+    }
+  ]
+}

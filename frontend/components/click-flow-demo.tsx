@@ -75,7 +75,7 @@ export function ClickFlowDemo() {
             key={s.id}
             onClick={() => setStep(s.id as Step)}
             className={cn(
-              "rounded-full px-3 py-1 text-[11.5px] font-medium",
+              "rounded-full px-3 py-1 text-[11px] font-medium",
               "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
               step === s.id
                 ? "bg-[var(--color-fg-strong)] text-[var(--color-bg)]"
@@ -126,7 +126,7 @@ export function ClickFlowDemo() {
                 const pointsHighlighted = step >= 1;
                 return (
                   <li key={i} className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-                    <div className="text-[12.5px] leading-[1.45] text-[var(--color-fg)]">
+                    <div className="text-[13px] leading-[1.45] text-[var(--color-fg)]">
                       <motion.span
                         initial={{
                           backgroundColor: "transparent",
@@ -185,7 +185,7 @@ export function ClickFlowDemo() {
                     delay: 0.55,
                     ease: APPLE_EASE,
                   }}
-                  className="pointer-events-none absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-fg-strong)] px-2.5 py-1 text-[10.5px] font-mono text-[var(--color-bg)] shadow-[var(--shadow-popover)]"
+                  className="pointer-events-none absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-fg-strong)] px-2.5 py-1 text-[11px] font-mono text-[var(--color-bg)] shadow-[var(--shadow-popover)]"
                 >
                   <motion.span
                     initial={{ scale: 0 }}
@@ -265,7 +265,7 @@ export function ClickFlowDemo() {
                   <div className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-ink-2)]">
                     <MousePointer2 className="h-3.5 w-3.5 text-[var(--color-fg-subdued)]" />
                   </div>
-                  <p className="text-[11.5px] text-[var(--color-fg-muted)]">
+                  <p className="text-[11px] text-[var(--color-fg-muted)]">
                     No fields yet — click an element on the page.
                   </p>
                 </motion.div>
@@ -312,7 +312,7 @@ export function ClickFlowDemo() {
                           recipe saved
                         </div>
                       </div>
-                      <pre className="overflow-hidden font-mono text-[11.5px] leading-[1.55] text-[var(--color-fg)]">
+                      <pre className="overflow-hidden font-mono text-[11px] leading-[1.55] text-[var(--color-fg)]">
 {`from stealth_scraper import Client
 c = Client(api_key="ssk_...")
 c.run_template("tpl_hn", url)`}
@@ -326,7 +326,7 @@ c.run_template("tpl_hn", url)`}
         </div>
 
         {/* Caption strip */}
-        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 text-center font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 text-center font-mono text-[11px] text-[var(--color-fg-muted)]">
           {step === 0 && "Paste a URL, get a snapshot. The whole page becomes clickable."}
           {step === 1 && "Click any element. The selector + a field appear instantly."}
           {step === 2 && "Save the recipe. Now run it from your SDK on any HN-shaped page."}
@@ -355,8 +355,8 @@ function FieldRow({
       {/* Header row — name + kind chip */}
       <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-2.5 py-1.5">
         <span className="h-2 w-2 shrink-0 rounded-full ring-1 ring-inset ring-black/15" style={{ background: color }} />
-        <span className="truncate text-[12px] font-medium text-[var(--color-fg-strong)]">{label}</span>
-        <span className="ml-auto inline-flex h-[18px] items-center rounded px-1.5 font-mono text-[10px] ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]">
+        <span className="truncate text-[13px] font-medium text-[var(--color-fg-strong)]">{label}</span>
+        <span className="ml-auto inline-flex h-[18px] items-center rounded px-1.5 font-mono text-[11px] ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]">
           {kind}
         </span>
       </div>
@@ -385,7 +385,7 @@ function FieldRow({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.22, delay: valueDelay + 0.5, ease: APPLE_EASE }}
-          className="font-mono text-[10.5px] text-[var(--color-fg-muted)]"
+          className="font-mono text-[11px] text-[var(--color-fg-muted)]"
         >
           … +27 more
         </motion.li>

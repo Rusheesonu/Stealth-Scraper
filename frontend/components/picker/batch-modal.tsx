@@ -46,11 +46,11 @@ export function BatchModal({ defaultUrl, onCancel, onRun }: Props) {
       <div className="px-5 pt-5 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="flex items-center gap-2 text-[17px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+            <h2 className="flex items-center gap-2 text-[20px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
               <Layers className="h-4 w-4 text-[var(--color-accent)]" />
               Batch extract
             </h2>
-            <p className="mt-1 text-[12.5px] text-[var(--color-fg-muted)]">
+            <p className="mt-1 text-[13px] text-[var(--color-fg-muted)]">
               Paste one URL per line. We&apos;ll run the picked fields against each
               page, in order.
             </p>
@@ -74,7 +74,7 @@ export function BatchModal({ defaultUrl, onCancel, onRun }: Props) {
           rows={10}
           placeholder={`https://www.amazon.com/dp/B0ABCDEFGH\nhttps://www.amazon.com/dp/B0IJKLMNOP\n…`}
           spellCheck={false}
-          className="block w-full text-[12px] leading-[1.6]"
+          className="block w-full text-[13px] leading-[1.6]"
         />
 
         {/* Stats row */}

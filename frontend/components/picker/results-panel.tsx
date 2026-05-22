@@ -123,7 +123,7 @@ export function ResultsPanel({ results, url, onClose }: Props) {
                   {fieldCount} field{fieldCount === 1 ? "" : "s"}
                 </Badge>
               </div>
-              <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+              <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
                 Extraction result
               </h2>
               <p className="mt-0.5 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
@@ -148,7 +148,7 @@ export function ResultsPanel({ results, url, onClose }: Props) {
                     key={v}
                     onClick={() => setView(v)}
                     className={cn(
-                      "relative rounded px-2.5 py-1 text-[11.5px] font-medium",
+                      "relative rounded px-2.5 py-1 text-[11px] font-medium",
                       "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                       view === v
                         ? "text-[var(--color-fg-strong)]"
@@ -204,7 +204,7 @@ export function ResultsPanel({ results, url, onClose }: Props) {
 
             {/* Raw JSON */}
             <details className="mt-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
-              <summary className="cursor-pointer rounded-lg px-3 py-2 text-[11.5px] font-mono uppercase tracking-wider text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
+              <summary className="cursor-pointer rounded-lg px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
                 Raw JSON ({view})
               </summary>
               <pre className="m-2 mt-0 max-h-[420px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] p-3 font-mono text-[11px] leading-[1.6] text-[var(--color-fg)]">
@@ -227,20 +227,20 @@ function RecordsView({ rows }: { rows: Record<string, unknown>[] }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-[11.5px] text-[var(--color-fg-muted)]">
+      <p className="text-[11px] text-[var(--color-fg-muted)]">
         Lists of equal length are zipped into one row per item.
       </p>
       <div className="overflow-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
         <table className="w-full">
           <thead className="border-b border-[var(--color-border)] bg-[var(--color-ink-1)]">
             <tr>
-              <th className="px-2.5 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              <th className="px-2.5 py-2 text-left font-mono text-[11px] font-semibold uppercase tracking-wider text-[var(--color-fg-subdued)]">
                 #
               </th>
               {cols.map((c) => (
                 <th
                   key={c}
-                  className="px-2.5 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)]"
+                  className="px-2.5 py-2 text-left font-mono text-[11px] font-semibold uppercase tracking-wider text-[var(--color-accent)]"
                 >
                   {c}
                 </th>
@@ -259,7 +259,7 @@ function RecordsView({ rows }: { rows: Record<string, unknown>[] }) {
                 {cols.map((c) => (
                   <td
                     key={c}
-                    className="max-w-[320px] px-2.5 py-2 align-top font-mono text-[11.5px] leading-[1.5] text-[var(--color-fg)]"
+                    className="max-w-[320px] px-2.5 py-2 align-top font-mono text-[11px] leading-[1.5] text-[var(--color-fg)]"
                   >
                     <div className="line-clamp-3 break-words">
                       {r[c] == null ? (
@@ -284,12 +284,12 @@ function FieldRow({ label, value, error }: { label: string; value: unknown; erro
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <div className="mb-1.5 flex items-center gap-2">
-        <span className="font-mono text-[12px] font-semibold text-[var(--color-accent)]">{label}</span>
+        <span className="font-mono text-[13px] font-semibold text-[var(--color-accent)]">{label}</span>
         {isList && <Badge tone="muted" size="xs">list · {(value as unknown[]).length}</Badge>}
         {error && <Badge tone="danger" size="xs">error</Badge>}
       </div>
       {isList ? (
-        <ul className="max-h-48 space-y-0.5 overflow-auto font-mono text-[11.5px] leading-[1.55] text-[var(--color-fg)]">
+        <ul className="max-h-48 space-y-0.5 overflow-auto font-mono text-[11px] leading-[1.55] text-[var(--color-fg)]">
           {(value as unknown[]).map((v, i) => (
             <li key={i} className="truncate">
               <span className="text-[var(--color-fg-subdued)]">{i}.</span> {String(v)}
@@ -297,7 +297,7 @@ function FieldRow({ label, value, error }: { label: string; value: unknown; erro
           ))}
         </ul>
       ) : (
-        <div className="whitespace-pre-wrap break-words font-mono text-[12.5px] text-[var(--color-fg)]">
+        <div className="whitespace-pre-wrap break-words font-mono text-[13px] text-[var(--color-fg)]">
           {value == null ? (
             <span className="text-[var(--color-fg-subdued)]">null</span>
           ) : (
@@ -305,7 +305,7 @@ function FieldRow({ label, value, error }: { label: string; value: unknown; erro
           )}
         </div>
       )}
-      {error && <div className="mt-1.5 font-mono text-[10.5px] text-[var(--color-danger)]">{error}</div>}
+      {error && <div className="mt-1.5 font-mono text-[11px] text-[var(--color-danger)]">{error}</div>}
     </div>
   );
 }

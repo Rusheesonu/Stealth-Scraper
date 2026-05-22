@@ -110,7 +110,7 @@ function ReviewCard({ review }: { review: Review }) {
       <div className="flex items-center justify-between gap-2">
         <StarRow value={review.rating} small />
         {review.verified && (
-          <Badge className="inline-flex items-center gap-1 text-[10px]">
+          <Badge className="inline-flex items-center gap-1 text-[11px]">
             <ShieldCheck className="h-3 w-3" />
             Verified
           </Badge>

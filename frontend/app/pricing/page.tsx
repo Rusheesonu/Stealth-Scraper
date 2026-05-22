@@ -81,7 +81,7 @@ export default function PricingPage() {
         <div className="mb-6">
           <Link
             href="/"
-            className="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5 text-[12px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            className="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5 text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           >
             <ArrowLeft className="h-3 w-3 transition-transform duration-[var(--dur-fast)] group-hover:-translate-x-0.5" />
             Home
@@ -117,13 +117,13 @@ export default function PricingPage() {
               }`}
             >
               <div className="mb-1 flex items-baseline justify-between">
-                <h2 className="text-[15px] font-semibold tracking-tight">{t.name}</h2>
+                <h2 className="text-[14px] font-semibold tracking-tight">{t.name}</h2>
                 {t.highlight && <Badge tone="accent" size="xs">popular</Badge>}
               </div>
-              <p className="mb-6 text-[12px] text-[var(--color-fg-muted)]">{t.blurb}</p>
+              <p className="mb-6 text-[13px] text-[var(--color-fg-muted)]">{t.blurb}</p>
               <div className="mb-6 flex items-baseline gap-1">
-                <span className="text-[36px] font-semibold tracking-[-0.02em] text-[var(--color-fg-strong)]">{t.price}</span>
-                <span className="text-[12px] text-[var(--color-fg-muted)]">/mo</span>
+                <span className="text-[32px] font-semibold tracking-[-0.02em] text-[var(--color-fg-strong)]">{t.price}</span>
+                <span className="text-[13px] text-[var(--color-fg-muted)]">/mo</span>
               </div>
               <ul className="mb-6 flex-1 space-y-2 text-[13px] text-[var(--color-fg-muted)]">
                 {t.features.map((f) => (
@@ -147,25 +147,25 @@ export default function PricingPage() {
         </MotionStagger>
 
         {error && (
-          <p className="mt-6 text-center text-[12px] text-[color:var(--color-danger)]">{error}</p>
+          <p className="mt-6 text-center text-[13px] text-[color:var(--color-danger)]">{error}</p>
         )}
 
         <div className="mt-16 grid grid-cols-1 gap-3 md:grid-cols-3">
           <Card density="comfortable">
             <div className="text-[14px] font-semibold tracking-tight">Cancel anytime</div>
-            <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+            <p className="mt-1.5 text-[13px] text-[var(--color-fg-muted)]">
               One click in your account. No retention popups, no &quot;before you go&quot; flow.
             </p>
           </Card>
           <Card density="comfortable">
             <div className="text-[14px] font-semibold tracking-tight">14-day refund</div>
-            <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+            <p className="mt-1.5 text-[13px] text-[var(--color-fg-muted)]">
               No questions. Email <a href="mailto:support@stealthscraper.dev" className="text-[var(--color-accent)] hover:underline">support@stealthscraper.dev</a>.
             </p>
           </Card>
           <Card density="comfortable">
             <div className="text-[14px] font-semibold tracking-tight">Quota resets monthly</div>
-            <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+            <p className="mt-1.5 text-[13px] text-[var(--color-fg-muted)]">
               1st of each month, UTC. See your current usage in <Link href="/settings/usage" className="text-[var(--color-accent)] hover:underline">/settings/usage</Link>.
             </p>
           </Card>
@@ -176,7 +176,7 @@ export default function PricingPage() {
         </div>
 
         <div className="mt-16">
-          <h2 className="mb-6 text-center text-[24px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
+          <h2 className="mb-6 text-center text-[20px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
             What people say
           </h2>
           <ReviewBlock targetKind="product" targetId="stealth-scraper" hideHeader limit={6} />

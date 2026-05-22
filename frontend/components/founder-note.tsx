@@ -51,7 +51,7 @@ export function FounderNote() {
           From the founder
         </div>
 
-        <blockquote className="relative max-w-2xl text-[20px] font-medium leading-[1.35] tracking-[-0.012em] text-[var(--color-fg-display)] sm:text-[22px]">
+        <blockquote className="relative max-w-2xl text-[20px] font-medium leading-[1.35] tracking-[-0.012em] text-[var(--color-fg-display)] sm:text-[20px]">
           &ldquo;{FOUNDER.pull}&rdquo;
         </blockquote>
 
@@ -67,12 +67,12 @@ export function FounderNote() {
             <div className="mb-3 font-mono text-[11px] text-[var(--color-fg-muted)]">
               {FOUNDER.role}
             </div>
-            <div className="space-y-3 text-[13.5px] leading-[1.7] text-[var(--color-fg)]">
+            <div className="space-y-3 text-[13px] leading-[1.7] text-[var(--color-fg)]">
               {FOUNDER.bio.map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
             </div>
-            <div className="mt-4 flex items-center gap-3 text-[12px]">
+            <div className="mt-4 flex items-center gap-3 text-[13px]">
               <a
                 href={FOUNDER.twitter}
                 target="_blank"
@@ -113,7 +113,7 @@ function FounderAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) 
     .slice(0, 2)
     .join("");
   return (
-    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--color-accent)] to-[color-mix(in_srgb,var(--color-accent)_60%,var(--color-fg-strong))] text-[18px] font-semibold text-white ring-1 ring-[var(--color-border)]">
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--color-accent)] to-[color-mix(in_srgb,var(--color-accent)_60%,var(--color-fg-strong))] text-[20px] font-semibold text-white ring-1 ring-[var(--color-border)]">
       {initials}
     </div>
   );

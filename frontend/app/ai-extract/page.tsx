@@ -117,7 +117,7 @@ function AiExtractForm() {
         <div className="mb-6">
           <Link
             href="/"
-            className="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5 text-[12px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            className="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5 text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           >
             <ArrowLeft className="h-3 w-3 transition-transform duration-[var(--dur-fast)] group-hover:-translate-x-0.5" />
             Home
@@ -157,7 +157,7 @@ function AiExtractForm() {
             rows={3}
             maxLength={500}
           />
-          <p className="text-[11.5px] leading-[1.5] text-[var(--color-fg-subdued)]">
+          <p className="text-[11px] leading-[1.5] text-[var(--color-fg-subdued)]">
             Tip: describe the <strong className="text-[var(--color-fg-muted)]">structure</strong>, not a sorted/filtered answer.
             &quot;Get all products with title, price, discount&quot; works — &quot;the product with the highest discount&quot; doesn&apos;t
             (we extract data, you sort it in code).
@@ -193,7 +193,7 @@ function AiExtractForm() {
                   <div className="mb-1.5 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
                     {ex.url.replace(/^https?:\/\//, "")}
                   </div>
-                  <div className="text-[12px] leading-[1.5] text-[var(--color-fg)]">{ex.desc}</div>
+                  <div className="text-[13px] leading-[1.5] text-[var(--color-fg)]">{ex.desc}</div>
                 </button>
               ))}
             </div>
@@ -208,7 +208,7 @@ function AiExtractForm() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
-              className="mt-6 flex items-start gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-3 text-[12px] text-[color:var(--color-danger)]"
+              className="mt-6 flex items-start gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-3 text-[13px] text-[color:var(--color-danger)]"
             >
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
               <span className="text-[var(--color-fg)]">{error}</span>
@@ -257,7 +257,7 @@ function AiExtractForm() {
                     }
                     window.location.href = `/pick?url=${encodeURIComponent(norm)}&prefill=ai`;
                   }}
-                  className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 text-[12px] text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]"
+                  className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 text-[13px] text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]"
                   title="Open these fields in the visual picker to verify, edit, or add transforms"
                 >
                   <ExternalLink className="h-3 w-3" />
@@ -301,7 +301,7 @@ function AiExtractForm() {
             </pre>
             {Object.keys(results.errors || {}).length > 0 && (
               <details className="mt-3">
-                <summary className="cursor-pointer text-[12px] text-[var(--color-warning)]">
+                <summary className="cursor-pointer text-[13px] text-[var(--color-warning)]">
                   {Object.keys(results.errors).length} field error(s)
                 </summary>
                 <pre className="mt-2 rounded-md border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-3 font-mono text-[11px] text-[var(--color-warning)]">

@@ -1,0 +1,167 @@
+{
+  "api_base": "https://api.stealthscraper.dev",
+  "wallclock_s": 91.3,
+  "total_urls": 4,
+  "fetch_errors": 0,
+  "fetch_error_detail": [],
+  "field_totals": {
+    "total": 12,
+    "non_null": 11,
+    "null_with_reason": 1,
+    "silent_null": 0,
+    "grounded": 10,
+    "hallucinated": 1
+  },
+  "metrics": {
+    "grounded_rate_pct": 90.9,
+    "hallucinated_rate_pct": 9.1,
+    "honest_null_rate_pct": 100.0,
+    "silent_null_rate_pct": 0.0
+  },
+  "results": [
+    {
+      "url": "https://news.ycombinator.com",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "title": {
+          "value": "['Antigravity 2.0 Tops the OpenSCAD Architectural 3D LLM Benchmark', 'If you\u2019re an LLM, please read this', 'Launch HN: Superset (YC P26) \u2013 IDE for the agents era']\u2026 +27 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#bigbox > td > table > tbody > tr.athing > td.title > span.titleline > a"
+        },
+        "description": {
+          "value": "['jetter', 'hide', '72 comments']\u2026 +84 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#bigbox > td > table > tbody > tr > td.subtext > span.subline > a"
+        },
+        "title_2": {
+          "value": "['modelrift.com', 'annas-archive.gl', 'github.com/superset-sh']\u2026 +27 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#bigbox > td > table > tbody > tr.athing > td.title > span.titleline > span.sitebit > a > span.sitestr"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 3,
+        "hallucinated": 0
+      }
+    },
+    {
+      "url": "https://github.com/trending",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "programminglanguage": {
+          "value": null,
+          "reason_if_null": "selector matched but extracted value was empty (24 node(s), kind='text')",
+          "verdict": "HONEST_NULL",
+          "source": "selector",
+          "confidence": 0.5
+        },
+        "og_title": {
+          "value": "Build software better, together",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "meta[property=\"og:title\"]"
+        },
+        "og_description": {
+          "value": "GitHub is where people build software. More than 150 million people use GitHub t\u2026",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "meta[property=\"og:description\"]"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 2,
+        "null_with_reason": 1,
+        "silent_null": 0,
+        "grounded": 2,
+        "hallucinated": 0
+      }
+    },
+    {
+      "url": "https://quotes.toscrape.com",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "text": {
+          "value": "\u201cThe world as we have created it is a process of our thinking. It cannot be chan\u2026",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "div.container > div.row > div.col-md-8 > div.quote > span.text"
+        },
+        "author": {
+          "value": "Albert Einstein",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "div.container > div.row > div.col-md-8 > div.quote > span > small.author"
+        },
+        "keywords": {
+          "value": "change,deep-thoughts,thinking,world",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "div.container > div.row > div.col-md-8 > div.quote > div.tags > meta.keywords"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 3,
+        "hallucinated": 0
+      }
+    },
+    {
+      "url": "https://books.toscrape.com",
+      "status": "ok",
+      "fetch_error": null,
+      "fields": {
+        "product_title": {
+          "value": "['A Light in the ...', 'Tipping the Velvet', 'Soumission']\u2026 +17 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#default > div.container-fluid > div.page_inner > div.row > div.col-sm-8 > section > div:nth-of-type(2) > ol.row > li.col-xs-6 > article.product_pod > h3 > a"
+        },
+        "product_price": {
+          "value": "['\u00a351.77', '\u00a353.74', '\u00a350.10']\u2026 +17 more",
+          "verdict": "GROUNDED",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#default > div.container-fluid > div.page_inner > div.row > div.col-sm-8 > section > div:nth-of-type(2) > ol.row > li.col-xs-6 > article.product_pod > div.product_price > p.price_color"
+        },
+        "product_image_url": {
+          "value": "['', '', '']\u2026 +17 more",
+          "verdict": "HALLUCINATED?",
+          "source": "selector",
+          "confidence": 1.0,
+          "selector_used": "#default > div.container-fluid > div.page_inner > div.row > div.col-sm-8 > section > div:nth-of-type(2) > ol.row > li.col-xs-6 > article.product_pod > div.image_container > a > img.thumbnail"
+        }
+      },
+      "field_summary": {
+        "total": 3,
+        "non_null": 3,
+        "null_with_reason": 0,
+        "silent_null": 0,
+        "grounded": 2,
+        "hallucinated": 1
+      }
+    }
+  ]
+}

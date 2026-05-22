@@ -97,7 +97,7 @@ function LoginForm() {
         <Brand />
       </Link>
 
-      <h1 className="mb-2 text-[24px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
+      <h1 className="mb-2 text-[20px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
         {mode === "signup" ? "Create your account" : "Welcome back"}
       </h1>
       <p className="mb-8 text-[13px] text-[var(--color-fg-muted)]">
@@ -160,7 +160,7 @@ function LoginForm() {
       )}
 
       {/* Segmented control */}
-      <div className="mb-6 inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 text-[12px]">
+      <div className="mb-6 inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 text-[13px]">
         {(["signin", "signup", "magic"] as Mode[]).map((m) => (
           <button
             key={m}
@@ -224,7 +224,7 @@ function LoginForm() {
             )}
           </Button>
           {status === "error" && message && (
-            <div className="mt-3 flex items-start gap-2 rounded-md border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-dim)] p-3 text-[12px] text-[color:var(--color-danger)]">
+            <div className="mt-3 flex items-start gap-2 rounded-md border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-dim)] p-3 text-[13px] text-[color:var(--color-danger)]">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
               <span>{message}</span>
             </div>
@@ -232,7 +232,7 @@ function LoginForm() {
         </form>
       )}
 
-      <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-center text-[12px] text-[var(--color-fg-subdued)]">
+      <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-center text-[13px] text-[var(--color-fg-subdued)]">
         By continuing you agree to our{" "}
         <Link href="/terms" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">Terms</Link>
         {" "}and{" "}

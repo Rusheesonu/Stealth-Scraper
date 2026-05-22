@@ -54,7 +54,7 @@ export function CardTitle({
   return (
     <h3
       className={cn(
-        "text-[15px] font-semibold tracking-[var(--tracking-body)] text-[var(--color-fg-strong)]",
+        "text-[14px] font-semibold tracking-[var(--tracking-body)] text-[var(--color-fg-strong)]",
         className,
       )}
     >

@@ -109,10 +109,10 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
       <div className="px-5 pt-5 pb-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+            <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
               Label this field
             </h2>
-            <p className="mt-1 text-[12.5px] text-[var(--color-fg-muted)]">
+            <p className="mt-1 text-[13px] text-[var(--color-fg-muted)]">
               Give it a name you&apos;ll recognize in the output JSON.
             </p>
           </div>
@@ -139,7 +139,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
               <Badge tone="muted" size="xs">{siblingCount} similar</Badge>
             )}
           </div>
-          <div className="font-mono text-[12px] leading-[1.5] text-[var(--color-fg)]">
+          <div className="font-mono text-[13px] leading-[1.5] text-[var(--color-fg)]">
             <span className="text-[var(--color-fg-subdued)]">&ldquo;</span>
             {truncate(
               currentEl.text || currentEl.attrs.href || currentEl.attrs.src || "(no text)",
@@ -147,7 +147,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
             )}
             <span className="text-[var(--color-fg-subdued)]">&rdquo;</span>
           </div>
-          <div className="mt-2 truncate font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+          <div className="mt-2 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
             {truncate(currentEl.css, 96)}
           </div>
         </div>
@@ -158,7 +158,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
           disabled={!parentEl}
           title="Alt/Option + ↑"
           className={cn(
-            "mb-5 flex w-full items-center justify-between gap-2 rounded-md border border-dashed border-[var(--color-border)] px-3 py-2 text-[12px]",
+            "mb-5 flex w-full items-center justify-between gap-2 rounded-md border border-dashed border-[var(--color-border)] px-3 py-2 text-[13px]",
             "transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)]",
             "hover:border-[var(--color-border-strong)] hover:bg-[var(--color-ink-1)]",
             "disabled:cursor-not-allowed disabled:opacity-40",
@@ -197,7 +197,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
               type="button"
               onClick={() => setKind(k)}
               className={cn(
-                "relative inline-flex items-center justify-center rounded-md px-2 py-1.5 text-[12.5px] font-medium",
+                "relative inline-flex items-center justify-center rounded-md px-2 py-1.5 text-[13px] font-medium",
                 "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                 kind === k
                   ? "text-[var(--color-fg-strong)]"
@@ -261,11 +261,11 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
               <div className="rounded-lg border border-[var(--color-accent-line)] bg-[var(--color-accent-faint)] p-3">
                 <div className="mb-2 flex items-center gap-1.5">
                   <Check className="h-3 w-3 text-[var(--color-accent)]" />
-                  <span className="text-[12.5px] font-semibold text-[var(--color-fg-strong)]">
+                  <span className="text-[13px] font-semibold text-[var(--color-fg-strong)]">
                     Found {siblingCount} similar items
                   </span>
                 </div>
-                <ul className="space-y-0.5 font-mono text-[10.5px] leading-[1.55] text-[var(--color-fg)]">
+                <ul className="space-y-0.5 font-mono text-[11px] leading-[1.55] text-[var(--color-fg)]">
                   {siblings.slice(0, 4).map((s, i) => (
                     <li key={i} className="truncate">
                       <span className="text-[var(--color-fg-subdued)]">{i + 1}.</span>{" "}
@@ -279,10 +279,10 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
               </div>
             ) : (
               <div className="rounded-lg border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-3">
-                <div className="mb-1 text-[12.5px] font-semibold text-[var(--color-fg-strong)]">
+                <div className="mb-1 text-[13px] font-semibold text-[var(--color-fg-strong)]">
                   No similar items detected
                 </div>
-                <p className="text-[11.5px] leading-[1.55] text-[var(--color-fg-muted)]">
+                <p className="text-[11px] leading-[1.55] text-[var(--color-fg-muted)]">
                   List mode will still return this in an array, but you may want to pick
                   a different element — something inside a repeating card.
                 </p>
@@ -294,7 +294,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-3">
-        <div className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+        <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">
           <Kbd>↵</Kbd>
           <span className="ml-1">to add</span>
           <span className="mx-1.5 text-[var(--color-fg-subdued)]">·</span>

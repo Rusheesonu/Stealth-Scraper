@@ -116,7 +116,7 @@ function UsagePageInner() {
                 <div className="text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
                   Welcome to {celebrate.charAt(0).toUpperCase() + celebrate.slice(1)}!
                 </div>
-                <p className="mt-1 text-[12.5px] text-[var(--color-fg-muted)]">
+                <p className="mt-1 text-[13px] text-[var(--color-fg-muted)]">
                   Your new limits are active. Receipt is in your email — manage your subscription in your billing portal.
                 </p>
               </div>
@@ -171,7 +171,7 @@ function UsagePageInner() {
               </div>
 
               <div className="mb-5 flex items-baseline gap-2">
-                <span className="text-[44px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-[var(--color-fg-strong)]">
+                <span className="text-[40px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-[var(--color-fg-strong)]">
                   {data.used.toLocaleString()}
                 </span>
                 <span className="text-[14px] text-[var(--color-fg-muted)]">
@@ -209,7 +209,7 @@ function UsagePageInner() {
             {data.plan === "free" && (
               <Card density="comfortable" className="mt-6">
                 <div className="text-[14px] font-semibold tracking-tight">You&apos;re on the free tier</div>
-                <p className="mt-1.5 text-[12px] text-[var(--color-fg-muted)]">
+                <p className="mt-1.5 text-[13px] text-[var(--color-fg-muted)]">
                   Free: 50 scrapes/mo, soft sites. Hard sites (Cloudflare,
                   Datadome) require Hobby+ ($29/mo, 1,000 scrapes).
                 </p>

@@ -151,7 +151,7 @@ export function SdkPreview() {
                   key={id}
                   onClick={() => setTab(id)}
                   className={cn(
-                    "relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium",
+                    "relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium",
                     "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                     active
                       ? "text-[var(--color-fg-strong)]"
@@ -166,7 +166,7 @@ export function SdkPreview() {
                     />
                   )}
                   <span className={cn(
-                    "relative z-10 inline-flex h-4 w-4 items-center justify-center rounded-sm font-mono text-[9px]",
+                    "relative z-10 inline-flex h-4 w-4 items-center justify-center rounded-sm font-mono text-[11px]",
                     active
                       ? "bg-[var(--color-accent-faint)] text-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent-line)]"
                       : "bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]",
@@ -180,7 +180,7 @@ export function SdkPreview() {
           </div>
           <button
             onClick={copy}
-            className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[10.5px] text-[var(--color-fg-muted)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)]"
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[11px] text-[var(--color-fg-muted)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)]"
             title="Copy snippet"
           >
             {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -194,7 +194,7 @@ export function SdkPreview() {
         </pre>
 
         {/* Footer caption */}
-        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[11.5px] text-[var(--color-fg-muted)]">
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
           tpl_hn_top_stories — example recipe. Yours come from the visual picker.
         </div>
       </motion.div>

@@ -44,7 +44,7 @@ const buttonVariants = cva(
           "bg-transparent text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/30 hover:bg-[var(--color-danger-soft)] hover:border-[color:var(--color-danger)]/60",
       },
       size: {
-        sm: "h-7 px-2.5 text-[12px]",
+        sm: "h-7 px-2.5 text-[13px]",
         md: "h-9 px-3.5 text-[13px]",
         lg: "h-11 px-5 text-[14px]",
       },
