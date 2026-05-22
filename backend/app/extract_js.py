@@ -60,6 +60,12 @@ COLLECT_ELEMENTS_JS = r"""
         // generated too. Keep semantic ids like "main-content" (no long
         // pure-hex run) usable.
         if (id.length >= 16 && /^[0-9a-f-]+$/i.test(id) && !/-[a-z]{3,}/i.test(id)) return true;
+        // Pure-numeric ids are almost always database row ids that rotate
+        // as content changes (HN stories "48225297", forum posts, etc).
+        // They look stable to the selector builder but anchor it to a
+        // SINGLE row — defeats the "click one, get the whole list" magic.
+        // Real semantic ids use letters; treat pure digits as random.
+        if (/^\d+$/.test(id)) return true;
         return false;
     }
 
