@@ -12,6 +12,8 @@ import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
+import { SLABanner } from "@/components/sla-banner";
+import { ReviewBlock } from "@/components/review-block";
 
 type Plan = "hobby" | "pro" | "business";
 
@@ -95,6 +97,9 @@ export default function PricingPage() {
           <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.028em] text-[var(--color-fg-strong)]">
             Honest pricing.<br />No dark patterns.
           </h1>
+          <div className="mt-6 flex justify-center">
+            <SLABanner variant="hero" />
+          </div>
           <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
             Three tiers. No fake urgency. No &quot;most popular&quot; sticker we made up.
             Cancel anytime, 14-day refund.
@@ -164,6 +169,17 @@ export default function PricingPage() {
               1st of each month, UTC. See your current usage in <Link href="/settings/usage" className="text-[var(--color-accent)] hover:underline">/settings/usage</Link>.
             </p>
           </Card>
+        </div>
+
+        <div className="mt-16">
+          <SLABanner variant="feature" />
+        </div>
+
+        <div className="mt-16">
+          <h2 className="mb-6 text-center text-[24px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
+            What people say
+          </h2>
+          <ReviewBlock targetKind="product" targetId="stealth-scraper" hideHeader limit={6} />
         </div>
 
         <div className="mt-16 text-center">

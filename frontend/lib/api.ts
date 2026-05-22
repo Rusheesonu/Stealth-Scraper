@@ -264,6 +264,31 @@ export const api = {
 
   status: () => call<StatusResponse>("/status"),
 
+  // Reliability SLA — refund history.
+  refunds: {
+    list: () => call<{ refunds: Refund[]; count: number }>("/me/refunds"),
+  },
+
+  // Reviews — product-level + per-template.
+  reviews: {
+    list: (targetKind: "product" | "template", targetId: string, limit = 20) =>
+      call<{ reviews: Review[]; count: number }>(
+        `/reviews?target_kind=${targetKind}&target_id=${encodeURIComponent(targetId)}&limit=${limit}`,
+      ),
+    summary: (targetKind: "product" | "template", targetId: string) =>
+      call<ReviewSummary>(
+        `/reviews/summary?target_kind=${targetKind}&target_id=${encodeURIComponent(targetId)}`,
+      ),
+    submit: (body: {
+      target_kind: "product" | "template";
+      target_id: string;
+      rating: number;
+      body: string;
+      author_name?: string;
+    }) => call<{ review: Review }>("/reviews", { method: "POST", body: JSON.stringify(body) }),
+    delete: (id: number) => call<void>(`/reviews/${id}`, { method: "DELETE" }),
+  },
+
   assistSchema: (params: {
     url: string;
     description: string;
@@ -360,4 +385,30 @@ export type ApiKey = {
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
+};
+
+export type Refund = {
+  id: number;
+  year_month: string;       // e.g. "2026-05"
+  refunded_count: number;   // usually 1
+  reason: string;           // human-readable
+  url: string | null;
+  refunded_at: string;      // ISO timestamp
+};
+
+export type Review = {
+  id: number;
+  user_id: string;
+  rating: number;           // 1-5
+  body: string;
+  verified: boolean;        // proved usage > 5 scrapes this month
+  author_name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReviewSummary = {
+  count: number;
+  avg: number;              // 0-5
+  distribution: { [key: number]: number };  // {5: N, 4: N, ...}
 };

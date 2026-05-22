@@ -451,10 +451,15 @@ async def snapshot_endpoint(
     req: SnapshotRequest,
     user_id: str = Depends(enforce_plan),
 ) -> dict[str, Any]:
+    from app import refunds
+    from app.detect import detect_block
+
     async with scrape_slot():
         actions_payload: list[BrowserAction] | None = None
         if req.actions:
             actions_payload = [a.model_dump() for a in req.actions]  # type: ignore[misc]
+        snap = None
+        scrape_error: Exception | None = None
         try:
             # Authenticated callers explicitly want to scrape — they own
             # the legal/ethical risk. override_robots=True bypasses robots.txt.
@@ -467,17 +472,41 @@ async def snapshot_endpoint(
                 override_robots=True,
             )
         except ValueError as e:
-            # SSRF guard refused the URL — structured 422.
+            # SSRF guard refused the URL — structured 422. NOT a billable
+            # failure, so no refund (the request was invalid, not the page).
             raise _unsafe_url_http422(str(e)) from e
         except PermissionError as e:
-            # Defensive: shouldn't fire with override_robots=True, but if
-            # safety.py ever adds a global blocklist we want a clean 422.
+            # robots.txt block. Refund — the user attempted in good faith.
+            await refunds.auto_refund_if_failed(
+                user_id=user_id, url=str(req.url), snap_title=None,
+                element_count=0, blocked=False, detected_vendor=None, error=e,
+            )
             raise HTTPException(
                 status_code=422,
                 detail={"kind": "robots_disallowed", "message": str(e)},
             ) from e
         except Exception as e:
+            scrape_error = e
+            await refunds.auto_refund_if_failed(
+                user_id=user_id, url=str(req.url), snap_title=None,
+                element_count=0, blocked=False, detected_vendor=None, error=e,
+            )
             raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
+
+        # Reliability SLA: refund if the scrape "succeeded" but the result
+        # is empty / an anti-bot wall. detect_block is the same signature
+        # library the bench uses to classify failures.
+        block = detect_block(
+            title=snap.title or "",
+            html=" ".join((el.get("text") or "")[:200] for el in (snap.elements or [])[:40]),
+            url=snap.url,
+        )
+        await refunds.auto_refund_if_failed(
+            user_id=user_id, url=str(req.url),
+            snap_title=snap.title, element_count=len(snap.elements or []),
+            blocked=block.blocked, detected_vendor=block.vendor,
+            error=None,
+        )
     return {
         "url": snap.url,
         "title": snap.title,
@@ -900,6 +929,93 @@ async def assist_schema(
         "template": template,
         "element_count": len(snap.elements),
     }
+
+
+# Reliability SLA — refund history --------------------------------------------
+
+@app.get("/me/refunds")
+async def my_refunds(
+    user_id: str = Depends(get_current_user),
+    limit: int = 100,
+) -> dict[str, Any]:
+    """User-visible refund history. Powers /settings/refunds.
+
+    Each row: when, why, which URL. The 'reason' field is a human-readable
+    string the SLA UI can render verbatim ("Cloudflare blocked us — credit
+    refunded automatically")."""
+    rows = await db.list_user_refunds(user_id, limit=max(1, min(limit, 500)))
+    return {"refunds": rows, "count": len(rows)}
+
+
+# Reviews ---------------------------------------------------------------------
+
+class ReviewCreate(BaseModel):
+    target_kind: str = Field(..., pattern="^(product|template)$")
+    target_id: str = Field(..., min_length=1, max_length=120)
+    rating: int = Field(..., ge=1, le=5)
+    body: str = Field("", max_length=2000)
+    author_name: str = Field("", max_length=60)
+
+
+@app.post("/reviews", status_code=201)
+async def create_or_update_review(
+    req: ReviewCreate,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Submit a review. Same user submitting again UPSERTS — one review per
+    (user, target). Auto-flags `verified=True` if the user has scraped > 5x
+    this month (proves they actually use the product)."""
+    from app import reviews
+    try:
+        row = await reviews.submit_review(
+            user_id=user_id,
+            target_kind=req.target_kind,
+            target_id=req.target_id,
+            rating=req.rating,
+            body=req.body,
+            author_name=req.author_name,
+        )
+        return {"review": row}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@app.get("/reviews")
+async def list_reviews_endpoint(
+    target_kind: str,
+    target_id: str,
+    limit: int = 20,
+) -> dict[str, Any]:
+    """Public read — no auth. Powers landing/pricing/template review blocks."""
+    if target_kind not in ("product", "template"):
+        raise HTTPException(status_code=422, detail="target_kind must be product|template")
+    from app import reviews
+    rows = await reviews.list_for_target(target_kind, target_id, limit=max(1, min(limit, 100)))
+    return {"reviews": rows, "count": len(rows)}
+
+
+@app.get("/reviews/summary")
+async def review_summary_endpoint(
+    target_kind: str,
+    target_id: str,
+) -> dict[str, Any]:
+    """Public — aggregate stats for star display."""
+    if target_kind not in ("product", "template"):
+        raise HTTPException(status_code=422, detail="target_kind must be product|template")
+    from app import reviews
+    return await reviews.summary_for_target(target_kind, target_id)
+
+
+@app.delete("/reviews/{review_id}", status_code=204)
+async def delete_review_endpoint(
+    review_id: int,
+    user_id: str = Depends(get_current_user),
+) -> Response:
+    from app import reviews
+    ok = await reviews.delete_own_review(review_id, user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="review not found or not yours")
+    return Response(status_code=204)
 
 
 # Templates CRUD ---------------------------------------------------------------

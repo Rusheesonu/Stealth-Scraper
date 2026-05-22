@@ -89,16 +89,42 @@ async def init() -> None:
                 "Schema not initialized — run the migration in Supabase SQL editor "
                 "or `python -m app.migrate`. See backend/migrations/initial.sql."
             )
-        # Late-add table — webhook idempotency was bolted on after the
-        # initial migration was already applied to prod, so self-create
-        # here for backwards compat. Idempotent CREATE IF NOT EXISTS.
+        # Late-add tables — features bolted on after the initial migration
+        # was already applied to prod. Idempotent CREATE IF NOT EXISTS so
+        # they self-create on first deploy without a manual migration run.
         await conn.execute(
             """
             CREATE TABLE IF NOT EXISTS processed_webhook_events (
                 event_id      TEXT PRIMARY KEY,
                 received_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 payload       JSONB
-            )
+            );
+            CREATE TABLE IF NOT EXISTS usage_refunds (
+                id              BIGSERIAL PRIMARY KEY,
+                user_id         TEXT NOT NULL,
+                year_month      TEXT NOT NULL,
+                refunded_count  INTEGER NOT NULL DEFAULT 1,
+                reason          TEXT NOT NULL,
+                url             TEXT,
+                refunded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                scrape_meta     JSONB
+            );
+            CREATE INDEX IF NOT EXISTS idx_refunds_user_month ON usage_refunds (user_id, year_month);
+            CREATE INDEX IF NOT EXISTS idx_refunds_user_date  ON usage_refunds (user_id, refunded_at DESC);
+            CREATE TABLE IF NOT EXISTS reviews (
+                id           BIGSERIAL PRIMARY KEY,
+                user_id      TEXT NOT NULL,
+                target_kind  TEXT NOT NULL CHECK (target_kind IN ('product','template')),
+                target_id    TEXT NOT NULL,
+                rating       INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+                body         TEXT NOT NULL DEFAULT '',
+                verified     BOOLEAN NOT NULL DEFAULT FALSE,
+                author_name  TEXT NOT NULL DEFAULT '',
+                created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE(user_id, target_kind, target_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_reviews_target ON reviews (target_kind, target_id, created_at DESC);
             """
         )
 
@@ -664,3 +690,131 @@ async def mark_job_ran(job_id: int, *, next_run_at: str, status: str) -> None:
             "next_run_at = $2::timestamptz, updated_at = NOW() WHERE id = $3",
             status, next_run_at, job_id,
         )
+
+
+# ── Refunds + reviews ────────────────────────────────────────────────────
+
+
+async def try_refund_usage(
+    user_id: str,
+    year_month: str,
+    reason: str,
+    *,
+    url: str | None = None,
+    scrape_meta: dict | None = None,
+) -> bool:
+    """Atomically: (a) decrement usage_counts.count by 1, (b) insert a
+    usage_refunds row. Skips if count is already 0 (no-op, returns False).
+    Returns True if refund applied.
+
+    The "atomic" guarantee comes from running both inside one transaction —
+    if the decrement is skipped (because count=0), the insert is also
+    skipped via the WHERE...RETURNING pattern.
+    """
+    pool = await _get_pool()
+    async with _acquire(pool) as conn:
+        async with conn.transaction():
+            decremented = await conn.fetchval(
+                "UPDATE usage_counts SET count = count - 1 "
+                "WHERE user_id = $1 AND year_month = $2 AND count > 0 "
+                "RETURNING count",
+                user_id, year_month,
+            )
+            if decremented is None:
+                return False
+            await conn.execute(
+                "INSERT INTO usage_refunds (user_id, year_month, refunded_count, "
+                "reason, url, scrape_meta) VALUES ($1, $2, $3, $4, $5, $6)",
+                user_id, year_month, 1, reason, url,
+                json.dumps(scrape_meta) if scrape_meta else None,
+            )
+            return True
+
+
+async def list_user_refunds(user_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+    """Last N refunds for a user — most recent first. Used by /me/refunds."""
+    pool = await _get_pool()
+    async with _acquire(pool) as conn:
+        rows = await conn.fetch(
+            "SELECT id, year_month, refunded_count, reason, url, refunded_at "
+            "FROM usage_refunds WHERE user_id = $1 "
+            "ORDER BY refunded_at DESC LIMIT $2",
+            user_id, limit,
+        )
+        return [dict(r) for r in rows]
+
+
+async def upsert_review(
+    user_id: str,
+    target_kind: str,
+    target_id: str,
+    *,
+    rating: int,
+    body: str,
+    author_name: str,
+    verified: bool,
+) -> dict[str, Any]:
+    """Create-or-update a review (one review per user per target).
+    Returns the row."""
+    pool = await _get_pool()
+    async with _acquire(pool) as conn:
+        row = await conn.fetchrow(
+            "INSERT INTO reviews (user_id, target_kind, target_id, rating, body, "
+            "author_name, verified) VALUES ($1, $2, $3, $4, $5, $6, $7) "
+            "ON CONFLICT (user_id, target_kind, target_id) DO UPDATE SET "
+            "rating = EXCLUDED.rating, body = EXCLUDED.body, "
+            "verified = EXCLUDED.verified, updated_at = NOW() RETURNING *",
+            user_id, target_kind, target_id, rating, body, author_name, verified,
+        )
+        return dict(row) if row else {}
+
+
+async def list_reviews(
+    target_kind: str, target_id: str, *, limit: int = 20
+) -> list[dict[str, Any]]:
+    """Reviews for a target — most recent first. Public read (no auth filter)."""
+    pool = await _get_pool()
+    async with _acquire(pool) as conn:
+        rows = await conn.fetch(
+            "SELECT id, user_id, rating, body, verified, author_name, created_at, "
+            "updated_at FROM reviews WHERE target_kind = $1 AND target_id = $2 "
+            "ORDER BY created_at DESC LIMIT $3",
+            target_kind, target_id, limit,
+        )
+        return [dict(r) for r in rows]
+
+
+async def review_summary(target_kind: str, target_id: str) -> dict[str, Any]:
+    """Aggregate stats for a target: count + avg + 1-5 star distribution."""
+    pool = await _get_pool()
+    async with _acquire(pool) as conn:
+        agg = await conn.fetchrow(
+            "SELECT COUNT(*) AS n, COALESCE(AVG(rating), 0)::float AS avg "
+            "FROM reviews WHERE target_kind = $1 AND target_id = $2",
+            target_kind, target_id,
+        )
+        dist_rows = await conn.fetch(
+            "SELECT rating, COUNT(*) AS n FROM reviews "
+            "WHERE target_kind = $1 AND target_id = $2 "
+            "GROUP BY rating ORDER BY rating",
+            target_kind, target_id,
+        )
+        dist = {r: 0 for r in (1, 2, 3, 4, 5)}
+        for row in dist_rows:
+            dist[int(row["rating"])] = int(row["n"])
+        return {
+            "count": int(agg["n"] if agg else 0),
+            "avg": float(agg["avg"] if agg else 0.0),
+            "distribution": dist,
+        }
+
+
+async def delete_review(review_id: int, user_id: str) -> bool:
+    """Delete one's own review. Returns True if a row was deleted."""
+    pool = await _get_pool()
+    async with _acquire(pool) as conn:
+        row = await conn.fetchrow(
+            "DELETE FROM reviews WHERE id = $1 AND user_id = $2 RETURNING id",
+            review_id, user_id,
+        )
+        return row is not None

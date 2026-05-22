@@ -82,3 +82,37 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_user      ON scheduled_jobs (user_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_next_run  ON scheduled_jobs (enabled, next_run_at);
+
+-- Reliability SLA — every failed scrape (blocked, empty, errored) gets
+-- a row here AND a usage_counts decrement. The /me/refunds endpoint
+-- reads from this for the user-visible refund history.
+CREATE TABLE IF NOT EXISTS usage_refunds (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    year_month      TEXT NOT NULL,
+    refunded_count  INTEGER NOT NULL DEFAULT 1,
+    reason          TEXT NOT NULL,
+    url             TEXT,
+    refunded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    scrape_meta     JSONB
+);
+CREATE INDEX IF NOT EXISTS idx_refunds_user_month ON usage_refunds (user_id, year_month);
+CREATE INDEX IF NOT EXISTS idx_refunds_user_date  ON usage_refunds (user_id, refunded_at DESC);
+
+-- Reviews — per-product (stealth-scraper) + per-template.
+-- target_kind = 'product' | 'template'. UNIQUE constraint = one review
+-- per user per target.
+CREATE TABLE IF NOT EXISTS reviews (
+    id           BIGSERIAL PRIMARY KEY,
+    user_id      TEXT NOT NULL,
+    target_kind  TEXT NOT NULL CHECK (target_kind IN ('product','template')),
+    target_id    TEXT NOT NULL,
+    rating       INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    body         TEXT NOT NULL DEFAULT '',
+    verified     BOOLEAN NOT NULL DEFAULT FALSE,
+    author_name  TEXT NOT NULL DEFAULT '',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, target_kind, target_id)
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_target ON reviews (target_kind, target_id, created_at DESC);

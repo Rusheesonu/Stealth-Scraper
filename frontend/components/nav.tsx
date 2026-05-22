@@ -38,6 +38,7 @@ const SETTINGS_LINKS = [
   { href: "/settings/usage", label: "Usage" },
   { href: "/settings/schedules", label: "Schedules" },
   { href: "/settings/api-keys", label: "API keys" },
+  { href: "/settings/refunds", label: "Refunds" },
 ];
 
 export function Nav() {

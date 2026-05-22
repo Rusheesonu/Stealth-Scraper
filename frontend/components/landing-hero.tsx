@@ -6,9 +6,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LandingPreviewModal } from "@/components/landing-preview-modal";
+import { SLABanner } from "@/components/sla-banner";
+import { ReviewBlock } from "@/components/review-block";
 import { api, ApiError, type AntiBotBlockDetail, type PublicSnapshotResponse } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { getCohort, COHORT_COPY, type Cohort } from "@/lib/referrer";
 
 const TRY_LINKS = [
   { label: "news.ycombinator.com", url: "https://news.ycombinator.com" },
@@ -43,6 +46,37 @@ type Mode = "url" | "describe";
  *   - Static demo strip below shows page → JSON output without a click.
  *   - Motion: 60ms staggered fade-up on hero elements.
  */
+function CohortHero() {
+  const [cohort, setCohort] = useState<Cohort>("generic");
+  useEffect(() => {
+    // SSR returns 'generic'; re-evaluate after mount.
+    setCohort(getCohort());
+  }, []);
+  const copy = COHORT_COPY[cohort];
+  return (
+    <>
+      <motion.h1
+        key={cohort}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.06, ease: APPLE_EASE }}
+        className="text-[40px] font-semibold leading-[1.04] tracking-[-0.028em] text-[var(--color-fg-display)] sm:text-[52px]"
+      >
+        {copy.headline}
+      </motion.h1>
+      <motion.p
+        key={cohort + "-sub"}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.12, ease: APPLE_EASE }}
+        className="mx-auto mt-5 max-w-xl text-[15px] leading-[1.55] text-[var(--color-fg-muted)]"
+      >
+        {copy.subhead}
+      </motion.p>
+    </>
+  );
+}
+
 export function LandingHero() {
   const [mode, setMode] = useState<Mode>("url");
 
@@ -77,29 +111,16 @@ export function LandingHero() {
           </Badge>
         </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.06, ease: APPLE_EASE }}
-          className="text-[40px] font-semibold leading-[1.04] tracking-[-0.028em] text-[var(--color-fg-display)] sm:text-[52px]"
-        >
-          The visual scraper for AI agents.<br />
-          <span className="bg-gradient-to-br from-[var(--color-fg-display)] to-[color-mix(in_srgb,var(--color-fg-display)_60%,var(--color-accent))] bg-clip-text text-transparent">
-            Point, click, save, ship.
-          </span>
-        </motion.h1>
+        <CohortHero />
 
-        <motion.p
-          initial={{ opacity: 0, y: 8 }}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.12, ease: APPLE_EASE }}
-          className="mx-auto mt-5 max-w-xl text-[15px] leading-[1.55] text-[var(--color-fg-muted)]"
+          transition={{ duration: 0.45, delay: 0.18, ease: APPLE_EASE }}
+          className="mx-auto mt-5 flex justify-center"
         >
-          Other scrapers ask you to prompt and pray. We let you{" "}
-          <span className="text-[var(--color-fg)]">see what you&apos;re extracting</span>{" "}
-          — click any element, save the recipe, run it forever. With selectors
-          you can actually debug.
-        </motion.p>
+          <SLABanner variant="hero" />
+        </motion.div>
 
         {/* TAB TOGGLE — the centerpiece. Two modes, equal weight. */}
         <motion.div

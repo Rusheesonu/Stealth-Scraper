@@ -144,3 +144,12 @@ async def enforce_plan_bulk(user_id: str, n: int) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail=_over_limit_message(current, limit, plan, requested=n),
         )
+
+
+async def get_current_usage_count(user_id: str) -> int:
+    """Read-only — returns this user's usage count for the current month.
+    Used by the reviews module to gate the 'verified reviewer' badge."""
+    try:
+        return await db.get_usage_count(user_id, current_year_month())
+    except Exception:
+        return 0
