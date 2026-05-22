@@ -62,6 +62,12 @@ export type SnapshotResponse = {
   page: { width: number; height: number };
   elements: DetectedElement[];
   element_count: number;
+  // Full DOM at snapshot time (≤2MB cap on the backend). The picker
+  // passes this back to /extract via `expected_html` so saved templates
+  // run against the SAME DOM the selectors were generated from — no
+  // second navigation, no drift. May be empty when the snapshot path
+  // didn't capture it (legacy clients / public preview).
+  html?: string;
 };
 
 /**
@@ -215,10 +221,24 @@ export const api = {
       }),
     }),
 
-  extract: (url: string, template: TemplateField[]) =>
+  extract: (
+    url: string,
+    template: TemplateField[],
+    opts?: { expectedHtml?: string },
+  ) =>
     call<ExtractResponse>("/extract", {
       method: "POST",
-      body: JSON.stringify({ url, template }),
+      body: JSON.stringify({
+        url,
+        template,
+        // When the caller already has the captured DOM (the picker
+        // just snapshotted + picked elements against it), pass it
+        // through so the backend skips navigation and runs the
+        // template against the EXACT same DOM. Eliminates the
+        // snapshot-A vs snapshot-B drift that on Amazon-class
+        // sites turned every selector into a null result.
+        ...(opts?.expectedHtml ? { expected_html: opts.expectedHtml } : {}),
+      }),
     }),
 
   extractBatch: (urls: string[], template: TemplateField[]) =>

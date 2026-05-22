@@ -513,33 +513,55 @@ def _pull(tree, field: Field) -> FieldResult:
             reason_if_null="field has neither selector nor xpath",
         )
 
-    # Try CSS first, then XPath. Record which one was the source.
+    # Try CSS first, then XPath. Record which one was the source AND
+    # the failure reason if one came up — silent-swallow of the
+    # selector-parse exception was the bug that hid Tailwind-class /
+    # special-char selector failures behind a generic "matched zero
+    # nodes" message. Now: capture the exception text so it flows
+    # into reason_if_null below.
     nodes: list[Any] = []
     source: FieldSource = "none"
     used: str | None = None
+    parse_error: str | None = None
     if selector:
         try:
             nodes = tree.cssselect(selector)
             if nodes:
                 source = "selector"
                 used = selector
-        except Exception:
+        except Exception as e:
             nodes = []
+            parse_error = f"{type(e).__name__}: {str(e)[:200]}"
     if not nodes and xpath:
         try:
             nodes = tree.xpath(xpath)
             if nodes:
                 source = "xpath"
                 used = xpath
-        except Exception:
+        except Exception as e:
             nodes = []
+            # XPath error overwrites CSS error only if CSS didn't fail.
+            # If both failed, prefer the CSS error since CSS is the
+            # primary selector the user / picker generated.
+            if not parse_error:
+                parse_error = f"xpath {type(e).__name__}: {str(e)[:200]}"
 
     # Selector did not match anything.
     if not nodes:
-        # Distinguish "selector ran cleanly but matched zero nodes"
-        # vs "selector was syntactically invalid" — both end up here
-        # but the reason is the most useful one we can give.
+        # Distinguish (a) selector ran cleanly but matched zero nodes,
+        # (b) selector raised a parse/syntax error, (c) the user
+        # provided neither. (b) is the one we used to silent-fail on.
         attempted = selector or xpath
+        if parse_error:
+            return _envelope(
+                [] if kind == "list" else None,
+                source="none",
+                confidence=0.0,
+                selector_used=attempted,
+                reason_if_null=(
+                    f"selector parse error ({attempted!r}): {parse_error}"
+                ),
+            )
         return _envelope(
             [] if kind == "list" else None,
             source="none",

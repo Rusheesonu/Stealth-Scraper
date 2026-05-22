@@ -313,6 +313,14 @@ class ExtractRequest(BaseModel):
     pagination_selector: str | None = None
     max_pages: int = Field(default=1, ge=1, le=20)
     actions: list[ActionStep] | None = None
+    # Pre-rendered HTML the caller already has (typically from a recent
+    # /snapshot response — the picker passes `snapshot.html`). When set,
+    # /extract skips browser navigation entirely and runs the template
+    # against this HTML via `extract_from_html` — schema/value drift
+    # between snapshot-A (picker generation time) and snapshot-B
+    # (extract time) is structurally impossible. Subject to a sanity
+    # cap (2MB) so a misbehaving client can't blow memory.
+    expected_html: str | None = Field(default=None, max_length=2 * 1024 * 1024)
 
 
 class BatchExtractRequest(BaseModel):
@@ -571,6 +579,13 @@ async def snapshot_endpoint(
         "page": snap.page,
         "elements": snap.elements,
         "element_count": len(snap.elements),
+        # Full DOM at capture time. Frontend/picker passes this back to
+        # /extract via the `expected_html` body field so saved templates
+        # run against the SAME DOM the picker generated selectors from
+        # — no second navigation, no snapshot-A vs snapshot-B drift on
+        # geo-cached / lazy-hydrated / A/B-variant sites (the bug the
+        # May 22 audit flagged on Amazon-class pages).
+        "html": snap.html,
     }
     if idem_key:
         try:
@@ -927,6 +942,26 @@ async def extract_endpoint(
     actions_payload: list[BrowserAction] | None = None
     if req.actions:
         actions_payload = [a.model_dump() for a in req.actions]  # type: ignore[misc]
+
+    # Fast path: caller already has the DOM (picker just snapshotted +
+    # picked elements against it). Skip navigation entirely. Eliminates
+    # snapshot-A vs snapshot-B drift — selectors generated against a
+    # specific DOM run against the EXACT same DOM. No actions / no
+    # pagination support in this mode (the HTML is static).
+    if req.expected_html and not actions_payload and req.max_pages == 1:
+        try:
+            from app.extract import extract_from_html
+            return extract_from_html(
+                str(req.url),
+                req.expected_html,
+                template,
+                output_format=req.output_format,  # type: ignore[arg-type]
+            )
+        except ValueError as e:
+            raise _unsafe_url_http422(str(e)) from e
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"extract failed: {e}") from e
+
     # Pagination > 1 counts as N scrapes; charge the extra now.
     if req.max_pages > 1:
         await enforce_plan_bulk(user_id, n=req.max_pages - 1)

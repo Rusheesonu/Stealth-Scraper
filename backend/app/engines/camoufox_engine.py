@@ -70,21 +70,47 @@ _EXTRACT_ELEMENTS_JS = """
                  + 'section, article, main, [role="button"], [role="link"]';
   const out = [];
   const all = document.querySelectorAll(SELECTOR);
+  // CSS.escape — see patchright_engine.py for full rationale. Tailwind
+  // / arbitrary-value classes (`lg:flex`, `bg-[#fff]`) MUST be escaped
+  // or lxml.cssselect raises and extract.py used to silently swallow.
+  const escapeClass = (typeof CSS !== 'undefined' && CSS.escape)
+    ? CSS.escape
+    : (s) => s.replace(/([^a-zA-Z0-9_-])/g, '\\\\$1');
   const cssPath = (el) => {
     if (!el || el === document.body) return 'body';
-    if (el.id) return '#' + el.id;
+    if (el.id) return '#' + escapeClass(el.id);
     const parts = [];
     let cur = el;
     while (cur && cur !== document.body && parts.length < 6) {
       let part = cur.tagName.toLowerCase();
       if (cur.className && typeof cur.className === 'string') {
         const cls = cur.className.split(/\\s+/).filter(Boolean)[0];
-        if (cls) part += '.' + cls;
+        if (cls) part += '.' + escapeClass(cls);
       }
       parts.unshift(part);
       cur = cur.parentElement;
     }
     return parts.join(' > ');
+  };
+  // XPath fallback — was hard-coded ''; that meant extract.py had
+  // no fallback path when CSS parsing failed. Now populated.
+  const xPath = (el) => {
+    if (!el || el.nodeType !== 1) return '';
+    if (el === document.body) return '/html/body';
+    const parts = [];
+    let cur = el;
+    while (cur && cur !== document.body && parts.length < 8) {
+      const tag = cur.tagName.toLowerCase();
+      let idx = 1;
+      let sib = cur.previousElementSibling;
+      while (sib) {
+        if (sib.tagName === cur.tagName) idx++;
+        sib = sib.previousElementSibling;
+      }
+      parts.unshift(`${tag}[${idx}]`);
+      cur = cur.parentElement;
+    }
+    return '/html/body/' + parts.join('/');
   };
   for (const el of all) {
     if (out.length >= 100) break;
@@ -95,7 +121,7 @@ _EXTRACT_ELEMENTS_JS = """
       tag: el.tagName.toLowerCase(),
       text: text.slice(0, 500),
       css: cssPath(el),
-      xpath: '',
+      xpath: xPath(el),
       attrs: {
         id: el.id || null,
         class: (typeof el.className === 'string') ? el.className : null,

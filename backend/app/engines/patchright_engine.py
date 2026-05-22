@@ -77,21 +77,58 @@ _EXTRACT_ELEMENTS_JS = """
                  + 'section, article, main, [role="button"], [role="link"]';
   const out = [];
   const all = document.querySelectorAll(SELECTOR);
+  // CSS.escape is browser-native, handles every special char we care
+  // about (Tailwind colons like `lg:flex`, bracket variants like
+  // `bg-[#fff]`, slashes like `divide-x/2`). Without it the picker
+  // emitted invalid CSS like `div.lg:flex > ...` which threw
+  // `ExpressionError: pseudo-class :flex unknown` deep in lxml.
+  // Detected by the May 22 audit — every Tailwind site silently
+  // returned null on extraction. Hard-floor fallback `.cls`
+  // preserved for IE/jsdom test envs without CSS.escape.
+  const escapeClass = (typeof CSS !== 'undefined' && CSS.escape)
+    ? CSS.escape
+    : (s) => s.replace(/([^a-zA-Z0-9_-])/g, '\\\\$1');
   const cssPath = (el) => {
     if (!el || el === document.body) return 'body';
-    if (el.id) return '#' + el.id;
+    if (el.id) {
+      // Even IDs can contain special chars on modern sites — escape.
+      return '#' + escapeClass(el.id);
+    }
     const parts = [];
     let cur = el;
     while (cur && cur !== document.body && parts.length < 6) {
       let part = cur.tagName.toLowerCase();
       if (cur.className && typeof cur.className === 'string') {
         const cls = cur.className.split(/\\s+/).filter(Boolean)[0];
-        if (cls) part += '.' + cls;
+        if (cls) part += '.' + escapeClass(cls);
       }
       parts.unshift(part);
       cur = cur.parentElement;
     }
     return parts.join(' > ');
+  };
+  // XPath builder — required for fallback when CSS still fails (some
+  // sites use class names with chars even CSS.escape can't fix).
+  // Pre-fix this was hard-coded to '' which meant extract.py had no
+  // fallback path → bare except swallowed the CSS parse error and
+  // every field returned null.
+  const xPath = (el) => {
+    if (!el || el.nodeType !== 1) return '';
+    if (el === document.body) return '/html/body';
+    const parts = [];
+    let cur = el;
+    while (cur && cur !== document.body && parts.length < 8) {
+      const tag = cur.tagName.toLowerCase();
+      let idx = 1;
+      let sib = cur.previousElementSibling;
+      while (sib) {
+        if (sib.tagName === cur.tagName) idx++;
+        sib = sib.previousElementSibling;
+      }
+      parts.unshift(`${tag}[${idx}]`);
+      cur = cur.parentElement;
+    }
+    return '/html/body/' + parts.join('/');
   };
   for (const el of all) {
     if (out.length >= 100) break;
@@ -102,7 +139,7 @@ _EXTRACT_ELEMENTS_JS = """
       tag: el.tagName.toLowerCase(),
       text: text.slice(0, 500),
       css: cssPath(el),
-      xpath: '',
+      xpath: xPath(el),
       attrs: {
         id: el.id || null,
         class: (typeof el.className === 'string') ? el.className : null,

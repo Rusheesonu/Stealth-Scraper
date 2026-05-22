@@ -214,16 +214,28 @@ COLLECT_ELEMENTS_JS = r"""
 # ─────────────────────────────────────────────────────────────────────────
 COLLECT_STRUCTURED_JS = r"""
 (() => {
+    // Local cssEscape (separate scope from the structured-collector
+    // function above — duplicated rather than hoisted so the IIFE
+    // boundary stays simple). Use CSS.escape when available; fall back
+    // to backslash-escape for IE/jsdom test envs.
+    function cssEscapeLocal(s) {
+        if (typeof CSS !== 'undefined' && CSS.escape) return CSS.escape(s);
+        return String(s).replace(/([^\w-])/g, "\\$1");
+    }
     function cssPath(el) {
         if (!el || el === document.body) return 'body';
-        if (el.id) return '#' + el.id;
+        // Even IDs can contain special chars on modern sites — escape.
+        if (el.id) return '#' + cssEscapeLocal(el.id);
         const parts = [];
         let cur = el;
         while (cur && cur !== document.body && parts.length < 6) {
             let part = cur.tagName.toLowerCase();
             if (cur.className && typeof cur.className === 'string') {
                 const cls = cur.className.split(/\s+/).filter(Boolean)[0];
-                if (cls) part += '.' + cls.replace(/[^a-zA-Z0-9_-]/g, '');
+                // ESCAPE special chars (preserve class name semantics)
+                // — was stripping them, which changed `.lg:flex` to
+                // `.lgflex` (a different/nonexistent class).
+                if (cls) part += '.' + cssEscapeLocal(cls);
             }
             parts.unshift(part);
             cur = cur.parentElement;

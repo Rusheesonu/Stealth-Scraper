@@ -314,7 +314,16 @@ export function PickerClient() {
     setResults(null);
     setBatchResults(null);
     try {
-      const res = await api.extract(runOn, templatePayload());
+      // Drift-free fast path: if the user is running the saved
+      // template against the same URL they just snapshotted (the
+      // common case), pass the captured HTML so /extract skips
+      // navigation entirely. The selectors run against the exact
+      // DOM they were generated from. Different targetUrl → fall
+      // back to live navigation (the saved template is being run
+      // on a NEW page, fresh snapshot is correct).
+      const sameUrl = !targetUrl || targetUrl.trim() === url.trim();
+      const expectedHtml = sameUrl ? snapshot?.html : undefined;
+      const res = await api.extract(runOn, templatePayload(), { expectedHtml });
       setResults(res);
     } catch (e) {
       setResults({
