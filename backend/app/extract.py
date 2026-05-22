@@ -101,9 +101,8 @@ async def _extract_inner(
     if not ok:
         raise ValueError(f"unsafe URL: {reason}")
 
-    tab = await pool.open_tab("about:blank")
     result: dict[str, Any] = {"url": url, "fields": {}, "errors": {}, "title": ""}
-    try:
+    async with pool.tab("about:blank") as tab:
         await tab.get(url)
         await _wait_ready(tab, timeout=8.0)
         await asyncio.sleep(0.5)
@@ -187,11 +186,8 @@ async def _extract_inner(
         if len(all_pages_html) > 1:
             result["pages_fetched"] = len(all_pages_html)
         return result
-    finally:
-        try:
-            await tab.close()
-        except Exception:
-            pass
+    # `pool.tab()` context manager closes the tab and returns the
+    # worker to the queue automatically — no explicit close needed.
 
 
 def _js_str(s: str) -> str:
@@ -437,13 +433,133 @@ def _read(node, kind: str, attr: str) -> Any:
             return _html_to_markdown(html_str)
         except Exception:
             return None
-    # text default
+    # text default — use the visibility-aware extractor (NOT lxml's raw
+    # text_content, which concatenates aria-hidden mirror nodes and
+    # screen-reader-only copies, producing the famous `$319.99$319.99`
+    # bug from the pre-launch audit). See `_visible_text` for the
+    # 3-pass fallback strategy.
     try:
         if hasattr(node, "text_content"):
-            return (node.text_content() or "").strip()
+            return _visible_text(node)
         return str(node).strip()
     except Exception:
         return None
+
+
+# Well-known class names that mark "screen-reader only" content —
+# visually hidden but read aloud by assistive tech. Page authors don't
+# want this duplicated in scraped output.
+#  • a-offscreen     — Amazon
+#  • sr-only         — Bootstrap 4 / Tailwind / many
+#  • screen-reader-only / screen-reader-text — WordPress, others
+#  • screenreader    — variant
+#  • visually-hidden / visuallyhidden — Bootstrap 5 / GOV.UK
+#  • vh              — Bootstrap legacy
+_HIDDEN_CLASSES_RE = re.compile(
+    r"(?:^|\s)("
+    r"a-offscreen|sr-only|screen-reader-only|screen-reader-text|"
+    r"screenreader|visually-hidden|visuallyhidden|vh"
+    r")(?=$|\s)",
+    re.IGNORECASE,
+)
+_DISPLAY_NONE_RE = re.compile(r"display\s*:\s*none", re.IGNORECASE)
+_VISIBILITY_HIDDEN_RE = re.compile(r"visibility\s*:\s*hidden", re.IGNORECASE)
+_WS_COLLAPSE_RE = re.compile(r"\s+")
+
+
+def _is_hidden(node, pass_num: int = 1) -> bool:
+    """Whether to skip this node during visible-text extraction.
+
+    `pass_num` controls strictness — see `_visible_text` for the
+    three-pass fallback that lets us recover screen-reader-only text
+    when it's the ONLY copy present (e.g. some Amazon variants).
+
+      pass 1 (strict):  skip aria-hidden, sr-only classes, display:none
+      pass 2 (medium):  skip aria-hidden only — preserves the sr text
+                        copy when no visible-marked sibling exists
+      pass 3 (loose):   nothing skipped, mirrors lxml's text_content
+    """
+    if pass_num >= 3:
+        return False
+    try:
+        attrs = node.attrib
+    except AttributeError:
+        return False
+    if (attrs.get("aria-hidden", "") or "").lower() == "true":
+        return True
+    if pass_num >= 2:
+        # Pass 2 only filters aria-hidden — the screen-reader copy is
+        # treated as the authoritative text fallback.
+        return False
+    classes = attrs.get("class", "") or ""
+    if classes and _HIDDEN_CLASSES_RE.search(classes):
+        return True
+    style = attrs.get("style", "") or ""
+    if style and (_DISPLAY_NONE_RE.search(style) or _VISIBILITY_HIDDEN_RE.search(style)):
+        return True
+    return False
+
+
+def _visible_text(node) -> str:
+    """Extract text from an lxml node, avoiding aria-hidden / sr-only /
+    display:none / visibility:hidden subtrees.
+
+    THE BUG THIS FIXES: lxml's `text_content()` walks every descendant
+    and concatenates text. Amazon (and many e-commerce sites) ship the
+    same price TWICE for accessibility:
+
+        <span class="a-price">
+          <span class="a-offscreen">$319.99</span>         ← screen reader
+          <span aria-hidden="true">                         ← visual layout
+            <span class="a-price-symbol">$</span>
+            <span class="a-price-whole">319</span>
+            <span class="a-price-fraction">99</span>
+          </span>
+        </span>
+
+    `text_content()` returned `"$319.99$319.99"` — the silent failure
+    mode the pre-launch audit (May 22 2026) flagged. The fix walks the
+    tree itself, skipping a-priori-hidden subtrees.
+
+    Three-pass fallback:
+      1. Strict — skip both aria-hidden AND sr-only/display:none. On
+         Amazon, both copies are filtered → pass 1 returns empty.
+      2. Aria-only — skip just aria-hidden. The .a-offscreen
+         screen-reader copy ($319.99) becomes the returned value. This
+         is correct: it's the authoritative text the page author
+         intended, and CSS computed-style isn't available to lxml so
+         we can't choose between the visible split vs the sr copy any
+         better than this.
+      3. Loose — full text_content. Only reached if even pass 2 was
+         empty. Preserves graceful degradation for weird DOMs.
+    """
+    if node is None:
+        return ""
+
+    for pass_num in (1, 2, 3):
+        parts: list[str] = []
+
+        def visit(n):
+            tag = getattr(n, "tag", None)
+            # Skip comments / processing instructions / non-element types
+            if not isinstance(tag, str):
+                return
+            if _is_hidden(n, pass_num):
+                return
+            if n.text:
+                parts.append(n.text)
+            for child in n:
+                visit(child)
+                if child.tail:
+                    parts.append(child.tail)
+
+        visit(node)
+        raw = "".join(parts)
+        if raw.strip():
+            return _WS_COLLAPSE_RE.sub(" ", raw).strip()
+
+    # All three passes returned empty — node genuinely has no text.
+    return ""
 
 
 async def _wait_ready(tab, timeout: float) -> None:
