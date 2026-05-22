@@ -864,6 +864,21 @@ async def public_snapshot_and_suggest(
                 # preview. We at least show the suggested schema.
                 log.warning("public_snapshot.preview_extract_failed", extra={"error": repr(e)})
 
+    # Visible-text excerpt — concatenation of the first ~50 elements'
+    # text (capped at 3KB total). Two uses:
+    #   1. Bench/CI: lets bench/extract_correctness.py do a deterministic
+    #      "did the extracted value actually appear on the page?" check
+    #      without re-fetching the snapshot or running an LLM judge.
+    #   2. AI agents calling the API can use this as fallback context
+    #      when their structured fields come back null — better than
+    #      "I have nothing."
+    # Total payload growth: ~3KB, negligible vs the ~200KB base64 PNG.
+    visible_text_excerpt = " ".join(
+        (el.get("text", "") or "").strip()
+        for el in (snap.elements or [])[:50]
+        if (el.get("text", "") or "").strip()
+    )[:3000]
+
     return {
         "url": snap.url,
         "title": snap.title,
@@ -872,6 +887,7 @@ async def public_snapshot_and_suggest(
         "template": template[:3],
         "sample_values": sample_values,         # legacy — bare values, kept for UI compat
         "sample_envelope": sample_envelope,     # canonical — FieldResult per field
+        "visible_text_excerpt": visible_text_excerpt,
         "element_count": len(snap.elements),
         "rate_limit": {
             "limit": PUBLIC_SNAPSHOT_LIMIT,
