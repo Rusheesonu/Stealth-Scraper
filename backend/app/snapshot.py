@@ -88,7 +88,15 @@ class SnapshotResult:
     # strings as a haystack and the bot-wall markers never appeared in
     # it — sites that DID get blocked silently returned challenge-JS
     # content as if it were the target page. See detect.py:69.
+    # `html_excerpt` is the first 8KB of outerHTML — enough for every
+    # known anti-bot signature, cheap to ship in the response.
     html_excerpt: str = ""
+    # `html` is the FULL outerHTML (capped at 2MB to avoid memory blow on
+    # mega-pages). Used by `/assist/schema` to run extraction against the
+    # SAME DOM that produced the schema — eliminates the snapshot-A vs
+    # snapshot-B drift that caused "every selector returns null" on
+    # Amazon-class sites. Empty when not requested.
+    html: str = ""
     # Cookies present at end-of-snapshot — vendors leave persistent
     # fingerprint cookies (`__cf_bm`, `datadome`, `_px3`) that survive
     # even when the rendered HTML is obfuscated. Best signal for
@@ -378,12 +386,19 @@ async def _snapshot_inner(
         # head or first inline <script>. Bigger HTML doesn't pay off.
         # Cookies are tiny + the most reliable bot-wall fingerprint.
         html_excerpt = ""
+        full_html = ""
         try:
             raw_html = await tab.evaluate("document.documentElement.outerHTML")
             if isinstance(raw_html, tuple):
                 raw_html = raw_html[0]
             if isinstance(raw_html, str):
                 html_excerpt = raw_html[:8192]
+                # 2MB cap — covers 99.9% of real pages including Amazon
+                # PDPs (~700KB typical), nytimes article pages (~400KB),
+                # GitHub README pages (~300KB). Mega-pages (catalogs,
+                # forums with deep threads) get truncated; better than
+                # a memory blow per concurrent request.
+                full_html = raw_html[: 2 * 1024 * 1024]
         except Exception:
             pass
         cookies_dict: dict[str, str] = {}
@@ -434,6 +449,7 @@ async def _snapshot_inner(
             page=data.get("page", {"width": viewport_width, "height": viewport_height}),
             elements=data.get("elements", []),
             html_excerpt=html_excerpt,
+            html=full_html,
             cookies=cookies_dict,
             structured_data=structured,
         )

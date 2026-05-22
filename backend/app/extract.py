@@ -323,6 +323,145 @@ def _js_str(s: str) -> str:
     return json.dumps(s)
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Pure HTML → template-result function.
+#
+# Split out so callers that ALREADY have rendered HTML (e.g. /assist/schema
+# right after a snapshot, the picker preview) can run extraction against
+# the EXACT same DOM the schema was generated from, without re-navigating.
+#
+# Pre-this split: /assist/schema → take_snapshot (snap A) → LLM generates
+# selectors from snap A → /extract → fresh take_snapshot (snap B) →
+# runs selectors against snap B. If the page rendered differently
+# between A and B (Amazon's geo-cache, lazy hydration, A/B variant),
+# every selector returned null — silent "everything fails" failure.
+#
+# Now: /assist/schema captures the rendered HTML on snap A, runs this
+# function against that HTML to produce initial values, returns BOTH
+# schema + values in one response. No second navigation.
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def extract_from_html(
+    url: str,
+    html: str,
+    template: list[Field],
+    *,
+    output_format: Literal["fields", "markdown", "html"] = "fields",
+) -> dict[str, Any]:
+    """Run a template against pre-rendered HTML — no browser, no
+    navigation.
+
+    Returns the same shape as `extract()` minus the navigation-only
+    fields. Pagination is not supported (a single HTML payload, no
+    way to click "next").
+
+    Caller is responsible for ensuring the HTML is fully rendered and
+    SSRF-safe. /assist/schema gates URLs through `_is_safe_url` at
+    snapshot time; this function trusts its caller.
+    """
+    result: dict[str, Any] = {"url": url, "fields": {}, "errors": {}, "title": ""}
+
+    if output_format == "html":
+        result["html"] = html
+        return result
+    if output_format == "markdown":
+        result["markdown"] = _html_to_markdown(html)
+        return result
+    if not html:
+        # Honest null-everything when there's no DOM to match — callers
+        # already saw a snapshot title/screenshot; they know the page
+        # was empty.
+        for field in template:
+            label = field.get("label") or field.get("selector") or "field"
+            result["fields"][label] = _envelope(
+                None,
+                source="none",
+                confidence=0.0,
+                selector_used=field.get("selector") or field.get("xpath") or None,
+                reason_if_null="no HTML captured — page may have been blocked or empty",
+            )
+        return result
+
+    return _run_template_on_pages(url, [html], template, result_seed=result)
+
+
+def _run_template_on_pages(
+    url: str,
+    all_pages_html: list[str],
+    template: list[Field],
+    *,
+    result_seed: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Per-page parse + merge — shared by the live-tab path and the
+    pre-captured-HTML path. Pure: no awaits, no browser, no I/O.
+
+    For each page: parse HTML, run row-extractor for list fields,
+    fall back to per-field _pull() for scalars. Across pages: concat
+    list values, keep scalar from page 1. Same FieldResult envelope
+    contract as `_extract_inner`.
+    """
+    result = result_seed or {"url": url, "fields": {}, "errors": {}, "title": ""}
+
+    merged_fields: dict[str, FieldResult] = {}
+    for i, page_html in enumerate(all_pages_html):
+        tree = lxml_html.fromstring(page_html) if page_html else None
+        if tree is None:
+            continue
+        row_values, row_labels = _pull_lists_per_row(tree, template)
+        page_fields: dict[str, FieldResult] = {}
+        for label, value in row_values.items():
+            matching_field = next(
+                (f for f in template if (f.get("label") or f.get("selector") or "field") == label),
+                None,
+            )
+            used = (matching_field or {}).get("selector") if matching_field else None
+            if value:
+                page_fields[label] = _envelope(
+                    value, source="selector", confidence=1.0, selector_used=used,
+                )
+            else:
+                page_fields[label] = _envelope(
+                    [], source="selector", confidence=0.5, selector_used=used,
+                    reason_if_null="per-row extractor produced empty result",
+                )
+        for field in template:
+            label = field.get("label") or field.get("selector") or "field"
+            if label in row_labels:
+                continue
+            try:
+                page_fields[label] = _pull(tree, field)
+            except Exception as e:
+                if i == 0:
+                    result["errors"][label] = str(e)
+                page_fields[label] = _envelope(
+                    None, source="none", confidence=0.0,
+                    selector_used=field.get("selector") or field.get("xpath") or None,
+                    reason_if_null=f"extraction raised: {type(e).__name__}: {str(e)[:120]}",
+                )
+
+        if i == 0:
+            merged_fields = page_fields
+        else:
+            for k, v in page_fields.items():
+                prev = merged_fields.get(k)
+                if not prev:
+                    merged_fields[k] = v
+                    continue
+                if isinstance(prev["value"], list) and isinstance(v["value"], list):
+                    merged_fields[k] = _envelope(
+                        (prev["value"] or []) + (v["value"] or []),
+                        source=prev["source"],
+                        confidence=max(prev["confidence"], v["confidence"]),
+                        selector_used=prev["selector_used"],
+                    )
+
+    result["fields"] = merged_fields
+    if len(all_pages_html) > 1:
+        result["pages_fetched"] = len(all_pages_html)
+    return result
+
+
 def _html_to_markdown(html_content: str) -> str:
     """Convert HTML to markdown for RAG ingestion. Imported lazily so the
     backend boots even if markdownify isn't installed (graceful degrade

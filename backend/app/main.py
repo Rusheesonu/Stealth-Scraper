@@ -853,24 +853,23 @@ async def public_snapshot_and_suggest(
     # reasons, it switches to `sample_envelope` and we drop the legacy.
     sample_values: dict[str, Any] = {}
     sample_envelope: dict[str, Any] = {}
-    if template:
-        from app.extract import extract as extract_fields  # local import keeps cold-start light
-        async with scrape_slot():
-            try:
-                preview_template = template[:3]
-                res = await extract_fields(snap.url, preview_template)  # type: ignore[arg-type]
-                envelope_fields = res.get("fields", {}) if isinstance(res, dict) else {}
-                if isinstance(envelope_fields, dict):
-                    sample_envelope = envelope_fields
-                    # Flatten to bare values for the legacy preview UI.
-                    sample_values = {
-                        label: (f.get("value") if isinstance(f, dict) else f)
-                        for label, f in envelope_fields.items()
-                    }
-            except Exception as e:
-                # Same logic as suggest — extraction failure shouldn't kill the
-                # preview. We at least show the suggested schema.
-                log.warning("public_snapshot.preview_extract_failed", extra={"error": repr(e)})
+    if template and snap.html:
+        # Run extraction against the SAME snapshot's HTML — no second
+        # navigation, no risk of A/B / geo-cache / lazy-hydration drift
+        # between schema-gen and value-extract.
+        try:
+            from app.extract import extract_from_html
+            preview_template = template[:3]
+            res = extract_from_html(snap.url, snap.html, preview_template)
+            envelope_fields = res.get("fields", {}) if isinstance(res, dict) else {}
+            if isinstance(envelope_fields, dict):
+                sample_envelope = envelope_fields
+                sample_values = {
+                    label: (f.get("value") if isinstance(f, dict) else f)
+                    for label, f in envelope_fields.items()
+                }
+        except Exception as e:
+            log.warning("public_snapshot.preview_extract_failed", extra={"error": repr(e)})
 
     # Visible-text excerpt — substantive element text from across the
     # page, capped at 8KB total. Sorts elements by text length DESC so
@@ -1044,12 +1043,43 @@ async def assist_schema(
         # provider-specific JSON.
         raise HTTPException(status_code=502, detail=f"schema generation failed: {e}") from e
 
+    # Run extraction against the SAME snapshot's HTML — schema and values
+    # come from one DOM. Pre-this-fix the AI-extract UI re-navigated to
+    # the URL on /extract, which on Amazon (and any site with geo-cache,
+    # lazy hydration, or A/B variants) produced a different page than
+    # the one used to generate the schema → every selector returned null
+    # and the user saw "everything fails." `extract_from_html` is pure:
+    # no second snapshot, no second nodriver tab. Same DOM, same result.
+    sample_envelope: dict[str, Any] = {}
+    sample_values: dict[str, Any] = {}
+    if template and snap.html:
+        try:
+            from app.extract import extract_from_html
+            ext = extract_from_html(snap.url, snap.html, template)
+            envelope_fields = ext.get("fields", {}) if isinstance(ext, dict) else {}
+            if isinstance(envelope_fields, dict):
+                sample_envelope = envelope_fields
+                sample_values = {
+                    label: (f.get("value") if isinstance(f, dict) else f)
+                    for label, f in envelope_fields.items()
+                }
+        except Exception as e:
+            # If inline extraction throws, the user still gets the schema
+            # — they can run /extract manually. Logging only.
+            log.warning("assist_schema.inline_extract_failed", extra={"error": repr(e)})
+
     return {
         "url": snap.url,
         "title": snap.title,
         "description": req.description,
         "template": template,
         "element_count": len(snap.elements),
+        # Schema + initial values from the SAME snapshot — no re-navigation
+        # drift. Frontend can render these immediately under the schema
+        # block. Subsequent /extract runs are still supported (and now
+        # tell users when their values changed vs the initial snapshot).
+        "sample_envelope": sample_envelope,
+        "sample_values": sample_values,
     }
 
 
