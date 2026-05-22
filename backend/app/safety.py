@@ -66,9 +66,29 @@ _robots_lock = asyncio.Lock()
 async def _fetch_robots(host_root: str) -> RobotFileParser:
     """Fetch + parse robots.txt for the given http(s)://host root.
 
-    Returns a RobotFileParser. On any error we return an empty parser
-    that allows everything — safer to scrape than to crash the whole
-    pipeline because a target's robots.txt 503'd."""
+    Per RFC 9309 + Python's own urllib.robotparser.read() conventions:
+      * 200       — parse the body
+      * 401 / 403 — `disallow_all = True` (auth-required = no access)
+      * other 4xx — `allow_all = True` (no policy => no restrictions;
+                    this is the case for the MANY sites with no
+                    robots.txt at all — books.toscrape.com,
+                    quotes.toscrape.com, plenty of small sites)
+      * 5xx       — `allow_all = True` conservatively (transient
+                    server error shouldn't kill the request)
+      * network exception — `allow_all = True` (caller already
+                    decided to scrape; broken robots.txt doesn't
+                    veto)
+
+    CRITICAL: a freshly-constructed RobotFileParser does NOT default
+    to "allow all" — Python's `can_fetch` returns False when
+    `last_checked` is 0 (the parser has never read anything). So
+    every non-200 branch MUST explicitly set `allow_all = True` OR
+    parse a `User-agent: *\\nAllow: /` body, otherwise the parser
+    silently DISALLOWS everything. This was the May 22 bug: books.
+    toscrape.com (no robots.txt → 404) was being blocked, surfacing
+    a "disallowed by robots.txt" error to users for a site whose
+    own author intends to be scraped.
+    """
     rp = RobotFileParser()
     url = host_root.rstrip("/") + "/robots.txt"
     try:
@@ -81,11 +101,19 @@ async def _fetch_robots(host_root: str) -> RobotFileParser:
             if r.status_code == 200:
                 rp.parse(r.text.splitlines())
             elif r.status_code in (401, 403):
-                # RFC 9309: 401/403 means "everything disallowed"
-                rp.parse(["User-agent: *", "Disallow: /"])
-            # 404 / 5xx / network errors — empty parser = allow all.
+                rp.disallow_all = True
+            elif r.status_code >= 400 and r.status_code < 500:
+                # Per RFC 9309: 4xx (other than 401/403) is treated as
+                # "no robots.txt" — fully allowed. Most common case is
+                # 404 (no file). MUST be explicit; default = disallow.
+                rp.allow_all = True
+            else:
+                # 5xx or anything else — conservatively allow so a
+                # transient outage at the target doesn't block scrapes.
+                rp.allow_all = True
     except Exception as e:
         log.debug("robots.txt fetch failed for %s: %r — treating as allow-all", host_root, e)
+        rp.allow_all = True
     return rp
 
 
@@ -207,8 +235,11 @@ class SafetyCheck:
         allowed, reason = await robots_check(self.url, override=self.override_robots)
         if not allowed:
             raise PermissionError(
-                f"Scrape blocked: {reason} for {self.url} "
-                f"(set override_robots=True to bypass — and read your law)"
+                f"Scrape blocked: {reason} for {self.url}. "
+                f"This site's robots.txt disallows automated access "
+                f"for your user-agent. Authenticated users on a paid "
+                f"plan can override per-request if they have a legal "
+                f"basis (own the site, signed contract, etc)."
             )
         await limiter.acquire(self.url)
         return self
