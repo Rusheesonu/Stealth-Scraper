@@ -45,12 +45,44 @@ function zipRecords(fields: Record<string, unknown>): Record<string, unknown>[] 
  *
  * Light Apple system. Drawer chrome matches the surface palette;
  * code blocks use the Apple-clean mono treatment.
+ *
+ * Envelope unwrap (2026-05-22): /extract now returns FieldResult per
+ * field — `{value, source, confidence, selector_used, reason_if_null}`
+ * instead of a bare value. The display logic below was written for
+ * bare values; without this normalization the UI rendered the entire
+ * envelope object stringified as "[object Object]" everywhere. We
+ * unwrap to bare values at the panel entry point and keep the
+ * envelope around for future "show confidence" UX.
  */
+type FieldEnvelope = {
+  value: unknown;
+  source?: string;
+  confidence?: number;
+  selector_used?: string | null;
+  reason_if_null?: string | null;
+};
+
+function unwrapFields(fields: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fields || {})) {
+    if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as object)) {
+      out[k] = (v as FieldEnvelope).value;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 export function ResultsPanel({ results, url, onClose }: Props) {
-  const records = useMemo(() => zipRecords(results.fields), [results]);
+  const fieldsFlat = useMemo(
+    () => unwrapFields(results.fields as Record<string, unknown>),
+    [results.fields],
+  );
+  const records = useMemo(() => zipRecords(fieldsFlat), [fieldsFlat]);
   const hasMultipleLists =
     records != null &&
-    Object.values(results.fields).filter((v) => Array.isArray(v)).length >= 2;
+    Object.values(fieldsFlat).filter((v) => Array.isArray(v)).length >= 2;
 
   const [view, setView] = useState<"records" | "fields">(() =>
     hasMultipleLists ? "records" : "fields"
@@ -58,8 +90,8 @@ export function ResultsPanel({ results, url, onClose }: Props) {
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
 
   const jsonStr = useMemo(
-    () => JSON.stringify(view === "records" && records ? records : results.fields, null, 2),
-    [results, view, records]
+    () => JSON.stringify(view === "records" && records ? records : fieldsFlat, null, 2),
+    [fieldsFlat, view, records]
   );
 
   async function copy() {
@@ -77,12 +109,12 @@ export function ResultsPanel({ results, url, onClose }: Props) {
   }
 
   function exportCsv() {
-    const rows = records ?? [flattenFields(results.fields)];
+    const rows = records ?? [flattenFields(fieldsFlat)];
     downloadBlob(toCsv(rows), `${safeSlug(url)}.csv`, "text/csv");
   }
 
   const errorCount = Object.keys(results.errors || {}).length;
-  const fieldCount = Object.keys(results.fields).length;
+  const fieldCount = Object.keys(fieldsFlat).length;
 
   return (
     <AnimatePresence>
@@ -197,7 +229,7 @@ export function ResultsPanel({ results, url, onClose }: Props) {
               <RecordsView rows={records} />
             ) : (
               <div className="space-y-2">
-                {Object.entries(results.fields).map(([label, value]) => (
+                {Object.entries(fieldsFlat).map(([label, value]) => (
                   <FieldRow key={label} label={label} value={value} error={results.errors?.[label]} />
                 ))}
               </div>

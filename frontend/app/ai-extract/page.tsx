@@ -15,6 +15,31 @@ import { api, type TemplateField, type ExtractResponse } from "@/lib/api";
 
 type Stage = "idle" | "generating" | "extracting" | "done" | "error";
 
+/**
+ * /extract returns FieldResult-envelope per field —
+ *   { value, source, confidence, selector_used, reason_if_null }
+ *
+ * For the "Extracted JSON" copy/display we show just the bare values —
+ * users want clean data they can paste into their app. The full
+ * envelope (with confidence + reason_if_null) lives under the expand
+ * for power users who want to audit the extractor.
+ *
+ * Pre-this-fix the headline JSON was the entire envelope object per
+ * field, which stringified as `[object Object]` in the UI grid view
+ * and made the result look broken.
+ */
+function unwrapEnvelope(fields: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fields || {})) {
+    if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as object)) {
+      out[k] = (v as { value: unknown }).value;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 const EXAMPLES = [
   { url: "https://news.ycombinator.com",   desc: "Get the top 10 stories — title, points, comment count, submitter." },
   { url: "https://quotes.toscrape.com",    desc: "Get every quote, its author, and the tags on it." },
@@ -294,11 +319,22 @@ function AiExtractForm() {
           <Card density="comfortable" className="mt-3 border-[color:var(--color-accent)]/30">
             <div className="mb-3 flex items-center justify-between">
               <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Extracted JSON</div>
-              <CopyButton text={JSON.stringify(results.fields, null, 2)} />
+              <CopyButton text={JSON.stringify(unwrapEnvelope(results.fields), null, 2)} />
             </div>
             <pre className="max-h-[400px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3 font-mono text-[11px] text-[var(--color-fg)]">
-              {JSON.stringify(results.fields, null, 2)}
+              {JSON.stringify(unwrapEnvelope(results.fields), null, 2)}
             </pre>
+            {/* Per-field confidence + reason — the FieldResult envelope.
+                Expandable so the headline JSON stays clean but power
+                users can audit what the extractor actually thought. */}
+            <details className="mt-3">
+              <summary className="cursor-pointer text-[12px] font-mono text-[var(--color-fg-muted)]">
+                Show extraction details (confidence, reason_if_null)
+              </summary>
+              <pre className="mt-2 max-h-[300px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] p-3 font-mono text-[11px] text-[var(--color-fg-muted)]">
+                {JSON.stringify(results.fields, null, 2)}
+              </pre>
+            </details>
             {Object.keys(results.errors || {}).length > 0 && (
               <details className="mt-3">
                 <summary className="cursor-pointer text-[13px] text-[var(--color-warning)]">

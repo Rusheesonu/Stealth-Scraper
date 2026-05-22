@@ -65,8 +65,16 @@ export function FieldDetailDrawer({
     };
   }, [onClose]);
 
-  const previewValue =
+  // Unwrap FieldResult envelope — /extract now returns
+  // {value, source, confidence, ...} per field. Display logic below
+  // expects a bare value, so we pluck `.value` when the field result
+  // is the new envelope shape.
+  const rawPreview =
     testValue !== undefined ? testValue : lastResults?.fields?.[field.label];
+  const previewValue =
+    rawPreview && typeof rawPreview === "object" && !Array.isArray(rawPreview) && "value" in rawPreview
+      ? (rawPreview as { value: unknown }).value
+      : rawPreview;
 
   const dirty =
     draft.selector !== field.selector ||
