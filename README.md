@@ -21,32 +21,45 @@ schemas it figures out for you.
 ## What you actually get
 
 ```python
-# pip install stealth-scraper
+# pip install stealth-scraper        (sources: sdks/python/)
 
 from stealth_scraper import StealthClient
 
-client = StealthClient(api_key="ss_...")
+client = StealthClient(api_key="ssk_...")
 
 # 1. Snapshot any URL — handles the anti-bot fight automatically.
 snap = client.snapshot("https://www.crunchbase.com/")
 
 # 2. Or describe what you want in plain English — we generate the schema.
-data = client.extract(
+data = client.assist_extract(
     url="https://news.ycombinator.com/",
     description="get me top 20 stories: title, points, comments, link",
 )
-# → [{"title": "Show HN: ...", "points": 142, "comments": 67, "link": "..."}, ...]
+# → data.template = [...], data.fields = {...}
 
-# 3. Save the recipe, run it on a list of URLs.
-client.batch(urls=[...], template_id="t_hn_frontpage")
+# 3. Save the recipe (via the dashboard or `POST /templates`), then re-run it.
+result = client.run_template(template_id="t_hn_frontpage", url="https://news.ycombinator.com/")
+```
+
+TypeScript/JS:
+
+```bash
+npm install stealth-scraper          # sources: sdks/typescript/
+```
+
+```ts
+import { StealthClient } from 'stealth-scraper';
+const client = new StealthClient({ apiKey: 'ssk_...' });
+const snap = await client.snapshot('https://news.ycombinator.com/');
 ```
 
 For AI agents that need real-time tool use:
 
 ```bash
-# MCP server (Anthropic Model Context Protocol)
+# MCP server (Anthropic Model Context Protocol) — sources: sdks/mcp/
 npx @stealth-scraper/mcp
-# → adds `scrape_url`, `extract_structured` tools to Claude Desktop / Cursor / etc.
+# → adds `scrape_url`, `extract_structured`, `list_templates`, `run_template`
+#   tools to Claude Desktop / Cursor / Cline / etc.
 ```
 
 ---
@@ -142,7 +155,7 @@ python -m bench.throughput    # 30 URLs, pages/$ + engine mix
 | **Scheduled scrapes** | Cron-like scheduling per template. Webhook delivery on completion. |
 | **Batch mode** | Newline list of URLs → JSON/CSV bundle. |
 | **Recipe marketplace** | Publish + clone public templates. |
-| **API + SDKs** | REST + Python (`pip install stealth-scraper`) + TypeScript (`npm i stealth-scraper`) + MCP server. |
+| **API + SDKs** | REST + Python (`pip install stealth-scraper`, sources in `sdks/python/`) + TypeScript (`npm i stealth-scraper`, sources in `sdks/typescript/`) + MCP server (`npx @stealth-scraper/mcp`, sources in `sdks/mcp/`). |
 | **Usage dashboard** | Monthly scrapes vs plan limit, success rate, average latency. |
 
 ---
@@ -251,6 +264,10 @@ Stealth-Scraper/
 │   └── setup_needed.md        Paid-infra integration plan
 │
 ├── oss/stealth-browser/       Separate git repo — the OSS engine package
+├── sdks/
+│   ├── python/                stealth-scraper PyPI package (sync + async)
+│   ├── typescript/            stealth-scraper npm package (ESM + CJS)
+│   └── mcp/                   @stealth-scraper/mcp — MCP server for Claude Desktop
 ├── deploy/aws-lightsail/      Docker + Caddy + setup/update scripts
 ├── docs/                      ARCHITECTURE.md, DEPLOY.md
 ├── legacy/                    Original v1 Flask + XPath app (preserved)
