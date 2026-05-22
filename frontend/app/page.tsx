@@ -110,7 +110,7 @@ function FeaturesSection() {
     <Section eyebrow="The different shape" title="What you get that prompt-only scrapers can't ship">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {features.map((f) => (
-          <Card key={f.title} density="compact">
+          <Card key={f.title} density="comfortable">
             <f.icon className="mb-3 h-4 w-4 text-[var(--color-accent)]" />
             <div className="mb-1.5 text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{f.title}</div>
             <p className="text-[13px] leading-[1.6] text-[var(--color-fg)]">{f.body}</p>

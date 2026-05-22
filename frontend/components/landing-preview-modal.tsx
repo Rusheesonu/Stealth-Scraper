@@ -314,9 +314,9 @@ function LoadingPhase({ url }: { url: string }) {
           {/* Browser chrome with real URL */}
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-2">
             <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-mac-red)]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-mac-yellow)]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-mac-green)]" />
             </div>
             <div className="flex flex-1 items-center gap-1.5 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
               <Globe className="h-3 w-3 text-[var(--color-fg-subdued)]" />

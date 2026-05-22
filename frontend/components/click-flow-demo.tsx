@@ -98,9 +98,9 @@ export function ClickFlowDemo() {
         {/* Window chrome */}
         <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-4 py-2.5">
           <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-mac-red)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-mac-yellow)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-mac-green)]" />
           </div>
           <div className="mx-auto flex max-w-md items-center gap-1.5 rounded-md bg-[var(--color-surface)] px-3 py-1 font-mono text-[11px] text-[var(--color-fg-muted)]">
             news.ycombinator.com

@@ -44,6 +44,16 @@
   --color-accent-faint:  #f0fdf4;
   --color-accent-line:   #a7f3d0;
 
+  /* macOS window-control "stoplight" dots — used as a brand
+     decoration on the demo browser chrome (landing hero, click-flow
+     demo, preview modal). Pinned here so the four files that draw
+     them stop hardcoding raw hex (pre-launch audit, May 22 2026). */
+  --color-mac-red:    #ff5f57;
+  --color-mac-yellow: #febc2e;
+  --color-mac-green:  #28c840;
+  /* Picker hint amber — the "release to pick" callout. */
+  --color-hint-amber: #fbbf24;
+
   /* Semantic — calm tones. Backgrounds are pale; foregrounds are dark
      for AA contrast on white. */
   --color-success:        #047857;

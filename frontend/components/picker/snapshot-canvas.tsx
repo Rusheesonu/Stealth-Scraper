@@ -426,7 +426,7 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
             </div>
           )}
           {shiftHeld && (
-            <div className="mt-0.5 text-[#fbbf24]">
+            <div className="mt-0.5 text-[var(--color-hint-amber)]">
               ⇧-click → add to latest list field
             </div>
           )}
@@ -448,7 +448,7 @@ export function SnapshotCanvas({ snapshot, onElementClick, pickedFields }: Props
             WebkitBackdropFilter: "blur(8px)",
           }}
         >
-          <span className="text-[#fbbf24]">⤴</span> release to pick the element covering this box
+          <span className="text-[var(--color-hint-amber)]">⤴</span> release to pick the element covering this box
         </div>
       )}
     </div>
