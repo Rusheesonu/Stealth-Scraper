@@ -6,21 +6,22 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   Check,
+  Github,
   Laptop,
   Layers,
   Loader2,
   Mail,
   MousePointerClick,
-  PlayCircle,
 } from "lucide-react";
 
 import { Brand } from "@/components/brand";
 
 const APPLE_EASE = [0.32, 0.72, 0, 1] as const;
 
-// TODO: replace with real demo video before PH launch — placeholder so
-// the page renders + the button has a working href in dev.
-const DEMO_VIDEO_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+// Demo video CTA removed until a real demo lands. Previously hardcoded
+// a placeholder YouTube URL that turned out to be a rickroll on the
+// live site (caught by the May-22 pre-launch audit). When the real
+// demo ships, restore a single primary `FallbackCta` with the URL.
 
 /**
  * Mobile fallback for the visual picker. Rendered on touch-primary
@@ -110,9 +111,10 @@ export function MobileFallback() {
         </motion.p>
 
         {/* CTA stack — three vertical actions, generous spacing. The
-            primary is the demo (commits the lowest friction next step),
-            secondary is the marketplace (still a product moment), the
-            tertiary is purely informational. */}
+            primary is now the marketplace (the visitor can still get a
+            product moment from saved templates without the picker), the
+            secondary is the OSS engine repo (something concrete for the
+            engineer cohort), the tertiary is purely informational. */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -120,18 +122,18 @@ export function MobileFallback() {
           className="mt-8 flex w-full flex-col gap-2.5"
         >
           <FallbackCta
-            href={DEMO_VIDEO_URL}
-            external
-            icon={<PlayCircle className="h-4 w-4" />}
-            label="Watch the 30-sec demo"
-            sub="see what the picker does on desktop"
-            primary
-          />
-          <FallbackCta
             href="/marketplace"
             icon={<Layers className="h-4 w-4" />}
             label="Try a saved template"
             sub="browse community recipes — no picker needed"
+            primary
+          />
+          <FallbackCta
+            href="https://github.com/Rusheesonu/stealth-browser"
+            external
+            icon={<Github className="h-4 w-4" />}
+            label="Star the open-source engine"
+            sub="the MIT-licensed core that powers the picker"
           />
           <FallbackCta
             icon={<Laptop className="h-4 w-4" />}
