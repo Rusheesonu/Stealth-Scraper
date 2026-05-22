@@ -864,20 +864,33 @@ async def public_snapshot_and_suggest(
                 # preview. We at least show the suggested schema.
                 log.warning("public_snapshot.preview_extract_failed", extra={"error": repr(e)})
 
-    # Visible-text excerpt — concatenation of the first ~50 elements'
-    # text (capped at 3KB total). Two uses:
-    #   1. Bench/CI: lets bench/extract_correctness.py do a deterministic
-    #      "did the extracted value actually appear on the page?" check
-    #      without re-fetching the snapshot or running an LLM judge.
-    #   2. AI agents calling the API can use this as fallback context
-    #      when their structured fields come back null — better than
-    #      "I have nothing."
-    # Total payload growth: ~3KB, negligible vs the ~200KB base64 PNG.
-    visible_text_excerpt = " ".join(
+    # Visible-text excerpt — substantive element text from across the
+    # page, capped at 8KB total. Sorts elements by text length DESC so
+    # the excerpt biases toward headlines/descriptions/body, not nav
+    # chrome (the first 50 elements on big sites are usually nav links
+    # — "login", "new", "threads", etc. — which don't help grounding).
+    #
+    # Two uses:
+    #   1. Bench/CI: bench/extract_correctness.py uses this as ground-
+    #      truth haystack for "did the extracted value actually appear
+    #      on the page?" without re-snapshotting or running an LLM.
+    #   2. AI agents can use it as fallback context when structured
+    #      fields come back null. Better than "I have nothing."
+    # Total payload growth: ~8KB, dwarfed by the ~200KB base64 PNG.
+    _texts = [
         (el.get("text", "") or "").strip()
-        for el in (snap.elements or [])[:50]
+        for el in (snap.elements or [])
         if (el.get("text", "") or "").strip()
-    )[:3000]
+    ]
+    _texts.sort(key=len, reverse=True)
+    _excerpt_parts: list[str] = []
+    _excerpt_total = 0
+    for t in _texts:
+        if _excerpt_total + len(t) + 1 > 8000:
+            continue
+        _excerpt_parts.append(t)
+        _excerpt_total += len(t) + 1
+    visible_text_excerpt = " ".join(_excerpt_parts)
 
     return {
         "url": snap.url,
