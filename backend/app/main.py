@@ -318,9 +318,13 @@ class ExtractRequest(BaseModel):
     # /extract skips browser navigation entirely and runs the template
     # against this HTML via `extract_from_html` — schema/value drift
     # between snapshot-A (picker generation time) and snapshot-B
-    # (extract time) is structurally impossible. Subject to a sanity
-    # cap (2MB) so a misbehaving client can't blow memory.
-    expected_html: str | None = Field(default=None, max_length=2 * 1024 * 1024)
+    # (extract time) is structurally impossible.
+    # Cap matches `snapshot.py`'s outerHTML cap (5 MB). When these two
+    # disagree (as they did briefly between 88c971a and now) the
+    # snapshot ships 2-3 MB of HTML, the picker passes it back, and
+    # Pydantic rejects the request with `string_too_long` (422) before
+    # extract even runs — user sees a generic 422 instead of values.
+    expected_html: str | None = Field(default=None, max_length=5 * 1024 * 1024)
 
 
 class BatchExtractRequest(BaseModel):
