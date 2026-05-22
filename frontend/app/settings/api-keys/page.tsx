@@ -282,7 +282,7 @@ export default function ApiKeysPage() {
 {snippets[sdkTab]}
           </pre>
           {!justCreated && (
-            <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+            <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[11.5px] text-[var(--color-fg-muted)]">
               Replace <code>ssk_xxx</code> with the key shown when you create one above.
             </div>
           )}

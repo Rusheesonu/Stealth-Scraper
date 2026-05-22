@@ -153,7 +153,7 @@ export function LandingFaq() {
           ~no JS. AnimatePresence/spring stays below for the actual
           accordion mechanics. */}
       <div className="animate-fade-up mb-8 text-center">
-        <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+        <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
           <HelpCircle className="h-3 w-3 text-[var(--color-accent)]" />
           Questions you&apos;d ask on a call
         </div>
@@ -203,7 +203,7 @@ export function LandingFaq() {
                     transition={{ duration: 0.25, ease: APPLE_EASE }}
                     className="overflow-hidden"
                   >
-                    <div className="px-5 pb-4 text-[13px] leading-[1.6] text-[var(--color-fg-muted)]">
+                    <div className="px-5 pb-5 text-[13.5px] leading-[1.7] text-[var(--color-fg)]">
                       {item.a}
                     </div>
                   </motion.div>
@@ -214,7 +214,7 @@ export function LandingFaq() {
         })}
       </div>
 
-      <p className="mt-6 text-center text-[12px] text-[var(--color-fg-subdued)]">
+      <p className="mt-6 text-center text-[12.5px] text-[var(--color-fg-muted)]">
         Question not answered here? Email{" "}
         <a
           href="mailto:rushikesh.koochana@gmail.com"

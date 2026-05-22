@@ -190,7 +190,7 @@ function AiExtractForm() {
                   onClick={() => loadExample(ex)}
                   className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
                 >
-                  <div className="mb-1.5 truncate font-mono text-[10px] text-[var(--color-fg-subdued)]">
+                  <div className="mb-1.5 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
                     {ex.url.replace(/^https?:\/\//, "")}
                   </div>
                   <div className="text-[12px] leading-[1.5] text-[var(--color-fg)]">{ex.desc}</div>

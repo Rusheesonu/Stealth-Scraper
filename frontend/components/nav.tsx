@@ -135,7 +135,7 @@ export function Nav() {
               )}
               <Popover open={settingsOpen} className="w-60">
                 <div className="border-b border-[var(--color-border)] px-3 py-2.5">
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+                  <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                     Signed in as
                   </div>
                   <div className="mt-0.5 truncate font-mono text-[12px] text-[var(--color-fg)]">
@@ -278,14 +278,14 @@ export function Footer() {
             <p className="mt-3 max-w-[24ch] text-[12px] leading-[1.6] text-[var(--color-fg-muted)]">
               The reliable web-data layer for AI agents. Point, click, extract.
             </p>
-            <p className="mt-4 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            <p className="mt-4 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Built solo
             </p>
           </div>
 
           {FOOTER_COLUMNS.map((col) => (
             <div key={col.title}>
-              <div className="mb-3 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              <div className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                 {col.title}
               </div>
               <ul className="space-y-2">
@@ -296,14 +296,14 @@ export function Footer() {
                         href={l.href}
                         target={l.href.startsWith("mailto:") || l.href === "#" ? undefined : "_blank"}
                         rel={l.href.startsWith("mailto:") || l.href === "#" ? undefined : "noreferrer"}
-                        className="text-[12.5px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
+                        className="text-[13px] text-[var(--color-fg)] transition-colors hover:text-[var(--color-fg-strong)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
                       >
                         {l.label}
                       </a>
                     ) : (
                       <Link
                         href={l.href}
-                        className="text-[12.5px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
+                        className="text-[13px] text-[var(--color-fg)] transition-colors hover:text-[var(--color-fg-strong)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
                       >
                         {l.label}
                       </Link>
@@ -317,12 +317,12 @@ export function Footer() {
 
         {/* Bottom row — copyright + dev affordance. */}
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center">
-          <p className="font-mono text-[11px] text-[var(--color-fg-subdued)]">
+          <p className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">
             © 2026 Stealth-Scraper · All rights reserved
           </p>
           <Link
             href="/design"
-            className="font-mono text-[11px] text-[var(--color-fg-subdued)] transition-colors hover:text-[var(--color-fg-muted)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
+            className="font-mono text-[11.5px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
           >
             Design system →
           </Link>

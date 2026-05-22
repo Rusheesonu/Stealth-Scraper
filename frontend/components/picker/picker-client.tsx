@@ -516,7 +516,7 @@ export function PickerClient() {
 
         {/* Extract-target controls */}
         <div className="flex flex-1 items-center gap-2 md:max-w-2xl">
-          <div className="hidden font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)] md:block whitespace-nowrap">
+          <div className="hidden font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)] md:block whitespace-nowrap">
             Extract from
           </div>
           <div className="relative flex-1">

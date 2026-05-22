@@ -69,7 +69,7 @@ function CohortHero() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.12, ease: APPLE_EASE }}
-        className="mx-auto mt-5 max-w-xl text-[15px] leading-[1.55] text-[var(--color-fg-muted)]"
+        className="mx-auto mt-5 max-w-xl text-[15.5px] leading-[1.6] text-[var(--color-fg)]"
       >
         {copy.subhead}
       </motion.p>
@@ -77,7 +77,7 @@ function CohortHero() {
   );
 }
 
-export function LandingHero() {
+export function LandingHero({ authed = false }: { authed?: boolean } = {}) {
   const [mode, setMode] = useState<Mode>("url");
 
   return (
@@ -107,7 +107,16 @@ export function LandingHero() {
           className="mb-5 inline-flex"
         >
           <Badge tone="accent">
-            <span className="font-mono">v2.0</span> · visual scraping for AI agents
+            {authed ? (
+              <>
+                <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                Welcome back · pick up where you left off
+              </>
+            ) : (
+              <>
+                <span className="font-mono">v2.0</span> · visual scraping for AI agents
+              </>
+            )}
           </Badge>
         </motion.div>
 
@@ -166,7 +175,7 @@ export function LandingHero() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.4, ease: APPLE_EASE }}
-        className="relative mx-auto mt-8 max-w-5xl md:mt-10"
+        className="relative mx-auto mt-14 max-w-5xl md:mt-16"
       >
         <DemoStrip />
       </motion.div>
@@ -515,7 +524,7 @@ function DescribeMode() {
 
         {/* Footer row with submit */}
         <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-2">
-          <div className="font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+          <div className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">
             {desc.length}/500
           </div>
           <motion.button
@@ -584,14 +593,14 @@ function DemoStrip() {
             news.ycombinator.com
           </div>
         </div>
-        <div className="font-mono text-[10px] text-[var(--color-fg-subdued)]">3 fields · 30 rows</div>
+        <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">3 fields · 30 rows</div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr]">
         {/* Left: page with highlighted selectors — tighter spacing,
             only 2 rows shown + cleaner overflow indicator. */}
         <div className="border-b border-[var(--color-border)] p-4 md:border-b-0 md:border-r">
-          <div className="mb-2.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+          <div className="mb-2.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
             Page · clicked fields
           </div>
           <div className="space-y-1.5">
@@ -608,7 +617,7 @@ function DemoStrip() {
                     {row.title}
                   </span>
                 </div>
-                <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-[var(--color-fg-muted)]">
+                <div className="mt-1.5 flex items-center gap-2 font-mono text-[11px] text-[var(--color-fg-muted)]">
                   <span>
                     <span className="rounded-sm bg-[var(--color-info-soft)] px-0.5 py-px ring-1 ring-[color:var(--color-info)]/20">
                       {row.points}
@@ -625,7 +634,7 @@ function DemoStrip() {
                 </div>
               </motion.div>
             ))}
-            <div className="pt-0.5 text-center font-mono text-[10px] text-[var(--color-fg-subdued)]">
+            <div className="pt-0.5 text-center font-mono text-[11px] text-[var(--color-fg-muted)]">
               … 28 more
             </div>
           </div>
@@ -634,14 +643,14 @@ function DemoStrip() {
         {/* Right: clean JSON */}
         <div className="bg-[var(--color-ink-1)] p-4">
           <div className="mb-2.5 flex items-center justify-between">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Output · clean JSON
             </div>
-            <div className="inline-flex items-center gap-1 font-mono text-[10px] text-[var(--color-accent)]">
-              <Check className="h-2.5 w-2.5" /> 200 OK · 1.2s
+            <div className="inline-flex items-center gap-1 font-mono text-[11px] text-[var(--color-accent)]">
+              <Check className="h-3 w-3" /> 200 OK · 1.2s
             </div>
           </div>
-          <pre className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 font-mono text-[10.5px] leading-[1.55] text-[var(--color-fg)]">
+          <pre className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-mono text-[12px] leading-[1.6] text-[var(--color-fg)]">
 {`[
   {
     "title": "Show HN: A tool for AI agents...",

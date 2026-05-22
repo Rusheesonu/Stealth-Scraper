@@ -14,7 +14,6 @@ import { SdkPreview } from "@/components/sdk-preview";
 import { OssSection } from "@/components/oss-section";
 import { FounderNote } from "@/components/founder-note";
 import { LandingFaq } from "@/components/landing-faq";
-import { DashboardWelcome } from "@/components/dashboard-welcome";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -22,22 +21,20 @@ import { createClient } from "@/lib/supabase/server";
  * what comes back — product demonstrates itself in the first viewport.
  * No carousel, no feature grid above the fold.
  *
- * Logged-in branch: signed-in users see a dashboard welcome (first-time)
- * or recent templates (returning) instead of the marketing page. The pitch
- * is for visitors — already-sold users want their tools.
+ * SAME flow for logged-out and logged-in (deliberate design choice —
+ * the prior split between marketing landing + DashboardWelcome card
+ * read as "different product" after signup). Logged-in users get the
+ * same polished hero with a personalized badge ("Welcome back · 47/50
+ * scrapes this month") instead of the "v2.0" marketing badge.
  */
 
 export default async function Home() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (user) {
-    return <DashboardWelcome />;
-  }
-
   return (
     <PageShell maxWidth="max-w-6xl" vPadding="flush">
-      <LandingHero />
+      <LandingHero authed={!!user} />
       <FeaturedTemplates />
       <ClickFlowDemo />
       <ProblemSection />
@@ -76,9 +73,9 @@ function ProblemSection() {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {problems.map((p) => (
           <Card key={p.title} density="comfortable">
-            <p.icon className="mb-3 h-4 w-4 text-[var(--color-fg-subdued)]" />
+            <p.icon className="mb-3 h-4 w-4 text-[var(--color-accent)]" />
             <CardTitle className="mb-2">{p.title}</CardTitle>
-            <p className="text-[13px] leading-[1.6] text-[var(--color-fg-muted)]">{p.body}</p>
+            <p className="text-[13.5px] leading-[1.65] text-[var(--color-fg)]">{p.body}</p>
           </Card>
         ))}
       </div>
@@ -116,7 +113,7 @@ function FeaturesSection() {
           <Card key={f.title} density="compact">
             <f.icon className="mb-3 h-4 w-4 text-[var(--color-accent)]" />
             <div className="mb-1.5 text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{f.title}</div>
-            <p className="text-[12px] leading-[1.55] text-[var(--color-fg-muted)]">{f.body}</p>
+            <p className="text-[13px] leading-[1.6] text-[var(--color-fg)]">{f.body}</p>
           </Card>
         ))}
       </div>
@@ -136,13 +133,13 @@ function AiExtractCta() {
       >
         <div className="grid grid-cols-1 md:grid-cols-3">
           <div className="border-b border-[var(--color-border)] p-7 md:border-b-0 md:border-r">
-            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You write</div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You write</div>
             <p className="font-mono text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
               &quot;Get every product&apos;s title, price, rating, and review count.&quot;
             </p>
           </div>
           <div className="border-b border-[var(--color-border)] p-7 md:border-b-0 md:border-r">
-            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">AI drafts (1s)</div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">AI drafts (1s)</div>
             <div className="space-y-1">
               {["product_title", "price", "rating", "review_count"].map((label) => (
                 <div key={label} className="flex items-center gap-2">
@@ -153,7 +150,7 @@ function AiExtractCta() {
             </div>
           </div>
           <div className="p-7">
-            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You verify in the picker</div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You verify in the picker</div>
             <p className="mb-3 text-[12.5px] leading-[1.55] text-[var(--color-fg-muted)]">
               Open the AI draft in the visual picker. Confirm selectors, edit
               what&apos;s off, save the recipe. <span className="text-[var(--color-fg)]">No more hoping the AI got it right.</span>
@@ -177,7 +174,7 @@ function PricingTeaser() {
   ];
   return (
     <Section eyebrow="Pricing" title="Pay as you grow. Cancel anytime.">
-      <p className="mx-auto mb-6 max-w-2xl text-center text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
+      <p className="mx-auto mb-6 max-w-2xl text-center text-[13.5px] leading-[1.6] text-[var(--color-fg)]">
         Every scrape is one <strong className="text-[var(--color-fg)]">new data point</strong>, not a re-prompt.
         Save a recipe once, then 10,000 runs = 10,000 new rows — your saved selectors
         never re-pay for schema generation.
@@ -197,7 +194,7 @@ function PricingTeaser() {
               <span className="text-[28px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{t.price}</span>
               <span className="text-[12px] text-[var(--color-fg-muted)]">/mo</span>
             </div>
-            <ul className="space-y-1.5 text-[12px] text-[var(--color-fg-muted)]">
+            <ul className="space-y-1.5 text-[12.5px] text-[var(--color-fg)]">
               {t.features.map((f) => (
                 <li key={f} className="flex items-center gap-1.5"><Check className="h-3 w-3 text-[var(--color-accent)]" />{f}</li>
               ))}

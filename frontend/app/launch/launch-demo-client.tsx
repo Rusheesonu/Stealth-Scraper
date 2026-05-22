@@ -528,7 +528,7 @@ function LoadingPhase({ demo }: { demo: DemoConfig }) {
                 <div className="text-[16px] font-semibold leading-tight tracking-[-0.012em] text-[var(--color-fg-display)]">
                   {activeStage.text}
                 </div>
-                <div className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+                <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                   step {LOADING_STAGES.indexOf(activeStage) + 1} of {LOADING_STAGES.length}
                 </div>
               </div>
@@ -730,7 +730,7 @@ function ResultPhase({
           {/* RIGHT — JSON records */}
           <div className="overflow-y-auto p-4 sm:p-5">
             <div className="mb-3 flex items-center justify-between">
-              <div className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                 Extracted JSON · {totalRecords} {totalRecords === 1 ? "record" : "records"}
               </div>
             </div>
@@ -763,7 +763,7 @@ function ResultPhase({
           aria-hidden
         />
         <div className="relative">
-          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2 py-1 font-mono text-[10.5px] uppercase tracking-wider text-white/80">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-white/80">
             <Clock className="h-3 w-3" /> {seconds}s
           </div>
           <h2 className="text-[22px] font-semibold leading-[1.15] tracking-[-0.014em] text-white sm:text-[28px]">
@@ -804,11 +804,11 @@ function JsonRecord({ record, index }: { record: Record<string, unknown>; index:
       className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]"
     >
       <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-2.5 py-1">
-        <div className="flex items-center gap-1.5 font-mono text-[10px] text-[var(--color-fg-subdued)]">
+        <div className="flex items-center gap-1.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
           <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
           <span>record {String(index + 1).padStart(2, "0")}</span>
         </div>
-        <span className="font-mono text-[10px] text-[var(--color-fg-subdued)]">
+        <span className="font-mono text-[11px] text-[var(--color-fg-muted)]">
           {entries.length} {entries.length === 1 ? "field" : "fields"}
         </span>
       </div>
@@ -932,7 +932,7 @@ function TryAnotherStrip({ activeKey }: { activeKey: DemoKey }) {
   const others = (Object.keys(DEMOS) as DemoKey[]).filter((k) => k !== activeKey);
   return (
     <section className="mt-10">
-      <div className="mb-3 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+      <div className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
         Try another
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -999,7 +999,7 @@ function HowItWorks() {
   ];
   return (
     <section className="mt-12">
-      <div className="mb-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+      <div className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
         How this works
       </div>
       <h2 className="mb-5 text-[20px] font-semibold tracking-[-0.012em] text-[var(--color-fg-strong)]">

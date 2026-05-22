@@ -293,7 +293,7 @@ function LoadingPhase({ url }: { url: string }) {
               <span className="text-[19px] font-semibold leading-[1.15] tracking-[-0.012em] text-[var(--color-fg-display)]">
                 {activeStage.text}
               </span>
-              <span className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                 stage {LOADING_STAGES.indexOf(activeStage) + 1} of {LOADING_STAGES.length}
               </span>
             </div>
@@ -356,10 +356,10 @@ function LoadingPhase({ url }: { url: string }) {
             session. Builds anticipation for the result phase. */}
         <div className="relative flex flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-ink-1)]">
           <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Discovered schema
             </div>
-            <div className="font-mono text-[10px] text-[var(--color-fg-subdued)]">
+            <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">
               {fieldsFoundCount}/{MOCK_DISCOVERED_FIELDS.length}
             </div>
           </div>
@@ -417,7 +417,7 @@ function LoadingPhase({ url }: { url: string }) {
             })}
 
             {fieldsFoundCount < MOCK_DISCOVERED_FIELDS.length && (
-              <div className="flex items-center gap-1.5 pt-1 font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+              <div className="flex items-center gap-1.5 pt-1 font-mono text-[11.5px] text-[var(--color-fg-muted)]">
                 <span className="inline-flex h-1 w-1 animate-pulse rounded-full bg-[var(--color-fg-subdued)]" />
                 scanning more elements…
               </div>
@@ -711,7 +711,7 @@ function ResultPhase({
               cards. "One block per product" feel. */}
           <div className="overflow-y-auto p-5 md:p-6">
             <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                 <span>Live extraction</span>
                 <span>·</span>
                 <span className="text-[var(--color-accent)]">
@@ -844,11 +844,11 @@ function JsonRecord({ record, index }: { record: Record<string, unknown>; index:
       {/* Tiny header strip — record index + accent dot. Makes each card
           feel like a "row" not just a block of code. */}
       <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-1.5">
-        <div className="flex items-center gap-1.5 font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+        <div className="flex items-center gap-1.5 font-mono text-[11.5px] text-[var(--color-fg-muted)]">
           <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
           <span>record {String(index + 1).padStart(2, "0")}</span>
         </div>
-        <span className="font-mono text-[10px] text-[var(--color-fg-subdued)]">
+        <span className="font-mono text-[11px] text-[var(--color-fg-muted)]">
           {entries.length} {entries.length === 1 ? "field" : "fields"}
         </span>
       </div>
@@ -1058,7 +1058,7 @@ function AntiBotBlockPhase({
             the diagnosis. */}
         {block.suggestion && (
           <div className="mt-5 w-full rounded-lg border border-[var(--color-accent-line)] bg-[var(--color-accent-faint)] p-3.5 text-left">
-            <div className="mb-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent)]">
+            <div className="mb-1 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-accent)]">
               <Sparkles className="h-3 w-3" />
               How to get past this
             </div>

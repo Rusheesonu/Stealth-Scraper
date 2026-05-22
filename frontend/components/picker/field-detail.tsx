@@ -118,7 +118,7 @@ export function FieldDetailDrawer({
           {/* Header */}
           <header className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
             <div className="min-w-0 flex-1">
-              <div className="mb-1 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              <div className="mb-1 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                 Field #{index + 1}
               </div>
               <h2 className="truncate text-[17px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
@@ -167,7 +167,7 @@ export function FieldDetailDrawer({
             <Section icon={<Code className="h-3 w-3" />} title="Selector">
               <div className="space-y-2.5">
                 <div>
-                  <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+                  <label className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                     CSS selector
                   </label>
                   <Input
@@ -179,7 +179,7 @@ export function FieldDetailDrawer({
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+                  <label className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                     XPath fallback <span className="text-[var(--color-fg-subdued)]">(optional)</span>
                   </label>
                   <Input
@@ -217,7 +217,7 @@ export function FieldDetailDrawer({
               </div>
               {draft.kind === "attr" && (
                 <div className="mt-2">
-                  <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+                  <label className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                     Attribute name
                   </label>
                   <Input
@@ -246,7 +246,7 @@ export function FieldDetailDrawer({
 
           {/* Footer */}
           <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-3">
-            <div className="font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+            <div className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">
               {dirty ? "unsaved changes" : "saved"}
             </div>
             <div className="flex items-center gap-1.5">
@@ -267,7 +267,7 @@ function Section({
 }: { icon: React.ReactNode; title: string; hint?: string; children: React.ReactNode }) {
   return (
     <section className="border-b border-[var(--color-border)] px-5 py-4 last:border-b-0">
-      <div className="mb-2.5 flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+      <div className="mb-2.5 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
         {icon}
         {title}
       </div>
@@ -440,7 +440,7 @@ function TransformRow({
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
       <div className="mb-1.5 flex items-center gap-2">
-        <span className="font-mono text-[10px] text-[var(--color-fg-subdued)]">{index + 1}.</span>
+        <span className="font-mono text-[11px] text-[var(--color-fg-muted)]">{index + 1}.</span>
         <span className="font-mono text-[12px] font-semibold text-[var(--color-fg-strong)]">
           {meta?.label || transform.op}
         </span>

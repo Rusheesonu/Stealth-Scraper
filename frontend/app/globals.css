@@ -167,9 +167,10 @@
   --color-ink-3:  #262626;
   --color-ink-4:  #3a3a3a;
   --color-ink-5:  #5a5a5a;
-  --color-ink-6:  #8a8a8a;
-  --color-ink-7:  #d4d4d4;
-  --color-ink-8:  #ededed;
+  --color-ink-5-aa: #a3a3a3;           /* dark-mode subdued (6.5:1 on #111) — overrides light-mode #737373 */
+  --color-ink-6:  #a8a8a8;             /* secondary text — bumped from #8a8a8a (3.7:1) → #a8a8a8 (6.7:1) */
+  --color-ink-7:  #e5e5e5;             /* primary text — slight bump from #d4d4d4 for more punch */
+  --color-ink-8:  #f5f5f5;             /* headings */
   --color-ink-9:  #fafafa;
 
   --color-accent:        #10b981;

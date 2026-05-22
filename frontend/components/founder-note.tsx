@@ -47,7 +47,7 @@ export function FounderNote() {
           aria-hidden
         />
 
-        <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+        <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
           From the founder
         </div>
 
@@ -67,7 +67,7 @@ export function FounderNote() {
             <div className="mb-3 font-mono text-[11px] text-[var(--color-fg-muted)]">
               {FOUNDER.role}
             </div>
-            <div className="space-y-2.5 text-[13px] leading-[1.6] text-[var(--color-fg-muted)]">
+            <div className="space-y-3 text-[13.5px] leading-[1.7] text-[var(--color-fg)]">
               {FOUNDER.bio.map((p, i) => (
                 <p key={i}>{p}</p>
               ))}

@@ -142,7 +142,7 @@ export function FeaturedTemplates() {
           per-card staggered entrance — visually it's worth the cost. */}
       <div className="animate-fade-up mb-8 flex items-end justify-between gap-4">
         <div>
-          <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+          <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
             <Sparkles className="h-3 w-3 text-[var(--color-accent)]" />
             Template library
           </div>
@@ -150,7 +150,7 @@ export function FeaturedTemplates() {
             Skip the setup.<br className="sm:hidden" />
             <span className="text-[var(--color-fg-muted)]"> Start with a recipe.</span>
           </h2>
-          <p className="mt-2 max-w-xl text-[13.5px] text-[var(--color-fg-muted)]">
+          <p className="mt-2 max-w-xl text-[14px] leading-[1.6] text-[var(--color-fg)]">
             Browse community-shared extraction recipes. Fork any one, run it on
             any matching page, customize the selectors as needed.
           </p>
@@ -235,7 +235,7 @@ function TemplateCard({ card, index }: { card: Card; index: number }) {
         )}
       </div>
 
-      <p className="mb-3 line-clamp-2 text-[12px] leading-[1.5] text-[var(--color-fg-muted)]">
+      <p className="mb-3 line-clamp-2 text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
         {"description" in card && card.description
           ? truncate(card.description, 110)
           : "Saved extraction recipe."}
@@ -245,18 +245,18 @@ function TemplateCard({ card, index }: { card: Card; index: number }) {
         {card.fields.slice(0, 5).map((f, i) => (
           <span
             key={i}
-            className="inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] leading-none ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]"
+            className="inline-flex items-center rounded px-2 py-0.5 font-mono text-[11px] leading-none ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]"
           >
             {f.label}
           </span>
         ))}
         {card.fields.length > 5 && (
-          <span className="font-mono text-[10px] text-[var(--color-fg-subdued)]">+{card.fields.length - 5}</span>
+          <span className="font-mono text-[11px] text-[var(--color-fg-muted)]">+{card.fields.length - 5}</span>
         )}
       </div>
 
       {/* Hover CTA */}
-      <div className="mt-4 inline-flex items-center gap-1 text-[11.5px] font-medium text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] group-hover:text-[var(--color-accent)]">
+      <div className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] group-hover:text-[var(--color-accent)]">
         Try this →
       </div>
     </motion.button>

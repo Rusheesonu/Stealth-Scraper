@@ -54,7 +54,7 @@ export function ClickFlowDemo() {
         transition={{ duration: 0.4, ease: APPLE_EASE }}
         className="mb-7 text-center"
       >
-        <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+        <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
           <MousePointer2 className="h-3 w-3 text-[var(--color-accent)]" />
           The 3-step flow
         </div>
@@ -105,7 +105,7 @@ export function ClickFlowDemo() {
           <div className="mx-auto flex max-w-md items-center gap-1.5 rounded-md bg-[var(--color-surface)] px-3 py-1 font-mono text-[11px] text-[var(--color-fg-muted)]">
             news.ycombinator.com
           </div>
-          <div className="font-mono text-[10px] text-[var(--color-fg-subdued)]">
+          <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">
             step {step + 1}/3
           </div>
         </div>
@@ -145,7 +145,7 @@ export function ClickFlowDemo() {
                         {row.title}
                       </motion.span>
                     </div>
-                    <div className="mt-1.5 font-mono text-[10px] text-[var(--color-fg-muted)]">
+                    <div className="mt-1.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
                       <motion.span
                         initial={{
                           backgroundColor: "transparent",
@@ -244,10 +244,10 @@ export function ClickFlowDemo() {
           {/* Sidebar area — shows fields appearing */}
           <div className="bg-[var(--color-ink-1)] p-5">
             <div className="mb-3 flex items-center justify-between">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
                 {step < 2 ? "Fields" : "Recipe saved"}
               </div>
-              <div className="font-mono text-[10px] text-[var(--color-fg-subdued)]">
+              <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">
                 {step === 0 ? "0 / 64" : step === 1 ? "2 / 64" : "2 / 64"}
               </div>
             </div>
@@ -308,11 +308,11 @@ export function ClickFlowDemo() {
                     >
                       <div className="mb-1 flex items-center gap-1.5">
                         <Sparkles className="h-3 w-3 text-[var(--color-accent)]" />
-                        <div className="font-mono text-[10.5px] font-semibold text-[var(--color-fg-strong)]">
+                        <div className="font-mono text-[11px] font-semibold text-[var(--color-fg-strong)]">
                           recipe saved
                         </div>
                       </div>
-                      <pre className="overflow-hidden font-mono text-[10px] leading-[1.5] text-[var(--color-fg)]">
+                      <pre className="overflow-hidden font-mono text-[11.5px] leading-[1.55] text-[var(--color-fg)]">
 {`from stealth_scraper import Client
 c = Client(api_key="ssk_...")
 c.run_template("tpl_hn", url)`}
@@ -326,7 +326,7 @@ c.run_template("tpl_hn", url)`}
         </div>
 
         {/* Caption strip */}
-        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 text-center font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 text-center font-mono text-[11.5px] text-[var(--color-fg-muted)]">
           {step === 0 && "Paste a URL, get a snapshot. The whole page becomes clickable."}
           {step === 1 && "Click any element. The selector + a field appear instantly."}
           {step === 2 && "Save the recipe. Now run it from your SDK on any HN-shaped page."}
@@ -356,7 +356,7 @@ function FieldRow({
       <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-2.5 py-1.5">
         <span className="h-2 w-2 shrink-0 rounded-full ring-1 ring-inset ring-black/15" style={{ background: color }} />
         <span className="truncate text-[12px] font-medium text-[var(--color-fg-strong)]">{label}</span>
-        <span className="ml-auto inline-flex h-[16px] items-center rounded px-1.5 font-mono text-[9px] ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]">
+        <span className="ml-auto inline-flex h-[18px] items-center rounded px-1.5 font-mono text-[10px] ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]">
           {kind}
         </span>
       </div>
@@ -375,9 +375,9 @@ function FieldRow({
               delay: valueDelay + i * 0.12,
               ease: APPLE_EASE,
             }}
-            className="truncate font-mono text-[10px] leading-[1.55] text-[var(--color-fg)]"
+            className="truncate font-mono text-[11px] leading-[1.55] text-[var(--color-fg)]"
           >
-            <span className="text-[var(--color-fg-subdued)]">{i}.</span>{" "}
+            <span className="text-[var(--color-fg-muted)]">{i}.</span>{" "}
             {v.length > 38 ? v.slice(0, 38) + "…" : v}
           </motion.li>
         ))}
@@ -385,7 +385,7 @@ function FieldRow({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.22, delay: valueDelay + 0.5, ease: APPLE_EASE }}
-          className="font-mono text-[9.5px] text-[var(--color-fg-subdued)]"
+          className="font-mono text-[10.5px] text-[var(--color-fg-muted)]"
         >
           … +27 more
         </motion.li>

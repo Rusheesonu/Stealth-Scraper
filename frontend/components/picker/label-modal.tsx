@@ -147,7 +147,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
             )}
             <span className="text-[var(--color-fg-subdued)]">&rdquo;</span>
           </div>
-          <div className="mt-2 truncate font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+          <div className="mt-2 truncate font-mono text-[11.5px] text-[var(--color-fg-muted)]">
             {truncate(currentEl.css, 96)}
           </div>
         </div>
@@ -294,7 +294,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-3">
-        <div className="font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+        <div className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">
           <Kbd>↵</Kbd>
           <span className="ml-1">to add</span>
           <span className="mx-1.5 text-[var(--color-fg-subdued)]">·</span>

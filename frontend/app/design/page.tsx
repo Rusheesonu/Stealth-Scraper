@@ -133,7 +133,7 @@ function TypeSection() {
             <div key={t.token} className={`flex items-baseline gap-6 px-4 py-4 ${i > 0 ? "border-t border-[var(--color-border)]" : ""}`}>
               <div className="w-20 flex-shrink-0">
                 <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">{t.label}</div>
-                <div className="font-mono text-[10px] text-[var(--color-fg-subdued)]">{t.token.replace("--text-", "")}</div>
+                <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">{t.token.replace("--text-", "")}</div>
               </div>
               <div style={{ fontSize: `var(${t.token})`, lineHeight: 1.3 }} className="font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
                 {t.example}
@@ -143,11 +143,11 @@ function TypeSection() {
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4">
           <Card density="compact">
-            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">UI face · Inter</div>
+            <div className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">UI face · Inter</div>
             <p className="text-[14px] text-[var(--color-fg)]">The quick brown fox jumps over the lazy dog. 0123456789</p>
           </Card>
           <Card density="compact">
-            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Mono · JetBrains Mono</div>
+            <div className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Mono · JetBrains Mono</div>
             <p className="font-mono text-[13px] text-[var(--color-fg)]">div.product-card &gt; h2.title:nth-of-type(1)</p>
           </Card>
         </div>
@@ -319,7 +319,7 @@ function StatesSection() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* Loading */}
         <Card density="compact">
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Loading skeleton</div>
+          <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Loading skeleton</div>
           <div className="space-y-2">
             <div className="h-4 w-3/4 animate-pulse rounded-sm bg-[var(--color-elevated)]" />
             <div className="h-3 w-1/2 animate-pulse rounded-sm bg-[var(--color-elevated)]" />
@@ -328,7 +328,7 @@ function StatesSection() {
         </Card>
         {/* Empty */}
         <Card density="compact">
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Empty state</div>
+          <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Empty state</div>
           <div className="rounded-md border border-dashed border-[var(--color-border)] p-6 text-center">
             <Database className="mx-auto h-5 w-5 text-[var(--color-fg-subdued)]" />
             <div className="mt-2 text-[13px] text-[var(--color-fg)]">No templates yet</div>
@@ -338,7 +338,7 @@ function StatesSection() {
         </Card>
         {/* Error */}
         <Card density="compact">
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Error</div>
+          <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Error</div>
           <div className="rounded-md border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-dim)] p-3 text-[12px] text-[color:var(--color-danger)]">
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
@@ -363,7 +363,7 @@ function ConsistencyCheck() {
           {/* Landing tile */}
           <Card density="comfortable">
             <CardHeader>
-              <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Landing</div>
+              <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Landing</div>
               <CardTitle>Structured web data for AI agents</CardTitle>
             </CardHeader>
             <UrlForm size="md" placeholder="https://..." />
@@ -371,7 +371,7 @@ function ConsistencyCheck() {
 
           {/* Templates row */}
           <Card density="compact">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Templates row</div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Templates row</div>
             <div className="flex items-center gap-3 rounded-md border border-[var(--color-border)] p-3">
               <Globe className="h-4 w-4 text-[var(--color-fg-muted)]" />
               <div className="flex-1">
@@ -384,7 +384,7 @@ function ConsistencyCheck() {
 
           {/* Pricing tile */}
           <Card density="comfortable" className="relative">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Pricing tile</div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Pricing tile</div>
             <CardHeader>
               <CardTitle>Pro</CardTitle>
             </CardHeader>
@@ -401,7 +401,7 @@ function ConsistencyCheck() {
 
           {/* Status row */}
           <Card density="compact">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Status indicator</div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Status indicator</div>
             <div className="flex items-center justify-between rounded-md border border-[var(--color-border)] p-3">
               <div className="flex items-center gap-2.5">
                 <span className="relative inline-flex h-2 w-2">
@@ -416,7 +416,7 @@ function ConsistencyCheck() {
 
           {/* AI extract chip */}
           <Card density="compact">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">/ai-extract input</div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">/ai-extract input</div>
             <div className="space-y-2">
               <Input mono size="sm" placeholder="https://..." />
               <Textarea rows={2} placeholder="Get every product title, price, and rating." />
@@ -426,7 +426,7 @@ function ConsistencyCheck() {
 
           {/* Pick chrome */}
           <Card density="compact">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-fg-subdued)]">/pick header chrome</div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">/pick header chrome</div>
             <div className="flex items-center gap-2.5 rounded-md border border-[var(--color-border)] p-2.5">
               <Badge tone="muted"><Zap className="h-3 w-3" />247 elements</Badge>
               <code className="flex-1 truncate font-mono text-[11px] text-[var(--color-fg)]">news.ycombinator.com</code>

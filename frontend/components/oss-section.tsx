@@ -40,14 +40,14 @@ export function OssSection() {
         <div className="relative grid grid-cols-1 gap-8 p-8 md:grid-cols-[1.2fr_1fr] md:p-10">
           {/* Left — narrative */}
           <div>
-            <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               <Scale className="h-3 w-3 text-[var(--color-accent)]" />
               Open source at the core
             </div>
             <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.018em] text-[var(--color-fg-display)] sm:text-[30px]">
               The hard part is open source.
             </h2>
-            <p className="mt-3 max-w-md text-[13.5px] leading-[1.6] text-[var(--color-fg-muted)]">
+            <p className="mt-3 max-w-md text-[14px] leading-[1.65] text-[var(--color-fg)]">
               The scraping engine — CDP-level Chromium patches, anti-bot stealth,
               the bits that get you through Cloudflare — is{" "}
               <span className="text-[var(--color-fg)]">MIT-licensed</span> and on
@@ -63,7 +63,7 @@ export function OssSection() {
             >
               <GithubIcon className="h-3.5 w-3.5" />
               <span>stealth-browser</span>
-              <span className="font-mono text-[10.5px] text-[var(--color-fg-subdued)]">/ on GitHub</span>
+              <span className="font-mono text-[11.5px] text-[var(--color-fg-muted)]">/ on GitHub</span>
               <ArrowRight className="ml-1 h-3 w-3 text-[var(--color-fg-subdued)] transition-transform duration-[var(--dur-fast)] group-hover:translate-x-0.5" />
             </a>
           </div>
@@ -85,7 +85,7 @@ export function OssSection() {
                   </span>
                   <div className="min-w-0">
                     <div className="text-[12.5px] font-medium text-[var(--color-fg-strong)]">{s.label}</div>
-                    <div className="mt-0.5 text-[11px] leading-[1.4] text-[var(--color-fg-muted)]">{s.sub}</div>
+                    <div className="mt-0.5 text-[12px] leading-[1.5] text-[var(--color-fg-muted)]">{s.sub}</div>
                   </div>
                 </motion.div>
               ))}
@@ -96,10 +96,10 @@ export function OssSection() {
         {/* Open vs hosted breakdown — dense bottom strip */}
         <div className="relative grid grid-cols-1 gap-px border-t border-[var(--color-border)] bg-[var(--color-border)] sm:grid-cols-2">
           <div className="bg-[var(--color-ink-1)] p-5">
-            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Open · stealth-browser
             </div>
-            <ul className="space-y-1 text-[12px] text-[var(--color-fg-muted)]">
+            <ul className="space-y-1.5 text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
               <li className="flex items-start gap-2"><Dot /> Stealth Chromium runtime (nodriver + CDP patches)</li>
               <li className="flex items-start gap-2"><Dot /> Snapshot + element collection engine</li>
               <li className="flex items-start gap-2"><Dot /> Selector resolver (CSS + XPath + transforms)</li>
@@ -107,10 +107,10 @@ export function OssSection() {
             </ul>
           </div>
           <div className="bg-[var(--color-ink-1)] p-5">
-            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Hosted · stealthscraper.dev
             </div>
-            <ul className="space-y-1 text-[12px] text-[var(--color-fg-muted)]">
+            <ul className="space-y-1.5 text-[12.5px] leading-[1.55] text-[var(--color-fg)]">
               <li className="flex items-start gap-2"><Dot accent /> Visual point-and-click picker</li>
               <li className="flex items-start gap-2"><Dot accent /> Saved recipes + template marketplace</li>
               <li className="flex items-start gap-2"><Dot accent /> Scheduled scrapes, webhooks, API keys</li>

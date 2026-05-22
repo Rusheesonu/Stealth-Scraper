@@ -253,7 +253,7 @@ function RecordsView({ rows }: { rows: Record<string, unknown>[] }) {
                 key={i}
                 className="border-t border-[var(--color-border)] hover:bg-[var(--color-ink-1)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
               >
-                <td className="px-2.5 py-2 align-top font-mono text-[10px] text-[var(--color-fg-subdued)]">
+                <td className="px-2.5 py-2 align-top font-mono text-[11px] text-[var(--color-fg-muted)]">
                   {i + 1}
                 </td>
                 {cols.map((c) => (

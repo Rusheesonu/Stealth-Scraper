@@ -48,11 +48,11 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
       {/* Header — compact, two lines */}
       <div className="border-b border-[var(--color-border)] px-5 py-4">
         <div className="flex items-baseline justify-between gap-2">
-          <div className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+          <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
             Fields
           </div>
           {fields.length > 0 && (
-            <div className="font-mono text-[10px] text-[var(--color-fg-subdued)]">
+            <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">
               {fields.length}/64
             </div>
           )}
@@ -145,7 +145,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
                         </span>
                       )}
                     </div>
-                    <div className="ml-[18px] mt-1 truncate font-mono text-[10px] text-[var(--color-fg-subdued)]">
+                    <div className="ml-[18px] mt-1 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
                       {truncate(f.selector, 48)}
                     </div>
                   </button>

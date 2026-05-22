@@ -120,7 +120,7 @@ export function SdkPreview() {
         transition={{ duration: 0.4, ease: APPLE_EASE }}
         className="mb-7 text-center"
       >
-        <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+        <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
           <Terminal className="h-3 w-3 text-[var(--color-accent)]" />
           Built for your stack
         </div>
@@ -128,7 +128,7 @@ export function SdkPreview() {
           One line to integrate.
           <span className="text-[var(--color-fg-muted)]"> Same recipe across every client.</span>
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-[13.5px] text-[var(--color-fg-muted)]">
+        <p className="mx-auto mt-3 max-w-xl text-[14px] leading-[1.6] text-[var(--color-fg)]">
           Save a recipe once in the visual picker. Run it from Python, TypeScript,
           a cURL one-liner, or directly through Claude Desktop via MCP.
         </p>
@@ -189,12 +189,12 @@ export function SdkPreview() {
         </div>
 
         {/* Code */}
-        <pre className="overflow-x-auto bg-[var(--color-ink-1)] px-5 py-4 font-mono text-[12px] leading-[1.65] text-[var(--color-fg)]">
+        <pre className="overflow-x-auto bg-[var(--color-ink-1)] px-5 py-5 font-mono text-[13px] leading-[1.7] text-[var(--color-fg)]">
           <CodeWithHints code={SNIPPETS[tab]} />
         </pre>
 
         {/* Footer caption */}
-        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[10.5px] text-[var(--color-fg-subdued)]">
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[11.5px] text-[var(--color-fg-muted)]">
           tpl_hn_top_stories — example recipe. Yours come from the visual picker.
         </div>
       </motion.div>
