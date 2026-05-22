@@ -232,7 +232,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { href: "/templates", label: "Templates" },
       { href: "/ai-extract", label: "AI Extract" },
       { href: "/launch", label: "Launch demo" },
-      { href: "https://docs.stealthscraper.dev", label: "API Docs", external: true },
+      { href: "https://github.com/Rusheesonu/stealth-browser#readme", label: "API Docs", external: true },
     ],
   },
   {
@@ -249,7 +249,6 @@ const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Company",
     links: [
-      { href: "/about", label: "About" },
       { href: "/privacy", label: "Privacy" },
       { href: "/terms", label: "Terms" },
       { href: "/refund-policy", label: "Refund policy" },

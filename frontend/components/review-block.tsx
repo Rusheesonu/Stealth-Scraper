@@ -46,10 +46,14 @@ export function ReviewBlock({
     ]).then(([listRes, summaryRes]) => {
       if (!alive) return;
       const hasReal = listRes && listRes.reviews.length > 0;
+      // PH-P0 #80b: seed testimonials are placeholders. Keep them in the repo
+      // so we can flip them back on once real founder-collected quotes land,
+      // but block render by default until NEXT_PUBLIC_SHOW_TESTIMONIALS=true.
+      const seedAllowed = process.env.NEXT_PUBLIC_SHOW_TESTIMONIALS === "true";
       if (hasReal) {
         setReviews(listRes!.reviews);
         setSummary(summaryRes);
-      } else if (targetKind === "product" && targetId === "stealth-scraper") {
+      } else if (seedAllowed && targetKind === "product" && targetId === "stealth-scraper") {
         // Pre-launch fallback so the landing never looks empty.
         setReviews(SEED_PRODUCT_REVIEWS.slice(0, limit));
         setSummary(SEED_PRODUCT_SUMMARY);
