@@ -55,11 +55,18 @@ For a custom backend (self-hosted), also set `STEALTH_SCRAPER_BASE_URL=https://y
 
 > List my saved scraper templates, then run the "Amazon product price" one against `https://www.amazon.com/dp/B08N5WRWNW`.
 
-## Local install
+## Run directly via npx (recommended)
+
+```bash
+STEALTH_SCRAPER_API_KEY=ssk_... npx @stealth-scraper/mcp
+# runs the server on stdio
+```
+
+## Or install globally
 
 ```bash
 npm install -g @stealth-scraper/mcp
-stealth-scraper-mcp     # runs the server on stdio
+STEALTH_SCRAPER_API_KEY=ssk_... npx @stealth-scraper/mcp
 ```
 
 ## Development

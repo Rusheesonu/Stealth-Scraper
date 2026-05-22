@@ -89,8 +89,8 @@ console.log(result.records.slice(0, 3));
   "mcpServers": {
     "stealth-scraper": {
       "command": "npx",
-      "args": ["-y", "stealth-scraper-mcp"],
-      "env": { "STEALTH_API_KEY": "ssk_..." }
+      "args": ["-y", "@stealth-scraper/mcp"],
+      "env": { "STEALTH_SCRAPER_API_KEY": "ssk_..." }
     }
   }
 }

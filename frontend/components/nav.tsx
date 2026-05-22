@@ -242,7 +242,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { href: "https://github.com/Rusheesonu/stealth-browser", label: "OSS engine", external: true },
       { href: "https://pypi.org/project/stealth-scraper", label: "Python SDK", external: true },
       { href: "https://www.npmjs.com/package/stealth-scraper", label: "TypeScript SDK", external: true },
-      { href: "https://www.npmjs.com/package/stealth-scraper-mcp", label: "MCP server", external: true },
+      { href: "https://www.npmjs.com/package/@stealth-scraper/mcp", label: "MCP server", external: true },
       { href: "/status", label: "Status page" },
     ],
   },

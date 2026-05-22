@@ -107,7 +107,7 @@ const FAQS: Q[] = [
     q: "Can I run this from my AI agent? Does it work with Claude / Cursor / LangChain?",
     a: (
       <>
-        Yes — we ship an MCP server (<code>npx stealth-scraper-mcp</code>) that
+        Yes — we ship an MCP server (<code>npx @stealth-scraper/mcp</code>) that
         plugs directly into Claude Desktop, Cursor, and Cline. Your agent
         calls <code>run_template</code> by ID and gets structured JSON back.
         For LangChain/CrewAI/etc, the Python SDK is one
