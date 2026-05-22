@@ -406,12 +406,19 @@ function UrlMode() {
           type="submit"
           disabled={busy || !canSubmit}
           whileTap={canSubmit && !busy ? { scale: 0.96 } : undefined}
+          whileHover={canSubmit && !busy ? { backgroundColor: "var(--color-accent-hover)" } : undefined}
           animate={{
-            backgroundColor: canSubmit ? "var(--color-fg-strong)" : "var(--color-ink-4)",
+            // Brand-color primary — this is THE page CTA, the one moment
+            // accent earns its keep. Charcoal-on-white was the May-22
+            // pre-launch ask; user pinned it as "off" because emerald
+            // primary is what tells visitors "this is our action."
+            // Muted ink-4 when the input is empty so the button looks
+            // disabled-on-purpose, not just dim.
+            backgroundColor: canSubmit ? "var(--color-accent)" : "var(--color-ink-4)",
             opacity: canSubmit ? 1 : 0.55,
           }}
           transition={{ duration: 0.16, ease: APPLE_EASE }}
-          className="mr-2 inline-flex h-10 items-center gap-1.5 rounded-md px-4 font-medium text-[13px] text-[var(--color-bg)] disabled:cursor-not-allowed"
+          className="mr-2 inline-flex h-10 items-center gap-1.5 rounded-md px-4 font-medium text-[13px] text-white disabled:cursor-not-allowed"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
           {/* Logged-in users see a verb that matches what happens (they
