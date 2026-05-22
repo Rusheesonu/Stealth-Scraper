@@ -449,10 +449,20 @@ async def usage_status(user_id: str = Depends(get_current_user)) -> dict[str, An
 @app.post("/snapshot")
 async def snapshot_endpoint(
     req: SnapshotRequest,
+    request: Request,
     user_id: str = Depends(enforce_plan),
 ) -> dict[str, Any]:
-    from app import refunds
+    from app import refunds, idempotency
     from app.detect import detect_block
+
+    # Idempotency-Key replay: agents auto-retry; without this, every retry
+    # burns another credit. SDK auto-generates a UUID per call so this is
+    # effectively always set when called from our SDKs.
+    idem_key = request.headers.get("Idempotency-Key", "").strip()
+    if idem_key:
+        cached_body, _ = await idempotency.get_cached(user_id, "/snapshot", idem_key)
+        if cached_body is not None:
+            return cached_body
 
     async with scrape_slot():
         actions_payload: list[BrowserAction] | None = None
@@ -507,7 +517,7 @@ async def snapshot_endpoint(
             blocked=block.blocked, detected_vendor=block.vendor,
             error=None,
         )
-    return {
+    result = {
         "url": snap.url,
         "title": snap.title,
         "screenshot": snap.screenshot_base64,
@@ -516,6 +526,12 @@ async def snapshot_endpoint(
         "elements": snap.elements,
         "element_count": len(snap.elements),
     }
+    if idem_key:
+        try:
+            await idempotency.store(user_id, "/snapshot", idem_key, result, 200)
+        except Exception:
+            pass    # idempotency cache failure must NEVER fail the actual scrape
+    return result
 
 
 # Public no-signup snapshot — the landing-page magic preview. -----------------
@@ -929,6 +945,34 @@ async def assist_schema(
         "template": template,
         "element_count": len(snap.elements),
     }
+
+
+# Cost preview — AI-agent differentiator -------------------------------------
+
+class EstimateRequest(BaseModel):
+    url: HttpUrl
+    has_template: bool = False
+    uses_assist: bool = False
+
+
+@app.post("/estimate")
+async def estimate_endpoint(
+    req: EstimateRequest,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Pre-flight cost preview. Pure CPU, no I/O against the target URL.
+
+    AI agents call this before committing to a scrape so their runtime
+    can budget-cap. No competitor (Firecrawl/Apify/ZenRows/Bright Data)
+    exposes this — it's one of the SDK research bets.
+    """
+    from app import estimate as estimate_mod
+    return await estimate_mod.estimate_scrape(
+        user_id,
+        str(req.url),
+        has_template=req.has_template,
+        uses_assist=req.uses_assist,
+    )
 
 
 # Reliability SLA — refund history --------------------------------------------
