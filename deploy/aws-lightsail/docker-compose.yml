@@ -67,6 +67,16 @@ services:
       PYTHONUNBUFFERED: "1"
       # Allow Chromium to write its sandbox to /tmp inside the container
       CHROME_USER_DATA_DIR: /tmp/chrome-user-data
+      # SuccessTracker history — per-(host, engine) win-rate the router
+      # uses to pick which engine to try first. Written on every snapshot.
+      # Points at a host-bind-mounted path (see `volumes:` below) so the
+      # learning survives container restarts. /tmp would wipe on every
+      # rebuild and the router would relearn from scratch each deploy.
+      STEALTH_SCRAPER_ROUTER_HISTORY: /var/cache/stealth-scraper/router-history.json
+    # Bind-mount a small host directory so router learning + any future
+    # tiny on-disk caches survive `update.sh` rebuilds.
+    volumes:
+      - /var/cache/stealth-scraper:/var/cache/stealth-scraper
     # Resource limits — leave headroom for the OS + Caddy + cron.
     # CX32 has 8GB total; cap container at 6.5GB so we don't OOM the host.
     deploy:

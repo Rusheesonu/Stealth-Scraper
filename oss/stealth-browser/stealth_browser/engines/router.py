@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import shutil
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field, asdict
@@ -45,6 +47,43 @@ from .base import (
 
 
 log = logging.getLogger(__name__)
+
+
+def _default_tracker_path() -> Path:
+    """Stable per-user cache location for the SuccessTracker file.
+
+    Env override: STEALTH_SCRAPER_ROUTER_HISTORY=/abs/path/router-history.json
+      — Docker should set this to a path inside a mounted volume so
+      learning survives container restarts (not /tmp, which is wiped).
+
+    Default: <user_cache_dir>/stealth-scraper/router-history.json
+      — Linux: ~/.cache/stealth-scraper/router-history.json
+      — macOS: ~/Library/Caches/stealth-scraper/router-history.json
+      — falls back to /tmp/stealth-scraper-router-history.json (legacy
+        path) if platformdirs isn't importable for any reason.
+
+    One-shot migration: if the legacy /tmp file exists and the new
+    location doesn't, copy /tmp → new path. Preserves the learning
+    accumulated under the old path on first run after this change.
+    """
+    override = os.environ.get("STEALTH_SCRAPER_ROUTER_HISTORY")
+    if override:
+        return Path(override)
+    try:
+        from platformdirs import user_cache_dir
+        new = Path(user_cache_dir("stealth-scraper")) / "router-history.json"
+    except Exception:
+        return Path("/tmp/stealth-scraper-router-history.json")
+    # One-shot migration from legacy /tmp location.
+    legacy = Path("/tmp/stealth-scraper-router-history.json")
+    if legacy.exists() and not new.exists():
+        try:
+            new.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(legacy, new)
+            log.info("router: migrated tracker history %s → %s", legacy, new)
+        except Exception as e:
+            log.warning("router: tracker migration %s → %s failed: %r", legacy, new, e)
+    return new
 
 
 # Per-vendor known-good engine preference. When a request comes in with
@@ -198,9 +237,9 @@ class EngineRouter:
 
     def __init__(self, persist_dir: Optional[Path] = None) -> None:
         self._engines: list[Engine] = []
-        # Default persist location — created on first dump
-        default = Path("/tmp/stealth-scraper-router-history.json")
-        self._tracker = SuccessTracker(persist_path=persist_dir or default)
+        # Stable persist location (was /tmp/ — wiped on Docker restart).
+        # See _default_tracker_path docstring for env-var override.
+        self._tracker = SuccessTracker(persist_path=persist_dir or _default_tracker_path())
 
     # ── Engine registration ──────────────────────────────────────────────
 

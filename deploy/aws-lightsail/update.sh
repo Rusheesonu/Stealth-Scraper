@@ -50,6 +50,15 @@ SHA=$(git -C "$SRC_DIR" rev-parse --short HEAD)
 docker tag stealth-scraper-backend:latest "stealth-scraper-backend:$SHA"
 ok "image built — tagged :latest + :$SHA"
 
+# Ensure host directories that docker-compose bind-mounts into the
+# container actually exist on the host. Docker will silently create
+# them as root-owned if missing, but explicit `install -d` lets us
+# control mode + survive `volumes:` schema changes in compose without
+# mysterious "permission denied" errors inside the container.
+log "Ensuring host cache dirs"
+install -d -m 0755 /var/cache/stealth-scraper
+ok "host cache dirs ready"
+
 # Run DB migrations BEFORE restarting the app container. The migration
 # script (app.migrate) is idempotent — uses CREATE TABLE IF NOT EXISTS
 # / CREATE INDEX IF NOT EXISTS everywhere — so re-running every deploy
