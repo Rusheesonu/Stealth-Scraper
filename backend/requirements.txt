@@ -27,6 +27,14 @@ curl-cffi>=0.7,<1
 #   downloaded on first run to user cache dir. MIT-licensed.
 camoufox>=0.4,<1
 #
+# patchright: Chromium + rebrowser-patches. Closes runtime-leak detection
+#   (Object.defineProperty traps on navigator, Runtime.evaluate stack
+#   inspection) that nodriver's flag-only patches can't reach. Same
+#   Playwright async API as camoufox so the engine code mirrors it.
+#   ~100MB Chromium-headless-shell binary downloaded via
+#   `patchright install chromium`. Apache-2.0.
+patchright>=1.55,<2
+#
 # camoufox uses platformdirs to find its binary cache dir. Transitive
 # via fastapi/uvicorn today but declared explicitly so engine init never
 # breaks if those drop the transitive dep.

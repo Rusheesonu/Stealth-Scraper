@@ -55,9 +55,16 @@ firefox = [
     "camoufox>=0.4,<1",
     "playwright>=1.40",
 ]
+# Add Patchright engine — Chromium + rebrowser-patches. Closes runtime-
+# leak detection that nodriver's flag patches can't reach (DataDome /
+# Akamai / PerimeterX behavioral). Downloads ~100MB patched Chromium
+# via `patchright install chromium`.
+patchright = [
+    "patchright>=1.55,<2",
+]
 # Everything
 all = [
-    "stealth-browser[tls,firefox]",
+    "stealth-browser[tls,firefox,patchright]",
 ]
 # Dev / contributor tooling
 dev = [

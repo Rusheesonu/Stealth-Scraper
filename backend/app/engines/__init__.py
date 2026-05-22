@@ -83,8 +83,14 @@ def _register_default_engines() -> None:
     # installed (is_available() probes both).
     from .camoufox_engine import CamoufoxEngine
     router.register(CamoufoxEngine())
-    # Future iters:
-    # from .patchright_engine import PatchrightEngine; router.register(PatchrightEngine())
+    # patchright: Chromium + rebrowser-patches. Closes nodriver's
+    # runtime-leak gap (Object.defineProperty hooks, Runtime.evaluate
+    # stack inspection) that DataDome/Akamai use. Slots between nodriver
+    # and camoufox in the escalation chain for Chromium-tractable
+    # detectors. Skipped silently if patchright package or its patched
+    # Chromium aren't installed.
+    from .patchright_engine import PatchrightEngine
+    router.register(PatchrightEngine())
 
 
 _register_default_engines()

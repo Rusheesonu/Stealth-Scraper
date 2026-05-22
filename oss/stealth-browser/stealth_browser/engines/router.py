@@ -53,32 +53,50 @@ log = logging.getLogger(__name__)
 # list. Order = strongest first.
 #
 # Sourced from web research (May 2026) + bench data we'll accumulate.
-# Update as we learn. Only engines that actually exist in this codebase
-# go here — historic comments referenced "patchright" but that engine
-# isn't implemented yet; left out to avoid silent affinity-list filtering
-# that hid the absence.
+# Update as we learn.
+#
+# Engine roles in the chain:
+#   nodriver   — Chromium + CDP/flag patches. Fast cold start. Best for
+#                vendors that only check basic automation flags.
+#   patchright — Chromium + rebrowser-patches. Closes nodriver's
+#                runtime-leak gap (Object.defineProperty, Runtime.evaluate).
+#                Slots between nodriver and camoufox on Chromium-tractable
+#                detectors. Same kernel as nodriver, deeper patches.
+#   camoufox   — Firefox + patches. The Chromium-side-step. Wins where
+#                the detector targets Chromium specifically (kasada,
+#                creepjs) but does NOT help when the detector also
+#                profiles Firefox (some PerimeterX configs).
+#   curl_cffi  — TLS-impersonating HTTP, no JS. 50x speed on static
+#                content where TLS fingerprint is the moat (datadome,
+#                akamai).
 VENDOR_AFFINITY: dict[str, list[str]] = {
-    # Cloudflare: nodriver clears basic challenges; camoufox is the
-    # fallback when Chromium-targeted detection (cdc_, navigator.webdriver
-    # via Object.defineProperty introspection) kicks in.
-    "cloudflare":           ["nodriver", "camoufox"],
-    "cloudflare-turnstile": ["camoufox", "nodriver"],
-    # DataDome: heavy on TLS fingerprint — curl_cffi (real-Chrome JA3)
-    # actually beats it on static content. Browser fallback for SPAs.
-    "datadome":             ["curl_cffi", "camoufox", "nodriver"],
-    # PerimeterX: behavioral. Camoufox + humanize wins; 2captcha for hard.
-    "perimeterx":           ["camoufox", "nodriver"],
-    # Akamai BMP: TLS + H2 fingerprint critical. curl_cffi on static,
-    # camoufox for JS-required pages.
-    "akamai":               ["curl_cffi", "camoufox", "nodriver"],
+    # Cloudflare: nodriver clears basic challenges; patchright catches
+    # runtime-detection-heavy variants; camoufox last when Chromium-
+    # targeted detection (cdc_, navigator.webdriver introspection) fires.
+    "cloudflare":           ["nodriver", "patchright", "camoufox"],
+    "cloudflare-turnstile": ["camoufox", "patchright", "nodriver"],
+    # DataDome: TLS fingerprint first (curl_cffi). Then patchright's
+    # runtime patches catch the JS-layer behavioral checks. Camoufox is
+    # the Firefox sidestep when DataDome's Chromium-specific layer kicks
+    # in.
+    "datadome":             ["curl_cffi", "patchright", "camoufox", "nodriver"],
+    # PerimeterX: behavioral. Camoufox + humanize wins; patchright second
+    # for runtime-layer detection; 2captcha for press-and-hold.
+    "perimeterx":           ["camoufox", "patchright", "nodriver"],
+    # Akamai BMP: TLS + H2 fingerprint critical. curl_cffi on static;
+    # patchright second for JS-required pages with runtime checks;
+    # camoufox for Firefox sidestep.
+    "akamai":               ["curl_cffi", "patchright", "camoufox", "nodriver"],
     # Imperva: IP-reputation heavy; engine matters less than proxy quality.
-    "imperva":              ["camoufox", "nodriver", "curl_cffi"],
+    # Patchright slots between camoufox and nodriver as a Chromium variant
+    # with stronger runtime patches.
+    "imperva":              ["camoufox", "patchright", "nodriver", "curl_cffi"],
     # Kasada: targets headless chromium specifically. Firefox via camoufox
-    # is the canonical bypass.
+    # is the canonical bypass — patchright is Chromium so doesn't help here.
     "kasada":               ["camoufox", "nodriver"],
     # Fingerprint test pages (creepjs, fingerprint.com, browserleaks):
     # camoufox is the only engine that scores clean on creepjs.
-    "fingerprint-test":     ["camoufox", "nodriver"],
+    "fingerprint-test":     ["camoufox", "patchright", "nodriver"],
 }
 
 
