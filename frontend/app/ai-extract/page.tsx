@@ -67,6 +67,21 @@ function AiExtractForm() {
       const norm = /^https?:\/\//i.test(url) ? url : `https://${url}`;
       const res = await api.assistSchema({ url: norm, description: description.trim() });
       setTemplate(res.template);
+      // /assist/schema now returns inline-extracted values from the SAME
+      // snapshot it used to generate the schema (May 22 fix for the
+      // snapshot-A vs snapshot-B drift bug). If we have those, show them
+      // immediately — no need for the user to click Run separately.
+      // Subsequent /extract calls still run on a fresh snapshot to
+      // surface live data, but the FIRST view always matches the DOM
+      // the schema was generated from.
+      if (res.sample_envelope && Object.keys(res.sample_envelope).length > 0) {
+        setResults({
+          url: res.url,
+          title: res.title,
+          fields: res.sample_envelope,
+          errors: {},
+        });
+      }
       setStage("done");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

@@ -301,6 +301,12 @@ export const api = {
       description: string;
       template: TemplateField[];
       element_count: number;
+      // Schema + initial values now come from the SAME snapshot —
+      // backend 2026-05-22 fix for the snapshot-A vs snapshot-B drift.
+      // sample_envelope is the FieldResult-per-field shape; sample_values
+      // is the flat {label: value} convenience copy.
+      sample_envelope?: Record<string, unknown>;
+      sample_values?: Record<string, unknown>;
     }>("/assist/schema", { method: "POST", body: JSON.stringify(params) }),
 
   // Marketplace -----------------------------------------------------------
