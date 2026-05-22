@@ -6,7 +6,7 @@ import asyncio
 import ipaddress
 import logging
 import socket
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlparse
 
@@ -14,7 +14,7 @@ from nodriver import cdp
 
 from app.actions import run_actions, BrowserAction
 from app.browser import pool, with_transient_retry
-from app.extract_js import COLLECT_ELEMENTS_JS
+from app.extract_js import COLLECT_ELEMENTS_JS, COLLECT_STRUCTURED_JS
 from app.safety import SafetyCheck
 
 
@@ -80,6 +80,26 @@ class SnapshotResult:
     viewport: dict[str, int]
     page: dict[str, int]
     elements: list[dict[str, Any]]
+    # First 8KB of `document.documentElement.outerHTML` — captured for
+    # block-detection so signatures that live in <script> tags / CSS /
+    # meta refresh (Cloudflare's `__cf_chl_`, DataDome's `_ddo`,
+    # PerimeterX's `pxhd`) can actually reach detect_block. Before this
+    # field existed, main.py was joining 40 truncated element-text
+    # strings as a haystack and the bot-wall markers never appeared in
+    # it — sites that DID get blocked silently returned challenge-JS
+    # content as if it were the target page. See detect.py:69.
+    html_excerpt: str = ""
+    # Cookies present at end-of-snapshot — vendors leave persistent
+    # fingerprint cookies (`__cf_bm`, `datadome`, `_px3`) that survive
+    # even when the rendered HTML is obfuscated. Best signal for
+    # "the bot wall ran and tagged us".
+    cookies: dict[str, str] = field(default_factory=dict)
+    # Page-level structured data harvested in-page via CDP eval —
+    # JSON-LD scripts, Open Graph meta, Twitter card meta, microdata
+    # itemprops. The deterministic-first pipeline (assist.py) uses
+    # these BEFORE asking the LLM, because they give confidence 1.0
+    # field values with no hallucination risk.
+    structured_data: dict[str, Any] = field(default_factory=dict)
 
 
 async def take_snapshot(
@@ -351,6 +371,49 @@ async def _snapshot_inner(
         ))
         screenshot_b64 = shot if isinstance(shot, str) else str(shot)
 
+        # 9. Capture page HTML + cookies for block-detection downstream.
+        # First 8KB of outerHTML is enough for every known anti-bot
+        # signature (Cloudflare's __cf_chl_, DataDome's _ddo,
+        # PerimeterX's pxhd, Akamai's _abck) which appear in the page
+        # head or first inline <script>. Bigger HTML doesn't pay off.
+        # Cookies are tiny + the most reliable bot-wall fingerprint.
+        html_excerpt = ""
+        try:
+            raw_html = await tab.evaluate("document.documentElement.outerHTML")
+            if isinstance(raw_html, tuple):
+                raw_html = raw_html[0]
+            if isinstance(raw_html, str):
+                html_excerpt = raw_html[:8192]
+        except Exception:
+            pass
+        cookies_dict: dict[str, str] = {}
+        try:
+            cookie_jar = await tab.send(cdp.network.get_cookies())
+            if isinstance(cookie_jar, list):
+                for c in cookie_jar:
+                    # CDP cookies come as dict-likes with .name / .value
+                    if hasattr(c, "name") and hasattr(c, "value"):
+                        cookies_dict[c.name] = c.value
+                    elif isinstance(c, dict):
+                        n, v = c.get("name"), c.get("value")
+                        if isinstance(n, str) and isinstance(v, str):
+                            cookies_dict[n] = v
+        except Exception:
+            pass
+
+        # 10. Harvest page structured data (JSON-LD / OG / Twitter /
+        # microdata) — drives the deterministic-first pipeline. Cheap
+        # (~50ms eval) and high-leverage: the top 100 e-commerce / news
+        # sites all ship one of these, giving us confidence-1.0 field
+        # values with no LLM call and no selector-hallucination risk.
+        structured: dict[str, Any] = {}
+        try:
+            raw_struct = await _evaluate_json(tab, COLLECT_STRUCTURED_JS)
+            if isinstance(raw_struct, dict):
+                structured = raw_struct
+        except Exception:
+            pass
+
         log.info(
             "snapshot.complete",
             extra={
@@ -358,6 +421,8 @@ async def _snapshot_inner(
                 "elements": len(data.get("elements", [])),
                 "page_width": data.get("page", {}).get("width"),
                 "page_height": data.get("page", {}).get("height"),
+                "html_excerpt_chars": len(html_excerpt),
+                "cookie_count": len(cookies_dict),
             },
         )
 
@@ -368,6 +433,9 @@ async def _snapshot_inner(
             viewport=data.get("viewport", {"width": viewport_width, "height": viewport_height}),
             page=data.get("page", {"width": viewport_width, "height": viewport_height}),
             elements=data.get("elements", []),
+            html_excerpt=html_excerpt,
+            cookies=cookies_dict,
+            structured_data=structured,
         )
     # `pool.tab()` context manager closes the tab and returns the
     # worker to the queue automatically — no explicit close needed.

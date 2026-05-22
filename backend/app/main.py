@@ -766,14 +766,16 @@ async def public_snapshot_and_suggest(
     # try residential proxies") rather than seeing 0 fields and assuming
     # we're broken. See app/detect.py for the signature library.
     from app.detect import detect_block as _detect_block
+    # Block-detect now sees the real HTML + cookie jar captured during
+    # the snapshot. The previous "join 40 element texts" hack missed
+    # every anti-bot signature that lives in <script> tags or as
+    # persistent cookies (Cloudflare __cf_bm, DataDome _ddo,
+    # PerimeterX pxhd) — sites that DID get blocked silently returned
+    # challenge-JS content as if it were the target.
     block = _detect_block(
         title=snap.title or "",
-        # We don't capture full HTML in the snapshot (it'd bloat memory),
-        # but element text content is a good-enough proxy for signature
-        # matching. Join first ~40 element texts as a haystack.
-        html=" ".join(
-            (el.get("text") or "")[:200] for el in (snap.elements or [])[:40]
-        ),
+        html=snap.html_excerpt or "",
+        cookies=snap.cookies or {},
         url=snap.url,
     )
     if block.blocked:
@@ -812,6 +814,12 @@ async def public_snapshot_and_suggest(
                 url=snap.url,
                 title=snap.title,
                 max_fields=3,
+                # Page structured data → deterministic-first pipeline.
+                # When a page ships JSON-LD / OG / microdata, this layer
+                # extracts canonical fields with confidence 1.0 and the
+                # LLM gets skipped entirely. Falls through gracefully
+                # when structured signals are absent.
+                structured_data=getattr(snap, "structured_data", None),
             )
         except assist.LLMError as e:
             # Soft-fail: the snapshot worked, only the AI suggest part failed.

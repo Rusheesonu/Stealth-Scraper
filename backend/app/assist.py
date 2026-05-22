@@ -373,10 +373,21 @@ def _heuristic_suggest_fields(
         by_shape.setdefault(shape, []).append(el)
 
     # Score repeating patterns: count × average text length.
+    # Heuristic gate (tightened 2026-05-22 per pre-launch audit):
+    #   - ≥3 matches: the pattern must REPEAT enough to look like a list
+    #     row vs a one-off (already enforced at top of loop).
+    #   - ≥10 char average text: text-bearing patterns must carry
+    #     SUBSTANTIVE text. Short repeating strings ("Sign in", "Open
+    #     menu", every form-label on the LinkedIn login wall) get
+    #     filtered out — the audit caught the heuristic happily picking
+    #     a login form's repeating input labels as "fields" on walled
+    #     pages, silently passing them off as real extraction.
+    #
     # Special-case img / a — their value lives in attrs (src/href), so a
     # near-empty text average is normal and shouldn't disqualify them.
     # Without this exception, listing pages skipped the image_url and
     # link fields entirely (books.toscrape was returning scalar attr).
+    MIN_AVG_TEXT_LEN = 10
     repeating: list[tuple[str, list[dict[str, Any]], float]] = []
     for shape, items in by_shape.items():
         if len(items) < 3:
@@ -388,8 +399,11 @@ def _heuristic_suggest_fields(
             (el.get("attrs") or {}).get("src") or (el.get("attrs") or {}).get("href")
             for el in items
         )
-        if avg_text_len < 2 and not has_useful_attr:
-            continue  # all-empty repeating pattern → probably nav glue
+        # Reject low-substance text patterns. Media patterns pass through
+        # via the has_useful_attr branch because their value is the attr,
+        # not the text.
+        if avg_text_len < MIN_AVG_TEXT_LEN and not has_useful_attr:
+            continue  # too-short repeating text → nav glue / form labels / chips
 
         # Score = count × text density, with a floor for media patterns
         # (so they don't lose to text-heavy patterns just for being short).
@@ -810,25 +824,61 @@ async def auto_suggest_template(
     url: str,
     title: str = "",
     max_fields: int = 3,
+    structured_data: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], str]:
     """Landing-page magic preview entry point. The whole homepage demo
     hinges on this — visitors paste a URL and expect to see fields
     auto-picked. We must ALWAYS return something concrete; the empty
     "we couldn't auto-pick" state breaks the magic.
 
-    Resolution order:
-      1. If the LLM is configured, ask it (best results — picks the
-         specific fields a user wants for this page type).
-      2. If the LLM is missing OR returns nothing OR throws, fall back
-         to the local heuristic suggester (works without any LLM,
-         finds repeating patterns + high-value scalars).
-      3. If even the heuristic returns nothing (extremely sparse page),
-         return an empty template — the frontend then shows the
-         "open in picker and click what you want" CTA.
+    Resolution order (2026-05-22 audit item #7 — deterministic-first):
+      1. STRUCTURED DATA — JSON-LD / Open Graph / Twitter / microdata.
+         When a page ships schema.org markup (top 100 e-commerce, news,
+         recipe, event sites all do), these are CANONICAL field values
+         with confidence 1.0 — no LLM call, no hallucination risk.
+         If structured yields ≥3 fields, we return those and SKIP the
+         LLM call entirely.
+      2. LLM (if structured is sparse): asks the model to pick fields
+         from the elements catalog. Best results when there's no
+         structured signal to lean on.
+      3. HEURISTIC: local repeating-pattern detector. Always runs to
+         fill any remaining slots beyond what LLM provided, but with
+         tightened gates (≥3 matches AND ≥10 char avg text — was the
+         "LinkedIn login form as fields" bug pre-audit).
+      4. Empty template: frontend shows "open in picker and click."
 
     Returns: (template, page_type)
     """
     page_type = _detect_page_type(elements, title)
+
+    # ── Tier 1: deterministic from structured data ──────────────────
+    # When a page ships JSON-LD or OG tags, we extract canonical
+    # values with confidence 1.0. This skips the LLM entirely on
+    # well-marked pages — fast, cheap, deterministic, no hallucination
+    # risk. The post-2026-05-22 pipeline puts this FIRST.
+    structured_template: list[dict[str, Any]] = []
+    if structured_data:
+        try:
+            from app.structured import template_from_structured
+            structured_template = template_from_structured(
+                structured_data, max_fields=max_fields,
+            )
+            if len(structured_template) >= max_fields:
+                # Structured covered everything we need — skip LLM +
+                # heuristic. Cheapest + most reliable path.
+                log.info(
+                    "auto_suggest: served entirely from structured data "
+                    "(%d fields, no LLM call)", len(structured_template),
+                )
+                return structured_template[:max_fields], page_type
+            if structured_template:
+                log.info(
+                    "auto_suggest: %d fields from structured data; "
+                    "filling remainder via LLM+heuristic",
+                    len(structured_template),
+                )
+        except Exception as e:
+            log.warning("structured-data extraction failed: %r", e)
 
     # Two-engine strategy (LLM + heuristic), then merge.
     #
@@ -862,7 +912,11 @@ async def auto_suggest_template(
             log.warning("LLM unexpected error, relying on heuristic: %r", e)
 
     heuristic_template = _heuristic_suggest_fields(elements, max_fields=max_fields)
-    merged = _merge_templates(llm_template, heuristic_template, max_fields=max_fields)
+    # Structured > LLM > heuristic — the deterministic source wins
+    # naming + ordering. _merge_templates dedupes by selector shape
+    # so we don't double-list the same field.
+    merged = _merge_templates(structured_template, llm_template, max_fields=max_fields)
+    merged = _merge_templates(merged, heuristic_template, max_fields=max_fields)
     merged = _strip_mixed_scalar_heading(merged, elements, page_title=title)
     return merged, page_type
 

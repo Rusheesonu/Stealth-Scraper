@@ -192,3 +192,105 @@ COLLECT_ELEMENTS_JS = r"""
     };
 })()
 """
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Structured-data harvester. Returns `{json_ld, og, twitter, microdata}`
+# from the page in a single CDP eval. Drives the deterministic-first
+# pipeline (2026-05-22 audit item #7): when a page ships JSON-LD or
+# OG tags, we can extract canonical field values with confidence 1.0
+# WITHOUT any LLM call and WITHOUT any selector hallucination.
+#
+# Coverage:
+#   • JSON-LD     — every <script type="application/ld+json">. Parsed
+#                   into a list of objects (caller flattens schema.org
+#                   @graph + nested objects).
+#   • Open Graph  — <meta property="og:*"> tags. Keyed by the suffix
+#                   (e.g. `og:title` → og.title).
+#   • Twitter card— <meta name="twitter:*">. Same shape.
+#   • Microdata   — every element with `itemprop`. Returned with the
+#                   element's CSS selector so the extractor can locate
+#                   it later (high-confidence value source).
+# ─────────────────────────────────────────────────────────────────────────
+COLLECT_STRUCTURED_JS = r"""
+(() => {
+    function cssPath(el) {
+        if (!el || el === document.body) return 'body';
+        if (el.id) return '#' + el.id;
+        const parts = [];
+        let cur = el;
+        while (cur && cur !== document.body && parts.length < 6) {
+            let part = cur.tagName.toLowerCase();
+            if (cur.className && typeof cur.className === 'string') {
+                const cls = cur.className.split(/\s+/).filter(Boolean)[0];
+                if (cls) part += '.' + cls.replace(/[^a-zA-Z0-9_-]/g, '');
+            }
+            parts.unshift(part);
+            cur = cur.parentElement;
+        }
+        return parts.join(' > ');
+    }
+
+    // JSON-LD — parse every <script type="application/ld+json">.
+    // Invalid JSON gets skipped silently; that's fine, the caller
+    // already has heuristic + LLM as fallback.
+    const jsonLd = [];
+    document.querySelectorAll('script[type="application/ld+json"]').forEach(s => {
+        try {
+            const parsed = JSON.parse(s.textContent || s.innerText || '');
+            if (Array.isArray(parsed)) jsonLd.push(...parsed);
+            else if (parsed) jsonLd.push(parsed);
+        } catch (e) {
+            // Malformed JSON-LD is common (trailing commas, comments);
+            // skip silently rather than blow up.
+        }
+        // Cap to keep payload bounded on pages with dozens of LD scripts.
+        if (jsonLd.length >= 12) return;
+    });
+
+    // Open Graph + Twitter card meta tags.
+    const og = {};
+    const twitter = {};
+    document.querySelectorAll('meta[property^="og:"], meta[name^="og:"]').forEach(m => {
+        const key = (m.getAttribute('property') || m.getAttribute('name') || '').slice(3); // strip "og:"
+        const val = m.getAttribute('content') || '';
+        if (key && val && !og[key]) og[key] = val;
+    });
+    document.querySelectorAll('meta[name^="twitter:"], meta[property^="twitter:"]').forEach(m => {
+        const key = (m.getAttribute('name') || m.getAttribute('property') || '').slice(8); // strip "twitter:"
+        const val = m.getAttribute('content') || '';
+        if (key && val && !twitter[key]) twitter[key] = val;
+    });
+
+    // Microdata — itemprop on any element. Cap at 50 to keep payload
+    // bounded on big templated pages.
+    const microdata = [];
+    document.querySelectorAll('[itemprop]').forEach(el => {
+        if (microdata.length >= 50) return;
+        const prop = el.getAttribute('itemprop');
+        if (!prop) return;
+        // Value extraction varies by tag: meta uses content, img uses
+        // src, a uses href, otherwise innerText.
+        let val = '';
+        const tag = el.tagName.toLowerCase();
+        if (tag === 'meta') val = el.getAttribute('content') || '';
+        else if (tag === 'img') val = el.getAttribute('src') || el.getAttribute('alt') || '';
+        else if (tag === 'a') val = el.getAttribute('href') || (el.innerText || '').trim();
+        else if (tag === 'time') val = el.getAttribute('datetime') || (el.innerText || '').trim();
+        else val = (el.innerText || el.textContent || '').trim();
+        microdata.push({
+            prop: prop,
+            value: (val || '').slice(0, 500),
+            tag: tag,
+            css: cssPath(el),
+        });
+    });
+
+    return {
+        json_ld: jsonLd,
+        og: og,
+        twitter: twitter,
+        microdata: microdata,
+    };
+})()
+"""
