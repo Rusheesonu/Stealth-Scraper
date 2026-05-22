@@ -1,0 +1,51 @@
+{
+  "name": "@stealth-scraper/mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for Stealth Scraper — gives Claude, Cursor, and other MCP-aware agents direct access to anti-bot-resistant web scraping.",
+  "license": "MIT",
+  "author": "Stealth Scraper <hello@stealthscraper.dev>",
+  "homepage": "https://stealthscraper.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stealth-scraper/stealth-scraper"
+  },
+  "bugs": {
+    "url": "https://github.com/stealth-scraper/stealth-scraper/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai-agents",
+    "scraping",
+    "anti-bot",
+    "stealth-scraper"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "stealth-scraper-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "stealth-scraper": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.6.0"
+  }
+}
