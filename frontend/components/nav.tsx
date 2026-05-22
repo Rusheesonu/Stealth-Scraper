@@ -279,7 +279,7 @@ export function Footer() {
               The reliable web-data layer for AI agents. Point, click, extract.
             </p>
             <p className="mt-4 font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
-              Made with <span aria-hidden>☕</span> in Bangalore
+              Built solo
             </p>
           </div>
 
