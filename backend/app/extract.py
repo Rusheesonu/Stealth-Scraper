@@ -604,7 +604,10 @@ def _pull(tree, field: Field) -> FieldResult:
             # if they were real. For a scraper this is the wrong call
             # — a real user can't see template content. Filter at the
             # earliest gate so per-row + per-field logic both benefit.
-            nodes = [n for n in raw_nodes if not _has_template_ancestor(n)]
+            nodes = [
+                n for n in raw_nodes
+                if not _has_template_ancestor(n) and not _has_hidden_ancestor(n)
+            ]
             if nodes:
                 source = "selector"
                 used = selector
@@ -1205,6 +1208,76 @@ def _has_template_ancestor(node) -> bool:
     return False
 
 
+# Class names that universally mean "hidden". NOT site-specific — these
+# are framework / CSS-utility conventions used across the web:
+#   - vanilla:   hidden, invisible
+#   - Bootstrap: d-none, d-md-none, d-lg-none, d-xl-none, d-xxl-none
+#   - Tailwind:  lg:hidden, md:hidden, sm:hidden, xl:hidden, 2xl:hidden
+#   - common UX: mobile-hidden, desktop-hidden, hide-mobile, hide-desktop,
+#                hidden-mobile, hidden-desktop, hidden-xs/sm/md/lg
+# The screen-reader-only patterns are handled separately in `_is_hidden`
+# via `_HIDDEN_CLASSES_RE` (sr-only, a-offscreen, visually-hidden, etc).
+_RESPONSIVE_HIDDEN_CLASSES_RE = re.compile(
+    r"(?:^|\s)("
+    r"hidden|d-none|invisible"
+    r"|d-(?:sm|md|lg|xl|xxl)-none"
+    r"|(?:sm|md|lg|xl|2xl):hidden"
+    r"|mobile-hidden|desktop-hidden|hide-mobile|hide-desktop"
+    r"|hidden-mobile|hidden-desktop|hidden-xs|hidden-sm|hidden-md|hidden-lg"
+    r")(?=$|\s)",
+    re.IGNORECASE,
+)
+
+
+def _is_node_visually_hidden(node) -> bool:
+    """Single-node visibility check — returns True if this specific
+    element is hidden via inline `style="display:none"`, the inline
+    visibility:hidden style, or one of the universal hidden CSS class
+    tokens (`.hidden`, `.d-none`, `.lg:hidden`, etc.).
+
+    Used by `_has_hidden_ancestor` to walk up looking for any hidden
+    ancestor — when a responsive site renders both mobile + desktop
+    versions of a card and only one is visible, lxml's cssselect
+    returns BOTH; we filter the hidden copy here."""
+    try:
+        attrs = node.attrib
+    except AttributeError:
+        return False
+    style = attrs.get("style", "") or ""
+    if style:
+        if _DISPLAY_NONE_RE.search(style) or _VISIBILITY_HIDDEN_RE.search(style):
+            return True
+    classes = attrs.get("class", "") or ""
+    if classes and _RESPONSIVE_HIDDEN_CLASSES_RE.search(classes):
+        return True
+    # aria-hidden="true" — Amazon's a-offscreen mirror pattern and
+    # many other accessibility-hidden duplicates.
+    if (attrs.get("aria-hidden", "") or "").lower() == "true":
+        return True
+    return False
+
+
+def _has_hidden_ancestor(node) -> bool:
+    """Walk up from `node` (inclusive) looking for any ancestor with
+    a known visually-hidden marker. Used to filter cssselect matches
+    that live inside a `display:none` or `lg:hidden` responsive copy.
+
+    Bounded at 30 hops (same as _has_template_ancestor). All class
+    name checks are universal CSS-utility conventions — NOT site
+    specific."""
+    cur = node
+    for _ in range(30):
+        if cur is None:
+            return False
+        if _is_node_visually_hidden(cur):
+            return True
+        try:
+            cur = cur.getparent()
+        except Exception:
+            return False
+    return False
+
+
 def _is_placeholder_src(val: str) -> bool:
     """A src/href is a 'placeholder' when it's empty, a 1x1 gif data URI,
     a tiny SVG data URI, `#`, `about:blank`, or starts with a known
@@ -1538,7 +1611,10 @@ def _try_prefix_lcp(
 
     row_selector = " > ".join(prefix)
     try:
-        rows = [r for r in tree.cssselect(row_selector) if not _has_template_ancestor(r)]
+        rows = [
+            r for r in tree.cssselect(row_selector)
+            if not _has_template_ancestor(r) and not _has_hidden_ancestor(r)
+        ]
     except Exception:
         return None
     if len(rows) < 2:
@@ -1580,8 +1656,12 @@ def _try_dom_lca(
             matches = tree.cssselect(sel)
         except Exception:
             matches = []
-        # Filter out matches inside <template> — see _has_template_ancestor.
-        matches = [m for m in matches if not _has_template_ancestor(m)]
+        # Filter out matches inside <template> (inert) or inside hidden
+        # responsive duplicates (display:none / d-none / lg:hidden / etc).
+        matches = [
+            m for m in matches
+            if not _has_template_ancestor(m) and not _has_hidden_ancestor(m)
+        ]
         if not matches:
             return None
         field_matches.append((label, field, matches))

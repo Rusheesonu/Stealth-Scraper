@@ -1630,6 +1630,115 @@ def test_microdata_per_row_extraction_aligned():
     assert values["price"] == ["10.00", "20.00", "30.00"], values
 
 
+# ── Hidden mobile/desktop responsive duplicates ────────────────────────
+
+
+def test_display_none_inline_style_excluded_from_extraction():
+    """Sites that ship both responsive layouts (mobile + desktop) in
+    the DOM and toggle visibility via CSS. The hidden duplicate must
+    not appear in extraction output."""
+    html = """
+    <html><body>
+      <div class="card">visible title</div>
+      <div class="card" style="display: none">HIDDEN MOBILE COPY</div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "card", "kind": "text", "selector": "div.card"}
+    assert _pull(tree, field)["value"] == "visible title"
+
+
+def test_responsive_hidden_class_excluded_bootstrap():
+    """Bootstrap's `.d-none` (and `.d-md-none` etc.) hide content
+    responsively. Must be filtered same as inline display:none."""
+    html = """
+    <html><body>
+      <div class="card">visible title</div>
+      <div class="card d-none">HIDDEN BOOTSTRAP COPY</div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "card", "kind": "text", "selector": "div.card"}
+    assert _pull(tree, field)["value"] == "visible title"
+
+
+def test_responsive_hidden_class_excluded_tailwind():
+    """Tailwind's `lg:hidden` (and `md:hidden`, etc.) — class name
+    includes a colon. Must still filter."""
+    html = """
+    <html><body>
+      <div class="card">visible title</div>
+      <div class="card lg:hidden">HIDDEN TAILWIND COPY</div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "card", "kind": "text", "selector": "div.card"}
+    assert _pull(tree, field)["value"] == "visible title"
+
+
+def test_hidden_ancestor_filters_per_row_extraction():
+    """List extraction with mobile + desktop card grids both in DOM.
+    Each visible card must produce exactly one row — the hidden
+    sibling copy must not duplicate."""
+    html = """
+    <html><body>
+      <section class="desktop-grid">
+        <article class="card">
+          <h3>Real A</h3><span class="p">$10</span>
+        </article>
+        <article class="card">
+          <h3>Real B</h3><span class="p">$20</span>
+        </article>
+        <article class="card">
+          <h3>Real C</h3><span class="p">$30</span>
+        </article>
+      </section>
+      <section class="mobile-grid" style="display: none">
+        <article class="card">
+          <h3>Mobile Ghost A</h3><span class="p">$99</span>
+        </article>
+        <article class="card">
+          <h3>Mobile Ghost B</h3><span class="p">$99</span>
+        </article>
+      </section>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "section > article.card > h3"},
+        {"label": "price", "kind": "list",
+         "selector": "section > article.card > span.p"},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    assert {"title", "price"}.issubset(handled), handled
+    assert values["title"] == ["Real A", "Real B", "Real C"], values
+    assert values["price"] == ["$10", "$20", "$30"], values
+    assert "Mobile Ghost A" not in values["title"]
+
+
+def test_visible_ancestor_not_filtered_when_only_descendant_is_hidden():
+    """A card with a hidden CHILD (e.g. a tooltip with display:none)
+    should still be extracted via its OWN selector — the hidden
+    descendant doesn't poison the parent."""
+    html = """
+    <html><body>
+      <div class="card">
+        Real content here
+        <span class="tooltip" style="display:none">hover hint</span>
+      </div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "card", "kind": "text", "selector": "div.card"}
+    result = _pull(tree, field)
+    # The card itself isn't hidden — only its tooltip child is. The
+    # extracted text should be the card's visible content, with the
+    # hidden tooltip already filtered by _visible_text's pass-1.
+    assert "Real content here" in result["value"]
+    assert "hover hint" not in result["value"]
+
+
 if __name__ == "__main__":
     import sys
     tests = [
