@@ -19,7 +19,10 @@ import { LaunchDemoClient } from "./launch-demo-client";
  * before the loader takes over.
  */
 export const metadata: Metadata = {
-  title: "Live demo · Stealth-Scraper",
+  // `title` template in app/layout.tsx already appends " · Stealth-Scraper",
+  // so we keep this short. Open Graph / Twitter need the full string
+  // because they don't go through the template.
+  title: "Live demo",
   description: "See it scrape Hacker News in 7 seconds. No signup.",
   openGraph: {
     title: "Live demo · Stealth-Scraper",

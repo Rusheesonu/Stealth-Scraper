@@ -381,13 +381,20 @@ function AiExtractForm() {
  * Renders a near-identical skeleton so the boundary swap is invisible.
  */
 export default function AiExtractPage() {
+  // The fallback IS the SSR HTML for this page (useSearchParams forces
+  // the form into a client boundary). We render the real h1 + intro
+  // here so crawlers and first paint always see meaningful text — not
+  // a skeleton. The form below replaces this once hydration completes.
   return (
     <Suspense fallback={
       <PageShell maxWidth="max-w-3xl">
         <div className="py-12">
-          <div className="mb-6 h-4 w-12 animate-pulse rounded-md bg-[var(--color-ink-2)]" />
-          <div className="mb-3 h-8 w-72 animate-pulse rounded-md bg-[var(--color-ink-2)]" />
-          <div className="mb-10 h-4 w-96 animate-pulse rounded-md bg-[var(--color-ink-2)]" />
+          <h1 className="mb-3 text-[40px] font-semibold leading-[1.08] tracking-[-0.028em] text-[var(--color-fg-strong)]">
+            AI extract
+          </h1>
+          <p className="mb-10 max-w-md text-[14px] text-[var(--color-fg-muted)]">
+            Paste a URL, describe what you want. We draft the schema.
+          </p>
           <div className="h-14 w-full animate-pulse rounded-xl bg-[var(--color-ink-2)]" />
         </div>
       </PageShell>

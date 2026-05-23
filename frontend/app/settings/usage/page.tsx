@@ -232,9 +232,27 @@ function UsagePageInner() {
 }
 
 export default function UsagePage() {
-  // useSearchParams needs a Suspense boundary in App Router.
+  // useSearchParams needs a Suspense boundary in App Router. The fallback
+  // doubles as SSR HTML — render a real h1 + intro paragraph so crawlers
+  // and first paint see meaningful content (not an empty shell).
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <PageShell maxWidth="max-w-3xl">
+          <div className="py-8">
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+              Account · Usage
+            </div>
+            <h1 className="mb-3 text-[28px] font-semibold tracking-[-0.018em] text-[var(--color-fg-strong)]">
+              Usage
+            </h1>
+            <p className="max-w-md text-[14px] text-[var(--color-fg-muted)]">
+              Your scrapes this month, by day.
+            </p>
+          </div>
+        </PageShell>
+      }
+    >
       <UsagePageInner />
     </Suspense>
   );

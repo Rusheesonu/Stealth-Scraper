@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Refunds · Stealth-Scraper",
+  title: "Refunds",
   description: "Reliability SLA refund history — every failed scrape is auto-refunded.",
 };
 

@@ -261,7 +261,6 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { href: "https://x.com/rushikeshsonu", label: "X (@rushikeshsonu)", external: true },
       { href: "https://github.com/Rusheesonu", label: "GitHub", external: true },
       { href: "https://news.ycombinator.com/user?id=rushikeshsonu", label: "HN profile", external: true },
-      { href: "#", label: "Discord (soon)", external: true },
     ],
   },
 ];
@@ -314,17 +313,12 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Bottom row — copyright + dev affordance. */}
+        {/* Bottom row — copyright. The /design route is an internal dev
+            tool; we don't link to it from the public footer. */}
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center">
           <p className="font-mono text-[11px] text-[var(--color-fg-muted)]">
             © 2026 Stealth-Scraper · All rights reserved
           </p>
-          <Link
-            href="/design"
-            className="font-mono text-[11px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
-          >
-            Design system →
-          </Link>
         </div>
       </div>
     </footer>
