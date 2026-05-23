@@ -787,6 +787,30 @@ export function PickerClient() {
 // for this small surface. Mirrors ResultsPanel's styling.
 // ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * FieldResult envelope unwrap — same shape as results-panel.tsx's
+ * `unwrapFields`. Every /extract response now returns FieldResult per
+ * field — `{value, source, confidence, selector_used, reason_if_null}`
+ * instead of a bare value. The CSV row / JSON export / inline preview
+ * below would otherwise stringify each envelope as "[object Object]".
+ * Local copy to keep this file self-contained — keep in sync with
+ * results-panel.tsx::unwrapFields if either changes.
+ */
+type BatchEnvelope = { value: unknown };
+function unwrapBatchFields(
+  fields: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fields || {})) {
+    if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as object)) {
+      out[k] = (v as BatchEnvelope).value;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 function BatchResultsPanel({
   results,
   running,
@@ -801,7 +825,8 @@ function BatchResultsPanel({
     // so a single CSV line captures the data without an extra pivot.
     return results.map(({ url, data }) => {
       const row: Record<string, unknown> = { url };
-      for (const [k, v] of Object.entries(data.fields)) {
+      const flat = unwrapBatchFields(data.fields as Record<string, unknown>);
+      for (const [k, v] of Object.entries(flat)) {
         row[k] = Array.isArray(v) ? v.join(" | ") : v;
       }
       return row;
@@ -811,7 +836,10 @@ function BatchResultsPanel({
   const jsonStr = useMemo(
     () =>
       JSON.stringify(
-        results.map(({ url, data }) => ({ url, ...data.fields })),
+        results.map(({ url, data }) => ({
+          url,
+          ...unwrapBatchFields(data.fields as Record<string, unknown>),
+        })),
         null,
         2
       ),
@@ -896,7 +924,7 @@ function BatchResultsPanel({
                       </Badge>
                     </div>
                     <div className="space-y-1">
-                      {Object.entries(data.fields).map(([k, v]) => (
+                      {Object.entries(unwrapBatchFields(data.fields as Record<string, unknown>)).map(([k, v]) => (
                         <div key={k} className="flex gap-2 text-[13px]">
                           <span className="shrink-0 font-mono text-[11px] font-semibold text-[var(--color-accent)]">
                             {k}

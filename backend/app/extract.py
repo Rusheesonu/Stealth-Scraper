@@ -532,6 +532,28 @@ def _pull(tree, field: Field) -> FieldResult:
         except Exception as e:
             nodes = []
             parse_error = f"{type(e).__name__}: {str(e)[:200]}"
+
+    # Relaxed-selector fallback. The picker's `buildCssSelector` walks
+    # up to the first stable-looking id, but many sites embed PAGE-
+    # SPECIFIC identifiers in those ids: Steam's
+    # `#game_area_purchase_section_2483190` (the trailing number is
+    # the app id), Shopify's `#shopify-section-1234567890`,
+    # WordPress's `#post-NNNN`, Reddit's `#thing_t3_xxxxx`, etc. Those
+    # anchors break re-use of a saved template across sibling pages.
+    # When the original selector matched zero nodes (NOT a parse
+    # error), try progressively relaxed variants. First match wins.
+    if not nodes and selector and not parse_error:
+        for variant in _relax_selector_variants(selector):
+            try:
+                relaxed = tree.cssselect(variant)
+            except Exception:
+                continue
+            if relaxed:
+                nodes = relaxed
+                source = "selector"
+                used = variant
+                break
+
     if not nodes and xpath:
         try:
             nodes = tree.xpath(xpath)
@@ -1217,6 +1239,93 @@ _STEP_SEP_RE = re.compile(r"\s*>\s*")
 
 def _split_selector(css: str) -> list[str]:
     return [p for p in _STEP_SEP_RE.split(css.strip()) if p]
+
+
+# Page-specific-id patterns. A run of 3+ consecutive digits inside an
+# id is the strongest signal that the id is per-page (app id, post id,
+# database row id, etc.) and won't survive across sibling pages. Used
+# by `_relax_selector_variants` below.
+_DIGIT_RUN_RE = re.compile(r"\d{3,}")
+_ID_TOKEN_RE = re.compile(r"#([\w-]+)")
+_NTH_PSEUDO_RE = re.compile(r":nth-(?:of-type|child|last-of-type|last-child)\([^)]*\)")
+
+
+def _relax_selector_variants(selector: str) -> list[str]:
+    """Build progressively-relaxed variants of a CSS selector.
+
+    The picker's `buildCssSelector` walks up to the first stable-looking
+    id, but many sites embed PAGE-SPECIFIC identifiers in those ids:
+      - Steam:  #game_area_purchase_section_2483190 (trailing app id)
+      - Shopify: #shopify-section-1234567890
+      - WordPress: #post-NNNN
+      - Reddit:  #thing_t3_xxxxxx
+      - Medium:  #post-1234abc
+    Those anchors break re-use of a saved template across sibling pages
+    — the template extraction returns null because the new page's id
+    has a different trailing number.
+
+    This function returns a list of progressively-relaxed variants of
+    the original selector, in priority order:
+
+      1. Strip ids containing 3+ consecutive digits AND `:nth-*()`
+         pseudo-classes. Keeps the structural shape but loses the
+         page-specific anchors.
+      2. Strip ALL `#id` anchors AND `:nth-*()`. Maximally structural;
+         relies entirely on tag + class path.
+
+    Each variant is tried by `_pull` in order; first match wins. The
+    original selector is NOT included in this list — that's tried
+    first by `_pull` separately. Returns `[]` if nothing useful can
+    be relaxed (e.g. the selector has no ids or nth pseudos).
+    """
+    parts = _STEP_SEP_RE.split(selector.strip())
+    variants: list[str] = []
+
+    def is_page_specific_id(part: str) -> bool:
+        # Find the leading id token, if any.
+        m = _ID_TOKEN_RE.match(part)
+        if not m:
+            return False
+        return bool(_DIGIT_RUN_RE.search(m.group(1)))
+
+    def strip_part(part: str, *, all_ids: bool) -> str:
+        """Drop ids + nth pseudos from one selector step. If the step
+        becomes empty (was nothing but an id), return ''."""
+        out = part
+        if all_ids:
+            out = _ID_TOKEN_RE.sub("", out)
+        elif is_page_specific_id(out):
+            # Strip ONLY the leading page-specific id token.
+            out = _ID_TOKEN_RE.sub("", out, count=1)
+        out = _NTH_PSEUDO_RE.sub("", out)
+        return out.strip()
+
+    # Variant 1: page-specific ids + nth pseudos stripped
+    v1_parts = []
+    changed_v1 = False
+    for p in parts:
+        stripped = strip_part(p, all_ids=False)
+        if stripped != p:
+            changed_v1 = True
+        if stripped:
+            v1_parts.append(stripped)
+    if changed_v1 and v1_parts:
+        v1 = " > ".join(v1_parts)
+        if v1 and v1 != selector:
+            variants.append(v1)
+
+    # Variant 2: ALL ids + nth pseudos stripped
+    v2_parts = []
+    for p in parts:
+        stripped = strip_part(p, all_ids=True)
+        if stripped:
+            v2_parts.append(stripped)
+    if v2_parts:
+        v2 = " > ".join(v2_parts)
+        if v2 and v2 != selector and v2 not in variants:
+            variants.append(v2)
+
+    return variants
 
 
 def _longest_common_prefix(parts_lists: list[list[str]]) -> list[str]:
