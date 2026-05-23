@@ -69,7 +69,7 @@ function CohortHero() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.12, ease: APPLE_EASE }}
-        className="mx-auto mt-5 max-w-xl text-[14px] leading-[1.6] text-[var(--color-fg)]"
+        className="mx-auto mt-5 max-w-xl text-[17px] leading-[1.55] text-[var(--color-fg)]"
       >
         {copy.subhead}
       </motion.p>
@@ -208,7 +208,7 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
             aria-selected={active}
             onClick={() => onChange(id)}
             className={cn(
-              "relative inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium",
+              "relative inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[14px] font-medium",
               "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
               active
                 ? "text-[var(--color-fg-strong)]"
@@ -400,7 +400,7 @@ function UrlMode() {
           spellCheck={false}
           autoFocus
           disabled={busy}
-          className="flex-1 bg-transparent pl-5 pr-2 font-mono text-[14px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none disabled:opacity-50"
+          className="flex-1 bg-transparent pl-5 pr-2 font-mono text-[15px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none disabled:opacity-50"
         />
         <motion.button
           type="submit"
@@ -418,7 +418,7 @@ function UrlMode() {
             opacity: canSubmit ? 1 : 0.55,
           }}
           transition={{ duration: 0.16, ease: APPLE_EASE }}
-          className="mr-2 inline-flex h-10 items-center gap-1.5 rounded-md px-4 font-medium text-[13px] text-white disabled:cursor-not-allowed"
+          className="mr-2 inline-flex h-10 items-center gap-1.5 rounded-md px-4 font-medium text-[14px] text-white disabled:cursor-not-allowed"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
           {/* Logged-in users see a verb that matches what happens (they
@@ -431,7 +431,7 @@ function UrlMode() {
       {/* Loading + error states now live INSIDE the modal — see
           LandingPreviewModal. The form stays clean. */}
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-[13px] text-[var(--color-fg-subdued)]">
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-[13px] text-[var(--color-fg-muted)]">
         <span>Try</span>
         {TRY_LINKS.map((t) => (
           <button
@@ -510,7 +510,7 @@ function DescribeMode() {
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck={false}
-            className="flex-1 bg-transparent font-mono text-[13px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none"
+            className="flex-1 bg-transparent font-mono text-[14px] tracking-[var(--tracking-mono)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none"
           />
         </div>
 
@@ -525,7 +525,7 @@ function DescribeMode() {
             rows={2}
             autoFocus
             maxLength={500}
-            className="block w-full resize-none bg-transparent text-left text-[14px] leading-[1.5] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none"
+            className="block w-full resize-none bg-transparent text-left text-[15px] leading-[1.5] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)] focus:outline-none"
           />
         </div>
 
@@ -619,7 +619,7 @@ function DemoStrip() {
                 transition={{ duration: 0.4, delay: 0.6 + i * 0.05, ease: APPLE_EASE }}
                 className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5"
               >
-                <div className="text-[13px] leading-[1.4] text-[var(--color-fg)]">
+                <div className="text-[14px] leading-[1.45] text-[var(--color-fg)]">
                   <span className="rounded-sm bg-[var(--color-accent-soft)] px-0.5 py-px ring-1 ring-[var(--color-accent-line)]">
                     {row.title}
                   </span>

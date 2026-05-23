@@ -181,7 +181,7 @@ export function LandingFaq() {
                 aria-expanded={isOpen}
               >
                 <span className={cn(
-                  "text-[14px] font-medium leading-[1.4]",
+                  "text-[16px] font-medium leading-[1.4]",
                   isOpen ? "text-[var(--color-fg-strong)]" : "text-[var(--color-fg)]",
                 )}>
                   {item.q}
@@ -203,7 +203,7 @@ export function LandingFaq() {
                     transition={{ duration: 0.25, ease: APPLE_EASE }}
                     className="overflow-hidden"
                   >
-                    <div className="px-5 pb-5 text-[13px] leading-[1.7] text-[var(--color-fg)]">
+                    <div className="px-5 pb-5 text-[15px] leading-[1.65] text-[var(--color-fg)]">
                       {item.a}
                     </div>
                   </motion.div>
@@ -214,7 +214,7 @@ export function LandingFaq() {
         })}
       </div>
 
-      <p className="mt-6 text-center text-[13px] text-[var(--color-fg-muted)]">
+      <p className="mt-6 text-center text-[14px] text-[var(--color-fg-muted)]">
         Question not answered here? Email{" "}
         <a
           href="mailto:rushikesh.koochana@gmail.com"

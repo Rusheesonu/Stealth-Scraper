@@ -101,20 +101,24 @@
   --font-display:  var(--font-inter), "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono:     var(--font-mono-google), "JetBrains Mono", "SF Mono", "SFMono-Regular", ui-monospace, Menlo, monospace;
 
+  /* Type scale — bumped May-23 2026 readability sweep. Body 14→16 (browser
+     default; sub-16 on body copy fails the WCAG-paired-with-contrast bar
+     and feels cramped on retina). h2 18→22 so the h1→h2→body hierarchy
+     is actually visible. small/tiny preserved for chips + mono metadata. */
   --text-hero:     56px;
   --text-display:  40px;
-  --text-h1:       28px;
-  --text-h2:       18px;
-  --text-body:     14px;
-  --text-small:    12px;
+  --text-h1:       30px;
+  --text-h2:       22px;
+  --text-body:     16px;
+  --text-small:    13px;
   --text-tiny:     11px;
 
   --leading-hero:    1.04;
   --leading-display: 1.08;
   --leading-h1:      1.2;
   --leading-h2:      1.35;
-  --leading-body:    1.55;
-  --leading-small:   1.5;
+  --leading-body:    1.6;
+  --leading-small:   1.55;
   --leading-tiny:    1.4;
 
   --tracking-hero:    -0.035em;

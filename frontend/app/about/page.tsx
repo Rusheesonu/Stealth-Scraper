@@ -23,7 +23,7 @@ export default function AboutPage() {
         backLabel="Home"
       />
 
-      <div className="flex flex-col gap-6 text-[14px] leading-[1.7] text-[var(--color-fg)]">
+      <div className="flex flex-col gap-6 text-[17px] leading-[1.65] text-[var(--color-fg)]">
         <p>
           I&apos;m Rushi. Senior data engineer with 5+ years of production
           scraping — built 500+ pipelines for clients across e-commerce,
@@ -41,7 +41,7 @@ export default function AboutPage() {
           self could ship in 15 minutes instead of 15 hours.
         </p>
 
-        <div className="mt-2 flex flex-wrap items-center gap-4 border-t border-[var(--color-border)] pt-6 text-[13px]">
+        <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-[var(--color-border)] pt-6 text-[14px]">
           <a
             href="https://github.com/Rusheesonu/stealth-browser"
             target="_blank"

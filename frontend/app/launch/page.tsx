@@ -65,23 +65,23 @@ function NoJsFallback() {
         <div className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
           Live demo
         </div>
-        <h1 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--color-fg-display)]">
+        <h1 className="text-[36px] font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--color-fg-display)] sm:text-[44px]">
           Watch us scrape a real site in 7 seconds.
         </h1>
-        <p className="mx-auto mt-4 max-w-md text-[14px] leading-[1.55] text-[var(--color-fg-muted)]">
+        <p className="mx-auto mt-5 max-w-md text-[16px] leading-[1.6] text-[var(--color-fg-muted)]">
           This demo runs automatically when JavaScript is enabled. Until then,
           head to the homepage to paste your own URL.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/"
-            className="inline-flex h-11 items-center rounded-md bg-[var(--color-fg-strong)] px-5 text-[14px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]"
+            className="inline-flex h-11 items-center rounded-md bg-[var(--color-fg-strong)] px-5 text-[15px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]"
           >
             Go to homepage
           </Link>
           <Link
             href="/login?mode=signup"
-            className="inline-flex h-11 items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-5 text-[14px] font-medium text-[var(--color-fg)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
+            className="inline-flex h-11 items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-5 text-[15px] font-medium text-[var(--color-fg)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
           >
             Sign up free
           </Link>

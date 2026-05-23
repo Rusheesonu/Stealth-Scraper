@@ -150,16 +150,16 @@ export function FeaturedTemplates() {
             Skip the setup.<br className="sm:hidden" />
             <span className="text-[var(--color-fg-muted)]"> Start with a recipe.</span>
           </h2>
-          <p className="mt-2 max-w-xl text-[14px] leading-[1.6] text-[var(--color-fg)]">
+          <p className="mt-3 max-w-xl text-[16px] leading-[1.6] text-[var(--color-fg)]">
             Browse community-shared extraction recipes. Fork any one, run it on
             any matching page, customize the selectors as needed.
           </p>
         </div>
         <Link
           href="/marketplace"
-          className="hidden shrink-0 items-center gap-1 self-end text-[13px] text-[var(--color-accent)] hover:underline sm:inline-flex"
+          className="hidden shrink-0 items-center gap-1 self-end text-[14px] font-medium text-[var(--color-accent)] hover:underline sm:inline-flex"
         >
-          Browse all <ArrowRight className="h-3 w-3" />
+          Browse all <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
 
@@ -172,9 +172,9 @@ export function FeaturedTemplates() {
       <div className="mt-8 text-center sm:hidden">
         <Link
           href="/marketplace"
-          className="inline-flex items-center gap-1 text-[13px] text-[var(--color-accent)] hover:underline"
+          className="inline-flex items-center gap-1 text-[14px] font-medium text-[var(--color-accent)] hover:underline"
         >
-          Browse all templates <ArrowRight className="h-3 w-3" />
+          Browse all templates <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
     </section>
@@ -216,12 +216,12 @@ function TemplateCard({ card, index }: { card: Card; index: number }) {
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[14px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)]">
+          <h3 className="truncate text-[15px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)]">
             {card.name}
           </h3>
-          <div className="mt-0.5 inline-flex items-center gap-1 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
+          <div className="mt-1 inline-flex items-center gap-1 truncate font-mono text-[12px] text-[var(--color-fg-muted)]">
             {host}
-            <ExternalLink className="h-2.5 w-2.5 opacity-50" />
+            <ExternalLink className="h-3 w-3 opacity-50" />
           </div>
         </div>
         {!isSeed && "fork_count" in card && card.fork_count > 0 && (
@@ -235,7 +235,7 @@ function TemplateCard({ card, index }: { card: Card; index: number }) {
         )}
       </div>
 
-      <p className="mb-3 line-clamp-2 text-[13px] leading-[1.55] text-[var(--color-fg)]">
+      <p className="mb-3 line-clamp-2 text-[14px] leading-[1.55] text-[var(--color-fg)]">
         {"description" in card && card.description
           ? truncate(card.description, 110)
           : "Saved extraction recipe."}
@@ -256,7 +256,7 @@ function TemplateCard({ card, index }: { card: Card; index: number }) {
       </div>
 
       {/* Hover CTA */}
-      <div className="mt-4 inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] group-hover:text-[var(--color-accent)]">
+      <div className="mt-4 inline-flex items-center gap-1 text-[14px] font-medium text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] group-hover:text-[var(--color-accent)]">
         Try this →
       </div>
     </motion.button>

@@ -22,11 +22,11 @@ export default function NotFound() {
           404 · not found
         </div>
 
-        <div className="flex flex-col gap-3">
-          <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.028em] text-[var(--color-fg-display)]">
+        <div className="flex flex-col gap-4">
+          <h1 className="text-[44px] font-semibold leading-[1.05] tracking-[-0.028em] text-[var(--color-fg-display)] sm:text-[52px]">
             Page not found.
           </h1>
-          <p className="max-w-md text-[14px] leading-[1.55] text-[var(--color-fg-muted)]">
+          <p className="max-w-md text-[16px] leading-[1.6] text-[var(--color-fg-muted)]">
             The URL you followed doesn&apos;t match anything we serve. It may
             have moved, or never existed. Here&apos;s where you probably wanted
             to go.
@@ -45,7 +45,7 @@ export default function NotFound() {
           </Link>
         </div>
 
-        <div className="mt-4 flex items-center gap-3 border-t border-[var(--color-border)] pt-6 text-[11px] text-[var(--color-fg-subdued)]">
+        <div className="mt-4 flex items-center gap-3 border-t border-[var(--color-border)] pt-6 text-[13px] text-[var(--color-fg-muted)]">
           <Brand showText={false} />
           <span className="font-mono">
             Still lost? Email{" "}

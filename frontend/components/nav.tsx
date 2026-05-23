@@ -87,7 +87,7 @@ export function Nav() {
                   key={l.href}
                   href={l.href}
                   className={cn(
-                    "relative rounded-md px-2.5 py-1.5 text-[13px] tracking-[-0.005em]",
+                    "relative rounded-md px-3 py-1.5 text-[14px] tracking-[-0.005em]",
                     "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                     active
                       ? "text-[var(--color-fg-strong)]"
@@ -116,7 +116,7 @@ export function Nav() {
               <button
                 onClick={() => setSettingsOpen((v) => !v)}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px]",
+                  "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[14px]",
                   "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-ink-2)]",
                   "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                   "outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
@@ -148,7 +148,7 @@ export function Nav() {
                       key={s.href}
                       href={s.href}
                       onClick={() => setSettingsOpen(false)}
-                      className="flex items-center px-3 py-1.5 text-[13px] text-[var(--color-fg)] hover:bg-[var(--color-ink-2)] outline-none focus-visible:bg-[var(--color-ink-2)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]"
+                      className="flex items-center px-3 py-2 text-[14px] text-[var(--color-fg)] hover:bg-[var(--color-ink-2)] outline-none focus-visible:bg-[var(--color-ink-2)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]"
                     >
                       {s.label}
                     </Link>
@@ -158,21 +158,21 @@ export function Nav() {
                   <Link
                     href="/status"
                     onClick={() => setSettingsOpen(false)}
-                    className="block px-3 py-1.5 text-[13px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+                    className="block px-3 py-2 text-[14px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
                   >
                     System status
                   </Link>
                   <Link
                     href="/pricing"
                     onClick={() => setSettingsOpen(false)}
-                    className="block px-3 py-1.5 text-[13px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
+                    className="block px-3 py-2 text-[14px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
                   >
                     Pricing
                   </Link>
                   <form action="/auth/signout" method="POST">
                     <button
                       type="submit"
-                      className="block w-full px-3 py-1.5 text-left text-[13px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)] outline-none focus-visible:bg-[var(--color-ink-2)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]"
+                      className="block w-full px-3 py-2 text-left text-[14px] text-[var(--color-fg-muted)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)] outline-none focus-visible:bg-[var(--color-ink-2)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]"
                     >
                       Sign out
                     </button>
@@ -184,13 +184,13 @@ export function Nav() {
             <>
               <Link
                 href="/login"
-                className="rounded-md px-3 py-1.5 text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-ink-2)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
+                className="rounded-md px-3 py-1.5 text-[14px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-ink-2)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
               >
                 Sign in
               </Link>
               <Link
                 href="/login?mode=signup"
-                className="rounded-md bg-[var(--color-fg-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)] transition-[background] duration-[var(--dur-fast)] ease-[var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
+                className="rounded-md bg-[var(--color-fg-strong)] px-3.5 py-1.5 text-[14px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)] transition-[background] duration-[var(--dur-fast)] ease-[var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
               >
                 Get started
               </Link>
@@ -273,7 +273,7 @@ export function Footer() {
           {/* Brand + tagline — first column on desktop, spans both on mobile. */}
           <div className="col-span-2 md:col-span-1">
             <Brand />
-            <p className="mt-3 max-w-[24ch] text-[13px] leading-[1.6] text-[var(--color-fg-muted)]">
+            <p className="mt-3 max-w-[28ch] text-[14px] leading-[1.6] text-[var(--color-fg-muted)]">
               The visual scraper for AI agents. Point, click, save, ship.
             </p>
             <p className="mt-4 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
@@ -294,14 +294,14 @@ export function Footer() {
                         href={l.href}
                         target={l.href.startsWith("mailto:") || l.href === "#" ? undefined : "_blank"}
                         rel={l.href.startsWith("mailto:") || l.href === "#" ? undefined : "noreferrer"}
-                        className="text-[13px] text-[var(--color-fg)] transition-colors hover:text-[var(--color-fg-strong)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
+                        className="text-[14px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg-strong)] outline-none focus-visible:text-[var(--color-fg-strong)] focus-visible:underline"
                       >
                         {l.label}
                       </a>
                     ) : (
                       <Link
                         href={l.href}
-                        className="text-[13px] text-[var(--color-fg)] transition-colors hover:text-[var(--color-fg-strong)] outline-none focus-visible:text-[var(--color-fg)] focus-visible:underline"
+                        className="text-[14px] text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg-strong)] outline-none focus-visible:text-[var(--color-fg-strong)] focus-visible:underline"
                       >
                         {l.label}
                       </Link>
@@ -316,7 +316,7 @@ export function Footer() {
         {/* Bottom row — copyright. The /design route is an internal dev
             tool; we don't link to it from the public footer. */}
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center">
-          <p className="font-mono text-[11px] text-[var(--color-fg-muted)]">
+          <p className="font-mono text-[12px] text-[var(--color-fg-muted)]">
             © 2026 Stealth-Scraper · All rights reserved
           </p>
         </div>

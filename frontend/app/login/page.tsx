@@ -16,10 +16,10 @@ export default function LoginPage() {
           <Brand />
         </Link>
 
-        <h1 className="mb-2 text-[20px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
+        <h1 className="mb-3 text-[28px] font-semibold tracking-[-0.02em] text-[var(--color-fg-strong)]">
           Sign in
         </h1>
-        <p className="mb-8 text-[13px] text-[var(--color-fg-muted)]">
+        <p className="mb-8 text-[15px] leading-[1.55] text-[var(--color-fg-muted)]">
           Welcome back. We&apos;ll get you to the picker in two clicks.
         </p>
 

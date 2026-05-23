@@ -18,8 +18,8 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, mono = false, size = "md", ...props }, ref) => {
     const heightCls = size === "sm" ? "h-8 px-2.5 text-[13px]"
-      : size === "lg" ? "h-12 px-4 text-[14px]"
-      : "h-9 px-3 text-[13px]";
+      : size === "lg" ? "h-12 px-4 text-[15px]"
+      : "h-9 px-3 text-[14px]";
     return (
       <input
         ref={ref}
@@ -46,7 +46,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       className={cn(
-        "block w-full rounded-md bg-[var(--color-surface)] border border-[var(--color-border)] px-3 py-2.5 text-[13px]",
+        "block w-full rounded-md bg-[var(--color-surface)] border border-[var(--color-border)] px-3 py-2.5 text-[14px] leading-[1.55]",
         "text-[var(--color-fg)] placeholder:text-[var(--color-fg-subdued)]",
         "transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)]",
         "hover:border-[var(--color-border-strong)]",

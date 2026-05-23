@@ -27,7 +27,7 @@ export default function TermsPage() {
         backLabel="Home"
       />
 
-      <div className="flex flex-col gap-10 text-[14px] leading-[1.65] text-[var(--color-fg)]">
+      <div className="flex flex-col gap-10 text-[16px] leading-[1.65] text-[var(--color-fg)]">
         <Section title="1. What you&rsquo;re signing up for">
           <p>
             Stealth-Scraper (&quot;the service&quot;) is a web tool that turns
@@ -225,7 +225,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <div className="border-t border-[var(--color-border)] pt-6 text-[13px] text-[var(--color-fg-subdued)]">
+        <div className="border-t border-[var(--color-border)] pt-6 text-[14px] text-[var(--color-fg-muted)]">
           See also:{" "}
           <Link href="/privacy" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">Privacy policy</Link>
           {" · "}
@@ -239,7 +239,7 @@ export default function TermsPage() {
 function Section({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+      <h2 className="text-[22px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
         {title}
       </h2>
       <div className="flex flex-col gap-3 [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-1.5 [&_ul]:pl-5 [&_ul]:list-disc [&_li]:marker:text-[var(--color-fg-subdued)]">

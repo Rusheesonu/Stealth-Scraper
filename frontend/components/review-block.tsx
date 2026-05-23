@@ -86,11 +86,11 @@ export function ReviewBlock({
         <div className="flex flex-wrap items-baseline gap-3">
           <div className="flex items-center gap-1">
             <StarRow value={summary.avg} />
-            <span className="font-mono text-sm tabular-nums text-[var(--color-fg)]">
+            <span className="font-mono text-[15px] tabular-nums text-[var(--color-fg-strong)]">
               {summary.avg.toFixed(1)}
             </span>
           </div>
-          <span className="text-sm text-[var(--color-fg-subdued)]">
+          <span className="text-[14px] text-[var(--color-fg-muted)]">
             {summary.count} {summary.count === 1 ? "review" : "reviews"}
           </span>
         </div>
@@ -116,11 +116,11 @@ function ReviewCard({ review }: { review: Review }) {
           </Badge>
         )}
       </div>
-      <p className="flex-1 text-sm leading-relaxed text-[var(--color-fg)]">
+      <p className="flex-1 text-[15px] leading-[1.6] text-[var(--color-fg)]">
         {review.body}
       </p>
       {review.author_name && (
-        <div className="text-xs font-mono text-[var(--color-fg-subdued)]">
+        <div className="text-[13px] font-mono text-[var(--color-fg-muted)]">
           — {review.author_name}
         </div>
       )}

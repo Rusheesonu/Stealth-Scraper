@@ -72,9 +72,9 @@ function ProblemSection() {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {problems.map((p) => (
           <Card key={p.title} density="comfortable">
-            <p.icon className="mb-3 h-4 w-4 text-[var(--color-accent)]" />
+            <p.icon className="mb-3 h-5 w-5 text-[var(--color-accent)]" />
             <CardTitle className="mb-2">{p.title}</CardTitle>
-            <p className="text-[13px] leading-[1.65] text-[var(--color-fg)]">{p.body}</p>
+            <p className="text-[15px] leading-[1.6] text-[var(--color-fg)]">{p.body}</p>
           </Card>
         ))}
       </div>
@@ -110,9 +110,9 @@ function FeaturesSection() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {features.map((f) => (
           <Card key={f.title} density="comfortable">
-            <f.icon className="mb-3 h-4 w-4 text-[var(--color-accent)]" />
-            <div className="mb-1.5 text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{f.title}</div>
-            <p className="text-[13px] leading-[1.6] text-[var(--color-fg)]">{f.body}</p>
+            <f.icon className="mb-3 h-5 w-5 text-[var(--color-accent)]" />
+            <div className="mb-1.5 text-[15px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{f.title}</div>
+            <p className="text-[14px] leading-[1.6] text-[var(--color-fg)]">{f.body}</p>
           </Card>
         ))}
       </div>
@@ -133,29 +133,29 @@ function AiExtractCta() {
         <div className="grid grid-cols-1 md:grid-cols-3">
           <div className="border-b border-[var(--color-border)] p-7 md:border-b-0 md:border-r">
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You write</div>
-            <p className="font-mono text-[13px] leading-[1.55] text-[var(--color-fg)]">
+            <p className="font-mono text-[14px] leading-[1.55] text-[var(--color-fg)]">
               &quot;Get every product&apos;s title, price, rating, and review count.&quot;
             </p>
           </div>
           <div className="border-b border-[var(--color-border)] p-7 md:border-b-0 md:border-r">
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">AI drafts (1s)</div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {["product_title", "price", "rating", "review_count"].map((label) => (
                 <div key={label} className="flex items-center gap-2">
-                  <Check className="h-3 w-3 flex-shrink-0 text-[var(--color-accent)]" />
-                  <code className="font-mono text-[11px] text-[var(--color-fg)]">{label}</code>
+                  <Check className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-accent)]" />
+                  <code className="font-mono text-[13px] text-[var(--color-fg)]">{label}</code>
                 </div>
               ))}
             </div>
           </div>
           <div className="p-7">
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">You verify in the picker</div>
-            <p className="mb-3 text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
+            <p className="mb-3 text-[14px] leading-[1.6] text-[var(--color-fg)]">
               Open the AI draft in the visual picker. Confirm selectors, edit
-              what&apos;s off, save the recipe. <span className="text-[var(--color-fg)]">No more hoping the AI got it right.</span>
+              what&apos;s off, save the recipe. <span className="text-[var(--color-fg-strong)] font-medium">No more hoping the AI got it right.</span>
             </p>
-            <div className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-accent)] group-hover:underline underline-offset-2">
-              Try AI assist <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+            <div className="inline-flex items-center gap-1 text-[14px] font-medium text-[var(--color-accent)] group-hover:underline underline-offset-2">
+              Try AI assist <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
             </div>
           </div>
         </div>
@@ -173,8 +173,8 @@ function PricingTeaser() {
   ];
   return (
     <Section eyebrow="Pricing" title="Pay as you grow. Cancel anytime.">
-      <p className="mx-auto mb-6 max-w-2xl text-center text-[13px] leading-[1.6] text-[var(--color-fg)]">
-        Every scrape is one <strong className="text-[var(--color-fg)]">new data point</strong>, not a re-prompt.
+      <p className="mx-auto mb-8 max-w-2xl text-center text-[15px] leading-[1.6] text-[var(--color-fg)]">
+        Every scrape is one <strong className="text-[var(--color-fg-strong)]">new data point</strong>, not a re-prompt.
         Save a recipe once, then 10,000 runs = 10,000 new rows — your saved selectors
         never re-pay for schema generation.
       </p>
@@ -186,24 +186,24 @@ function PricingTeaser() {
             className={t.highlight ? "border-[color:var(--color-accent)]/40 ring-1 ring-[color:var(--color-accent)]/20" : ""}
           >
             <div className="mb-1 flex items-baseline justify-between">
-              <div className="text-[14px] font-semibold tracking-tight">{t.name}</div>
+              <div className="text-[15px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{t.name}</div>
               {t.highlight && <Badge tone="accent" size="xs">popular</Badge>}
             </div>
             <div className="mb-4 flex items-baseline gap-1">
-              <span className="text-[28px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{t.price}</span>
-              <span className="text-[13px] text-[var(--color-fg-muted)]">/mo</span>
+              <span className="text-[30px] font-semibold tracking-tight text-[var(--color-fg-strong)]">{t.price}</span>
+              <span className="text-[14px] text-[var(--color-fg-muted)]">/mo</span>
             </div>
-            <ul className="space-y-1.5 text-[13px] text-[var(--color-fg)]">
+            <ul className="space-y-2 text-[14px] text-[var(--color-fg)]">
               {t.features.map((f) => (
-                <li key={f} className="flex items-center gap-1.5"><Check className="h-3 w-3 text-[var(--color-accent)]" />{f}</li>
+                <li key={f} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-accent)]" />{f}</li>
               ))}
             </ul>
           </Card>
         ))}
       </div>
       <div className="mt-6 text-center">
-        <Link href="/pricing" className="inline-flex items-center gap-1 text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
-          See full pricing <ArrowRight className="h-3 w-3" />
+        <Link href="/pricing" className="inline-flex items-center gap-1 text-[14px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
+          See full pricing <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
     </Section>
@@ -228,7 +228,7 @@ function GithubStarsStrip() {
           width={120}
           height={20}
         />
-        <span className="font-mono text-[12px] text-[var(--color-fg-muted)]">
+        <span className="font-mono text-[13px] text-[var(--color-fg-muted)]">
           Open-source engine. MIT licensed.
         </span>
       </a>
@@ -247,10 +247,10 @@ function CtaStrip() {
         aria-hidden
       />
       <div className="relative">
-        <h2 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--color-fg-strong)]">
+        <h2 className="text-[34px] font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--color-fg-strong)]">
           Save the recipe.<br />Run it forever.
         </h2>
-        <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
+        <p className="mx-auto mt-4 max-w-md text-[16px] leading-[1.55] text-[var(--color-fg-muted)]">
           Stop re-prompting on every URL. Build the schema once, ship your
           agent. 50 free scrapes / month — no card required.
         </p>

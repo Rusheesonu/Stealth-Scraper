@@ -47,10 +47,10 @@ export function OssSection() {
             <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.018em] text-[var(--color-fg-display)] sm:text-[28px]">
               The hard part is open source.
             </h2>
-            <p className="mt-3 max-w-md text-[14px] leading-[1.65] text-[var(--color-fg)]">
+            <p className="mt-4 max-w-md text-[16px] leading-[1.6] text-[var(--color-fg)]">
               The scraping engine — CDP-level Chromium patches, anti-bot stealth,
               the bits that get you through Cloudflare — is{" "}
-              <span className="text-[var(--color-fg)]">MIT-licensed</span> and on
+              <span className="font-semibold text-[var(--color-fg-strong)]">MIT-licensed</span> and on
               GitHub. Self-host the engine. Use the hosted product for the visual
               picker, saved recipes, marketplace, and team features.
             </p>
@@ -59,7 +59,7 @@ export function OssSection() {
               href="https://github.com/Rusheesonu/stealth-browser"
               target="_blank"
               rel="noreferrer"
-              className="group mt-5 inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2 text-[13px] font-medium text-[var(--color-fg)] transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
+              className="group mt-5 inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-[14px] font-medium text-[var(--color-fg)] transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
             >
               <GithubIcon className="h-3.5 w-3.5" />
               <span>stealth-browser</span>
@@ -84,8 +84,8 @@ export function OssSection() {
                     <s.icon className="h-3.5 w-3.5 text-[var(--color-accent)]" />
                   </span>
                   <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-[var(--color-fg-strong)]">{s.label}</div>
-                    <div className="mt-0.5 text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">{s.sub}</div>
+                    <div className="text-[14px] font-semibold text-[var(--color-fg-strong)]">{s.label}</div>
+                    <div className="mt-0.5 text-[14px] leading-[1.5] text-[var(--color-fg-muted)]">{s.sub}</div>
                   </div>
                 </motion.div>
               ))}
@@ -99,7 +99,7 @@ export function OssSection() {
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Open · stealth-browser
             </div>
-            <ul className="space-y-1.5 text-[13px] leading-[1.55] text-[var(--color-fg)]">
+            <ul className="space-y-2 text-[14px] leading-[1.55] text-[var(--color-fg)]">
               <li className="flex items-start gap-2"><Dot /> Stealth Chromium runtime (nodriver + CDP patches)</li>
               <li className="flex items-start gap-2"><Dot /> Snapshot + element collection engine</li>
               <li className="flex items-start gap-2"><Dot /> Selector resolver (CSS + XPath + transforms)</li>
@@ -110,7 +110,7 @@ export function OssSection() {
             <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Hosted · stealthscraper.dev
             </div>
-            <ul className="space-y-1.5 text-[13px] leading-[1.55] text-[var(--color-fg)]">
+            <ul className="space-y-2 text-[14px] leading-[1.55] text-[var(--color-fg)]">
               <li className="flex items-start gap-2"><Dot accent /> Visual point-and-click picker</li>
               <li className="flex items-start gap-2"><Dot accent /> Saved recipes + template marketplace</li>
               <li className="flex items-start gap-2"><Dot accent /> Scheduled scrapes, webhooks, API keys</li>

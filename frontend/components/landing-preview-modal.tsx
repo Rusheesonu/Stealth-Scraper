@@ -463,7 +463,7 @@ function LoadingPhase({ url }: { url: string }) {
           />
         </div>
 
-        <p className="mx-auto max-w-md text-center text-[11px] leading-[1.55] text-[var(--color-fg-muted)]">
+        <p className="mx-auto max-w-md text-center text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
           First load can take 10–15s while we warm a fresh Chromium tab.
           Subsequent scrapes on this site are sub-second.
         </p>
@@ -786,8 +786,8 @@ function ResultPhase({
             onClick={openInPicker}
           />
         </div>
-        <div className="mt-2.5 flex items-center justify-center gap-1.5 text-[11px] text-[var(--color-fg-subdued)]">
-          <Lock className="h-3 w-3" />
+        <div className="mt-3 flex items-center justify-center gap-1.5 text-[13px] text-[var(--color-fg-muted)]">
+          <Lock className="h-3.5 w-3.5" />
           <span>
             {rate_limit.remaining} of {rate_limit.limit} free previews left this hour ·{" "}
             <Link href="/login?mode=signup" className="font-medium text-[var(--color-accent)] hover:underline">
@@ -823,8 +823,8 @@ function CtaButton({
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-medium leading-none">{label}</span>
-        <span className={cn("mt-1 block text-[11px] leading-none", primary ? "text-white/70" : "text-[var(--color-fg-muted)]")}>
+        <span className="block text-[14px] font-semibold leading-none">{label}</span>
+        <span className={cn("mt-1.5 block text-[12px] leading-none", primary ? "text-white/75" : "text-[var(--color-fg-muted)]")}>
           {subtitle}
         </span>
       </span>
@@ -1045,11 +1045,11 @@ function AntiBotBlockPhase({
           <span className="font-mono">{block.vendor}</span>
         </Badge>
 
-        <h3 className="text-[20px] font-semibold leading-[1.2] tracking-[-0.012em] text-[var(--color-fg-display)]">
+        <h3 className="text-[22px] font-semibold leading-[1.2] tracking-[-0.012em] text-[var(--color-fg-display)]">
           {vendorLabel} blocked this site
         </h3>
 
-        <p className="mt-2 max-w-md text-[13px] leading-[1.6] text-[var(--color-fg-muted)]">
+        <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-[var(--color-fg)]">
           {block.message ||
             `${vendorLabel}'s bot manager intercepted the request before the real page loaded.`}
         </p>
@@ -1063,7 +1063,7 @@ function AntiBotBlockPhase({
               <Sparkles className="h-3 w-3" />
               How to get past this
             </div>
-            <p className="text-[13px] leading-[1.55] text-[var(--color-fg)]">
+            <p className="text-[14px] leading-[1.6] text-[var(--color-fg)]">
               {block.suggestion}
             </p>
           </div>
@@ -1075,14 +1075,14 @@ function AntiBotBlockPhase({
         <div className="mt-6 flex w-full flex-col gap-2 sm:flex-row">
           <button
             onClick={onTryDifferentUrl}
-            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[13px] font-medium text-[var(--color-fg)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[14px] font-medium text-[var(--color-fg)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Try a different URL
           </button>
           <Link
             href="/pricing?reason=anti-bot"
-            className="group inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-4 text-[13px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            className="group inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-4 text-[14px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           >
             <Sparkles className="h-3.5 w-3.5" />
             Upgrade to Pro
@@ -1090,7 +1090,7 @@ function AntiBotBlockPhase({
           </Link>
         </div>
 
-        <p className="mt-3 text-[11px] leading-[1.5] text-[var(--color-fg-subdued)]">
+        <p className="mt-3 text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
           Pro plans include residential proxies that solve most anti-bot
           walls automatically.
         </p>
@@ -1123,18 +1123,18 @@ function ErrorPhase({ error, onClose }: { error: string; onClose: () => void }) 
       <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-danger-soft)] ring-1 ring-inset ring-[color:var(--color-danger)]/30">
         <AlertTriangle className="h-5 w-5 text-[var(--color-danger)]" />
       </div>
-      <h3 className="text-[14px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)]">
+      <h3 className="text-[18px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
         {isPlanLimit ? "You're out of free scrapes" : "Couldn't snapshot that page"}
       </h3>
       <PlanLimitText
         text={error}
-        className="mt-1.5 max-w-md text-[13px] leading-[1.6] text-[var(--color-fg-muted)]"
+        className="mt-2 max-w-md text-[15px] leading-[1.6] text-[var(--color-fg)]"
       />
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
         {isPlanLimit && (
           <Link
             href="/pricing"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-4 text-[13px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]"
+            className="inline-flex h-10 items-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-4 text-[14px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]"
           >
             See pricing
           </Link>
@@ -1142,7 +1142,7 @@ function ErrorPhase({ error, onClose }: { error: string; onClose: () => void }) 
         <button
           onClick={onClose}
           className={cn(
-            "inline-flex h-9 items-center gap-1.5 rounded-md px-4 text-[13px] font-medium",
+            "inline-flex h-10 items-center gap-1.5 rounded-md px-4 text-[14px] font-medium",
             isPlanLimit
               ? "border border-[var(--color-border)] text-[var(--color-fg)] hover:bg-[var(--color-ink-1)]"
               : "bg-[var(--color-fg-strong)] text-[var(--color-bg)] hover:bg-[var(--color-fg-display)]",

@@ -76,22 +76,22 @@ export default function MarketplacePage() {
             <Card key={t.url} density="comfortable" className="flex flex-col">
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
+                  <div className="text-[16px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
                     {t.name}
                   </div>
                   <a
                     href={t.url}
                     target="_blank"
                     rel="noopener"
-                    className="mt-0.5 inline-flex items-center gap-1 truncate font-mono text-[11px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+                    className="mt-1 inline-flex items-center gap-1 truncate font-mono text-[12px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
                   >
                     {trimmedHost(t.url)}
-                    <ExternalLink className="h-2.5 w-2.5 flex-shrink-0" />
+                    <ExternalLink className="h-3 w-3 flex-shrink-0" />
                   </a>
                 </div>
               </div>
 
-              <p className="mb-3 text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
+              <p className="mb-4 text-[14px] leading-[1.6] text-[var(--color-fg)]">
                 {t.description}
               </p>
 
@@ -103,7 +103,7 @@ export default function MarketplacePage() {
 
               <Link
                 href={`/pick?url=${encodeURIComponent(t.url)}`}
-                className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] font-medium text-[var(--color-fg)] transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
+                className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[14px] font-medium text-[var(--color-fg)] transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
               >
                 Try in picker
                 <ArrowRight className="h-3.5 w-3.5" />

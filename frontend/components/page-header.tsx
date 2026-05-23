@@ -62,7 +62,7 @@ export function PageHeader({
               href={backHref}
               className={cn(
                 "group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5",
-                "text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+                "text-[14px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
                 "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
               )}
             >
@@ -74,7 +74,7 @@ export function PageHeader({
               onClick={() => router.back()}
               className={cn(
                 "group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5",
-                "text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+                "text-[14px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
                 "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
               )}
             >
@@ -91,11 +91,11 @@ export function PageHeader({
               {eyebrow}
             </div>
           )}
-          <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.02em] text-[var(--color-fg-strong)]">
+          <h1 className="text-[32px] font-semibold leading-[1.15] tracking-[-0.02em] text-[var(--color-fg-strong)]">
             {title}
           </h1>
           {description && (
-            <p className="mt-2 max-w-xl text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
+            <p className="mt-3 max-w-xl text-[15px] leading-[1.6] text-[var(--color-fg-muted)]">
               {description}
             </p>
           )}

@@ -157,9 +157,9 @@ function AiExtractForm() {
         <div className="mb-6">
           <Link
             href="/"
-            className="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5 text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            className="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5 text-[14px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           >
-            <ArrowLeft className="h-3 w-3 transition-transform duration-[var(--dur-fast)] group-hover:-translate-x-0.5" />
+            <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-[var(--dur-fast)] group-hover:-translate-x-0.5" />
             Home
           </Link>
         </div>
@@ -170,10 +170,10 @@ function AiExtractForm() {
           className="mb-10 text-center"
         >
           <Badge tone="accent" className="mb-5"><Sparkles className="h-3 w-3" /> AI extract · alpha</Badge>
-          <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.028em] text-[var(--color-fg-strong)]">
+          <h1 className="text-[44px] font-semibold leading-[1.05] tracking-[-0.028em] text-[var(--color-fg-strong)] sm:text-[52px]">
             Describe it.<br />Get a scraper.
           </h1>
-          <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--color-fg-muted)]">
+          <p className="mx-auto mt-5 max-w-lg text-[17px] leading-[1.55] text-[var(--color-fg-muted)]">
             Paste a URL, describe what you want in plain English. An LLM
             reads the page and builds the extraction schema in under a second.
           </p>
@@ -197,8 +197,8 @@ function AiExtractForm() {
             rows={3}
             maxLength={500}
           />
-          <p className="text-[11px] leading-[1.5] text-[var(--color-fg-subdued)]">
-            Tip: describe the <strong className="text-[var(--color-fg-muted)]">structure</strong>, not a sorted/filtered answer.
+          <p className="text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
+            Tip: describe the <strong className="text-[var(--color-fg)]">structure</strong>, not a sorted/filtered answer.
             &quot;Get all products with title, price, discount&quot; works — &quot;the product with the highest discount&quot; doesn&apos;t
             (we extract data, you sort it in code).
           </p>
@@ -228,12 +228,12 @@ function AiExtractForm() {
                 <button
                   key={ex.url}
                   onClick={() => loadExample(ex)}
-                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
+                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
                 >
-                  <div className="mb-1.5 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
+                  <div className="mb-1.5 truncate font-mono text-[12px] text-[var(--color-fg-muted)]">
                     {ex.url.replace(/^https?:\/\//, "")}
                   </div>
-                  <div className="text-[13px] leading-[1.5] text-[var(--color-fg)]">{ex.desc}</div>
+                  <div className="text-[14px] leading-[1.55] text-[var(--color-fg)]">{ex.desc}</div>
                 </button>
               ))}
             </div>
@@ -248,9 +248,9 @@ function AiExtractForm() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
-              className="mt-6 flex items-start gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-3 text-[13px] text-[color:var(--color-danger)]"
+              className="mt-6 flex items-start gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-4 text-[14px] leading-[1.5] text-[color:var(--color-danger)]"
             >
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <span className="text-[var(--color-fg)]">{error}</span>
             </motion.div>
           )}
@@ -267,7 +267,7 @@ function AiExtractForm() {
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Generated schema</div>
-                <div className="mt-0.5 text-[14px] font-semibold">{template.length} field{template.length === 1 ? "" : "s"}</div>
+                <div className="mt-1 text-[15px] font-semibold text-[var(--color-fg-strong)]">{template.length} field{template.length === 1 ? "" : "s"}</div>
               </div>
               <div className="flex items-center gap-2">
                 <Button onClick={runExtraction} disabled={isBusy} variant="accent" size="sm">
@@ -297,7 +297,7 @@ function AiExtractForm() {
                     }
                     window.location.href = `/pick?url=${encodeURIComponent(norm)}&prefill=ai`;
                   }}
-                  className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 text-[13px] text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]"
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 text-[13px] text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]"
                   title="Open these fields in the visual picker to verify, edit, or add transforms"
                 >
                   <ExternalLink className="h-3 w-3" />
@@ -336,17 +336,17 @@ function AiExtractForm() {
               <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">Extracted JSON</div>
               <CopyButton text={JSON.stringify(unwrapEnvelope(results.fields), null, 2)} />
             </div>
-            <pre className="max-h-[400px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3 font-mono text-[11px] text-[var(--color-fg)]">
+            <pre className="max-h-[400px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3 font-mono text-[13px] leading-[1.6] text-[var(--color-fg)]">
               {JSON.stringify(unwrapEnvelope(results.fields), null, 2)}
             </pre>
             {/* Per-field confidence + reason — the FieldResult envelope.
                 Expandable so the headline JSON stays clean but power
                 users can audit what the extractor actually thought. */}
             <details className="mt-3">
-              <summary className="cursor-pointer text-[12px] font-mono text-[var(--color-fg-muted)]">
+              <summary className="cursor-pointer text-[13px] font-mono text-[var(--color-fg-muted)]">
                 Show extraction details (confidence, reason_if_null)
               </summary>
-              <pre className="mt-2 max-h-[300px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] p-3 font-mono text-[11px] text-[var(--color-fg-muted)]">
+              <pre className="mt-2 max-h-[300px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] p-3 font-mono text-[12px] leading-[1.55] text-[var(--color-fg-muted)]">
                 {JSON.stringify(results.fields, null, 2)}
               </pre>
             </details>
@@ -355,7 +355,7 @@ function AiExtractForm() {
                 <summary className="cursor-pointer text-[13px] text-[var(--color-warning)]">
                   {Object.keys(results.errors).length} field error(s)
                 </summary>
-                <pre className="mt-2 rounded-md border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-3 font-mono text-[11px] text-[var(--color-warning)]">
+                <pre className="mt-2 rounded-md border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-3 font-mono text-[12px] leading-[1.55] text-[var(--color-warning)]">
                   {JSON.stringify(results.errors, null, 2)}
                 </pre>
               </details>
@@ -364,9 +364,9 @@ function AiExtractForm() {
           </motion.div>
         )}
 
-        <div className="mt-16 border-t border-[var(--color-border)] pt-6 text-center text-[11px] text-[var(--color-fg-subdued)]">
+        <div className="mt-16 border-t border-[var(--color-border)] pt-6 text-center text-[13px] text-[var(--color-fg-muted)]">
           Each generation counts as 1 scrape against your{" "}
-          <Link href="/settings/usage" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">
+          <Link href="/settings/usage" className="text-[var(--color-fg)] hover:text-[var(--color-fg-strong)] hover:underline">
             monthly quota
           </Link>.
         </div>
@@ -389,10 +389,10 @@ export default function AiExtractPage() {
     <Suspense fallback={
       <PageShell maxWidth="max-w-3xl">
         <div className="py-12">
-          <h1 className="mb-3 text-[40px] font-semibold leading-[1.08] tracking-[-0.028em] text-[var(--color-fg-strong)]">
+          <h1 className="mb-4 text-[44px] font-semibold leading-[1.05] tracking-[-0.028em] text-[var(--color-fg-strong)] sm:text-[52px]">
             AI extract
           </h1>
-          <p className="mb-10 max-w-md text-[14px] text-[var(--color-fg-muted)]">
+          <p className="mb-10 max-w-md text-[17px] leading-[1.55] text-[var(--color-fg-muted)]">
             Paste a URL, describe what you want. We draft the schema.
           </p>
           <div className="h-14 w-full animate-pulse rounded-xl bg-[var(--color-ink-2)]" />

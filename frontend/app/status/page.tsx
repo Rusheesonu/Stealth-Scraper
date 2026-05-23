@@ -137,7 +137,7 @@ export default async function StatusPage() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <RowDot status={c.status} />
-                    <span className="text-[14px] text-[var(--color-fg)] truncate">
+                    <span className="text-[15px] text-[var(--color-fg)] truncate">
                       {c.name}
                     </span>
                   </div>
@@ -153,7 +153,7 @@ export default async function StatusPage() {
         <StatusClientRefresh initialData={data} />
 
         {/* Footer */}
-        <div className="mt-16 text-center text-[13px] text-[var(--color-fg-muted)]">
+        <div className="mt-16 text-center text-[14px] text-[var(--color-fg-muted)]">
           Incidents and maintenance updates on{" "}
           <a
             href="https://x.com/stealthscraper"

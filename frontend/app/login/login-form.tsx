@@ -129,7 +129,7 @@ function LoginFormInner() {
             </button>
           </div>
 
-          <div className="mb-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.08em] text-[var(--color-fg-subdued)]">
+          <div className="mb-5 flex items-center gap-3 text-[12px] uppercase tracking-[0.08em] text-[var(--color-fg-muted)]">
             <span className="h-px flex-1 bg-[var(--color-border)]" />
             <span>or use email</span>
             <span className="h-px flex-1 bg-[var(--color-border)]" />
@@ -137,7 +137,7 @@ function LoginFormInner() {
         </>
       )}
 
-      <div className="mb-6 inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 text-[13px]">
+      <div className="mb-6 inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 text-[14px]">
         {(["signin", "signup", "magic"] as Mode[]).map((m) => (
           <button
             key={m}
@@ -158,8 +158,8 @@ function LoginFormInner() {
       {isSent ? (
         <div className="rounded-lg border border-[color:var(--color-accent)]/30 bg-[var(--color-accent-faint)] p-5">
           <Mail className="mb-2 h-4 w-4 text-[var(--color-accent)]" />
-          <p className="text-[13px] text-[var(--color-fg)]">{message}</p>
-          <p className="mt-2 text-[11px] text-[var(--color-fg-muted)]">
+          <p className="text-[15px] leading-[1.5] text-[var(--color-fg)]">{message}</p>
+          <p className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
             Didn&apos;t arrive? Check spam, or{" "}
             <button onClick={() => switchMode(mode === "magic" ? "signin" : "magic")} className="text-[var(--color-accent)] hover:underline">
               try another method
@@ -201,7 +201,7 @@ function LoginFormInner() {
             )}
           </Button>
           {status === "error" && message && (
-            <div className="mt-3 flex items-start gap-2 rounded-md border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-dim)] p-3 text-[13px] text-[color:var(--color-danger)]">
+            <div className="mt-3 flex items-start gap-2 rounded-md border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-dim)] p-3 text-[14px] text-[color:var(--color-danger)]">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
               <span>{message}</span>
             </div>
@@ -209,7 +209,7 @@ function LoginFormInner() {
         </form>
       )}
 
-      <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-center text-[13px] text-[var(--color-fg-subdued)]">
+      <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-center text-[13px] text-[var(--color-fg-muted)]">
         By continuing you agree to our{" "}
         <Link href="/terms" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">Terms</Link>
         {" "}and{" "}

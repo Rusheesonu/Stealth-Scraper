@@ -35,7 +35,7 @@ export default function PrivacyPage() {
         backLabel="Home"
       />
 
-      <div className="flex flex-col gap-10 text-[14px] leading-[1.65] text-[var(--color-fg)]">
+      <div className="flex flex-col gap-10 text-[16px] leading-[1.65] text-[var(--color-fg)]">
         <Section title="Who we are">
           <p>
             Stealth-Scraper is operated as a sole proprietorship by Rushikesh Sonu
@@ -237,7 +237,7 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <div className="border-t border-[var(--color-border)] pt-6 text-[13px] text-[var(--color-fg-subdued)]">
+        <div className="border-t border-[var(--color-border)] pt-6 text-[14px] text-[var(--color-fg-muted)]">
           See also: <Link href="/terms" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">Terms of Service</Link>
           {" · "}
           <Link href="/refund-policy" className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline">Refund policy</Link>
@@ -252,7 +252,7 @@ export default function PrivacyPage() {
 function Section({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+      <h2 className="text-[22px] font-semibold tracking-[-0.015em] text-[var(--color-fg-strong)]">
         {title}
       </h2>
       <div className="flex flex-col gap-3 [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-1.5 [&_ul]:pl-5 [&_ul]:list-disc [&_li]:marker:text-[var(--color-fg-subdued)]">

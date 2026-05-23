@@ -32,7 +32,7 @@ export function Brand({
         ))}
       </div>
       {showText && (
-        <span className="text-[14px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+        <span className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
           Stealth-Scraper
         </span>
       )}

@@ -54,7 +54,7 @@ export function CardTitle({
   return (
     <h3
       className={cn(
-        "text-[14px] font-semibold tracking-[var(--tracking-body)] text-[var(--color-fg-strong)]",
+        "text-[16px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)]",
         className,
       )}
     >
@@ -89,11 +89,11 @@ export function Section({
             {eyebrow}
           </div>
         )}
-        <h2 className="text-[20px] font-semibold tracking-[var(--tracking-h1)] text-[var(--color-fg-strong)]">
+        <h2 className="text-[26px] font-semibold leading-[1.2] tracking-[var(--tracking-h1)] text-[var(--color-fg-strong)]">
           {title}
         </h2>
         {description && (
-          <p className="mt-1.5 max-w-2xl text-[13px] text-[var(--color-fg-muted)]">
+          <p className="mt-2 max-w-2xl text-[15px] leading-[1.55] text-[var(--color-fg-muted)]">
             {description}
           </p>
         )}

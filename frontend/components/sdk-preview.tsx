@@ -128,7 +128,7 @@ export function SdkPreview() {
           One line to integrate.
           <span className="text-[var(--color-fg-muted)]"> Same recipe across every client.</span>
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-[14px] leading-[1.6] text-[var(--color-fg)]">
+        <p className="mx-auto mt-4 max-w-xl text-[16px] leading-[1.6] text-[var(--color-fg)]">
           Save a recipe once in the visual picker. Run it from Python, TypeScript,
           a cURL one-liner, or directly through Claude Desktop via MCP.
         </p>
@@ -151,7 +151,7 @@ export function SdkPreview() {
                   key={id}
                   onClick={() => setTab(id)}
                   className={cn(
-                    "relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium",
+                    "relative inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[14px] font-medium",
                     "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                     active
                       ? "text-[var(--color-fg-strong)]"
@@ -189,7 +189,7 @@ export function SdkPreview() {
         </div>
 
         {/* Code */}
-        <pre className="overflow-x-auto bg-[var(--color-ink-1)] px-5 py-5 font-mono text-[13px] leading-[1.7] text-[var(--color-fg)]">
+        <pre className="overflow-x-auto bg-[var(--color-ink-1)] px-5 py-5 font-mono text-[13.5px] leading-[1.7] text-[var(--color-fg)]">
           <CodeWithHints code={SNIPPETS[tab]} />
         </pre>
 
