@@ -861,9 +861,38 @@ def _apply_transforms(value: Any, transforms: list[Transform]) -> Any:
 def _read(node, kind: str, attr: str) -> Any:
     if kind == "attr" and attr:
         try:
-            return node.get(attr)
+            val = node.get(attr)
         except Exception:
             return None
+        # Lazy-image fallback. When the picker captures src="" or
+        # src="data:image/svg+xml;..." (a 1px placeholder), the real
+        # CDN URL is usually in one of the lazy-load shim attributes.
+        # Walk through the well-known ones in order; first non-empty
+        # wins. Real, non-placeholder src always wins if present.
+        if attr in ("src", "href") and (not val or _is_placeholder_src(val)):
+            try:
+                for fallback_attr in (
+                    "data-src",
+                    "data-original",
+                    "data-lazy-src",
+                    "data-original-src",
+                    "data-img-src",
+                ):
+                    v = node.get(fallback_attr)
+                    if v and not _is_placeholder_src(v):
+                        return v
+                # srcset / data-srcset — comma-separated `url widthDescriptor`
+                # pairs. Take the first URL (highest priority responsive
+                # variant according to the browser's picker).
+                for srcset_attr in ("data-srcset", "srcset"):
+                    sset = node.get(srcset_attr)
+                    if sset:
+                        first = sset.split(",")[0].strip().split()
+                        if first and first[0]:
+                            return first[0]
+            except Exception:
+                pass
+        return val
     if kind == "html":
         try:
             return lxml_html.tostring(node, encoding="unicode")
@@ -882,10 +911,115 @@ def _read(node, kind: str, attr: str) -> Any:
     # 3-pass fallback strategy.
     try:
         if hasattr(node, "text_content"):
-            return _visible_text(node)
+            visible = _visible_text(node)
+            # Split-price climb. When the picker clicks the dollar
+            # sign of `<span>$</span><span>199</span><span>.99</span>`,
+            # the selector matches one span → extracted text is just
+            # "$". Climb to the parent and check whether siblings
+            # together form a price pattern; if yes, return the
+            # parent's visible text instead. Same trick handles "€",
+            # "£", "¥", "₹", "₽", and a stray decimal point.
+            climbed = _maybe_join_split_price(node, visible)
+            if climbed is not None:
+                return climbed
+            return visible
         return str(node).strip()
     except Exception:
         return None
+
+
+# ── Helpers for the _read enhancements ─────────────────────────────────
+
+
+_PLACEHOLDER_SRC_RE = re.compile(
+    r"^(?:data:image/[\w+.-]+;[\w=,;-]*?(?:AAAA|R0lGOD)|"
+    r"data:image/gif;base64,R0lGOD|"
+    r"about:blank|"
+    r"#)$",
+    re.IGNORECASE,
+)
+
+
+def _is_placeholder_src(val: str) -> bool:
+    """A src/href is a 'placeholder' when it's empty, a 1x1 gif data URI,
+    a tiny SVG data URI, `#`, `about:blank`, or starts with a known
+    skeleton-loader pattern. Real CDN URLs return False."""
+    if not val or not isinstance(val, str):
+        return True
+    if val.startswith("data:image"):
+        # Tiny placeholder data URIs (under ~200 chars after the comma
+        # are almost always 1x1 gif spacers or skeleton SVGs). Real
+        # base64-encoded images are >1KB.
+        try:
+            payload = val.split(",", 1)[1]
+            if len(payload) < 200:
+                return True
+        except Exception:
+            pass
+    return bool(_PLACEHOLDER_SRC_RE.match(val.strip()))
+
+
+# Price-like patterns. Matches:
+#   $19.99 · €19,99 · £19 · ¥1,999 · ₹199 · ₽199.99
+# The currency symbol is captured separately so we can recognize a
+# bare "$" (or any of the others) as a split-price fragment.
+_PRICE_CURRENCY_RE = re.compile(r"^[$€£¥₹₽]$")
+_PRICE_JOINED_RE = re.compile(r"^\s*[$€£¥₹₽]?\s*\d[\d,]*(?:[.,]\d+)?\s*$")
+
+
+def _maybe_join_split_price(node, current_text: str) -> str | None:
+    """When the extracted text is a stranded currency symbol or a tiny
+    fragment of a split price, climb to the parent and try to assemble
+    the full price from the parent's visible text.
+
+    Returns the joined string when:
+      - current text is just a currency symbol or single decimal point
+      - parent has at least 2 element children (split-price structure)
+      - parent's joined visible text matches the price pattern
+
+    Otherwise returns None and the caller keeps the original text.
+
+    Why: real-world sites split prices across spans for typography
+    control. `<span>$</span><span>199</span><span>.99</span>` renders
+    the dollar sign smaller than the digits. Clicking the dollar sign
+    in our picker captures the inner span; without this climb, the
+    extracted price is just `"$"`.
+    """
+    if not current_text:
+        return None
+    txt = current_text.strip()
+    is_lone_currency = bool(_PRICE_CURRENCY_RE.match(txt))
+    is_lone_dot = txt == "."
+    if not (is_lone_currency or is_lone_dot):
+        return None
+    try:
+        parent = node.getparent()
+    except Exception:
+        return None
+    if parent is None:
+        return None
+    # Heuristic: parent should be a small container of inline spans.
+    # If it has too many children (> 8) it's probably an unrelated
+    # container — bail. If <2 children we don't have a split structure.
+    try:
+        children = [c for c in parent if isinstance(getattr(c, "tag", None), str)]
+    except Exception:
+        return None
+    if not (2 <= len(children) <= 8):
+        return None
+    try:
+        parent_visible = _visible_text(parent).strip()
+    except Exception:
+        return None
+    if not parent_visible:
+        return None
+    # Reject if parent text doesn't look like a price (avoid joining
+    # unrelated siblings like "Tax included" or "From the seller").
+    if not _PRICE_JOINED_RE.match(parent_visible):
+        return None
+    # Collapse internal whitespace inside the joined price (between
+    # the symbol and the digits).
+    return re.sub(r"\s+", "", parent_visible)
 
 
 # Well-known class names that mark "screen-reader only" content —
@@ -1061,19 +1195,31 @@ def _pull_lists_per_row(
     handled set fall back to per-field `_pull()`.
     """
     list_fields: list[tuple[str, Field]] = []
+    has_comma_selector = False
     for f in template:
         if f.get("kind") != "list":
             continue
         sel = (f.get("selector") or "").strip()
-        if not sel or "," in sel:
+        if not sel:
             continue
+        # Comma-fanout: previously we skipped any selector with a comma.
+        # Now we admit them — `_try_prefix_lcp` would fail on commas
+        # (its split-on-`>` logic can't handle the union semantics),
+        # but `_try_dom_lca` works fine because cssselect handles the
+        # union natively. Flag so the prefix path can opt-out cleanly.
+        if "," in sel:
+            has_comma_selector = True
         label = f.get("label") or f.get("selector") or "field"
         list_fields.append((label, f))
 
     if len(list_fields) < 2:
         return {}, set()
 
-    values = _try_prefix_lcp(tree, list_fields)
+    # Prefix-LCP doesn't understand `,` unions in selectors (its
+    # split-on-`>` produces bogus parts inside a comma group). Skip it
+    # entirely when ANY field uses a comma selector — go straight to
+    # DOM-LCA which uses cssselect natively and handles unions.
+    values = None if has_comma_selector else _try_prefix_lcp(tree, list_fields)
 
     if values is None or _looks_like_broadcast(tree, list_fields, values):
         dom_values = _try_dom_lca(tree, list_fields)
