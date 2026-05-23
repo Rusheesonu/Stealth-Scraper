@@ -309,12 +309,84 @@ async def _extract_inner(
                             selector_used=prev["selector_used"],
                         )
 
+        # Post-extraction broadcast pass. _null_broadcast_columns only
+        # runs inside _pull_lists_per_row, so flat per-field extraction
+        # (when CSS-prefix + DOM-LCA both fail) can still ship broadcast
+        # columns. This catches that gap: walk the FINAL merged_fields,
+        # find list columns whose values are all identical AND another
+        # list column has variety, null them. Same rule as the in-row
+        # heuristic, applied one level up so it doesn't matter which
+        # extraction path produced the list.
+        merged_fields = _null_broadcast_in_page_fields(merged_fields)
+
         result["fields"] = merged_fields
         if len(all_pages_html) > 1:
             result["pages_fetched"] = len(all_pages_html)
         return result
     # `pool.tab()` context manager closes the tab and returns the
     # worker to the queue automatically — no explicit close needed.
+
+
+def _null_broadcast_in_page_fields(
+    fields: dict[str, FieldResult],
+) -> dict[str, FieldResult]:
+    """Top-level broadcast guard — runs across the final extraction
+    result regardless of which strategy produced each field.
+
+    A field marked `kind: list` whose value is a list of all-identical
+    non-null entries (>=3 entries) AND has at least one sibling list
+    column with variety is treated as a broadcast (one global element
+    captured N times) and replaced with a list of nulls. Same trade-off
+    as `_null_broadcast_columns`: legit flat-rate stores get nulled
+    too, but honest null > misleading 'this value belongs to row N'.
+
+    Only operates on FieldResult envelopes whose value is a list. Scalar
+    fields (kind: text / attr) are passed through unchanged.
+    """
+    list_envelopes: list[tuple[str, FieldResult]] = []
+    for label, env in fields.items():
+        if not isinstance(env, dict):
+            continue
+        val = env.get("value")
+        if isinstance(val, list):
+            list_envelopes.append((label, env))
+
+    if len(list_envelopes) < 2:
+        # Need at least one sibling list column to know "another column
+        # varies"; with <2 list columns we have no variety signal.
+        return fields
+
+    # Does at least one list column show variety?
+    any_varied = False
+    for _label, env in list_envelopes:
+        col = env.get("value") or []
+        non_null = [v for v in col if v not in (None, "")]
+        if len(set(non_null)) > 1:
+            any_varied = True
+            break
+    if not any_varied:
+        return fields
+
+    cleaned = dict(fields)
+    for label, env in list_envelopes:
+        col = env.get("value") or []
+        non_null = [v for v in col if v not in (None, "")]
+        if len(non_null) >= 3 and len(set(non_null)) == 1:
+            # Broadcast detected. Build a new envelope with nulls,
+            # preserve provenance, lower confidence, set reason.
+            cleaned[label] = _envelope(
+                [None] * len(col),
+                source=env.get("source", "selector"),
+                confidence=min(env.get("confidence", 1.0), 0.3),
+                selector_used=env.get("selector_used"),
+                reason_if_null=(
+                    "all rows had identical value while other columns "
+                    "varied — looked like a global element captured per "
+                    "row, not a per-row value. Set explicit field as "
+                    "scalar if this column truly has one fixed value."
+                ),
+            )
+    return cleaned
 
 
 def _js_str(s: str) -> str:
