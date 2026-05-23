@@ -398,6 +398,34 @@ def test_has_pseudo_does_not_crash_on_complex_selector():
     assert "value" in result
 
 
+
+# ── 9. HTML-entity decoding through extraction ─────────────────────────
+
+
+def test_html_entities_decoded_in_text():
+    """`&amp;` `&#39;` `&lt;` should decode to `&` `'` `<` end-to-end.
+    lxml does this on parse, but we pin the behavior so a future
+    refactor (e.g. switching to a different text-extraction path)
+    can't silently re-introduce raw entities in extracted text."""
+    html = (
+        "<html><body>"
+        "<h1 class='t'>Ben &amp; Jerry&#39;s &lt;Cookie Dough&gt;</h1>"
+        "</body></html>"
+    )
+    tree = lxml_html.fromstring(html)
+    field = {"label": "title", "kind": "text", "selector": "h1.t"}
+    result = _pull(tree, field)
+    assert result["value"] == "Ben & Jerry's <Cookie Dough>", result
+
+
+def test_numeric_entities_decoded():
+    """`&#8364;` is the Euro sign — should come back as the actual €."""
+    html = "<html><body><span class='p'>Price: &#8364;19.99</span></body></html>"
+    tree = lxml_html.fromstring(html)
+    field = {"label": "p", "kind": "text", "selector": "span.p"}
+    assert _pull(tree, field)["value"] == "Price: €19.99"
+
+
 if __name__ == "__main__":
     import sys
     tests = [
