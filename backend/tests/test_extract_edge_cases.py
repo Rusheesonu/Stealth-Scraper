@@ -458,6 +458,45 @@ def test_html_comment_between_siblings_does_not_glue():
     assert result["value"] == "Helloworld", result
 
 
+
+# ── 11. ARIA role="row" lists (Notion, Linear) ──────────────────────────
+
+
+def test_aria_role_row_list_extraction():
+    """Sites using ARIA roles instead of <tr>/<article>. The picker
+    yields selectors against role attributes; per-row extraction must
+    discover the row container by DOM-LCA over the role matches."""
+    html = """
+    <html><body>
+      <div role="grid" class="board">
+        <div role="row" class="rr">
+          <div role="gridcell" class="name">Task Alpha</div>
+          <div role="gridcell" class="status">Done</div>
+        </div>
+        <div role="row" class="rr">
+          <div role="gridcell" class="name">Task Beta</div>
+          <div role="gridcell" class="status">Open</div>
+        </div>
+        <div role="row" class="rr">
+          <div role="gridcell" class="name">Task Gamma</div>
+          <div role="gridcell" class="status">Blocked</div>
+        </div>
+      </div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "name", "kind": "list",
+         "selector": 'div[role="grid"] div[role="row"] div.name'},
+        {"label": "status", "kind": "list",
+         "selector": 'div[role="grid"] div[role="row"] div.status'},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    assert "name" in handled and "status" in handled, handled
+    assert values["name"] == ["Task Alpha", "Task Beta", "Task Gamma"], values
+    assert values["status"] == ["Done", "Open", "Blocked"], values
+
+
 if __name__ == "__main__":
     import sys
     tests = [
