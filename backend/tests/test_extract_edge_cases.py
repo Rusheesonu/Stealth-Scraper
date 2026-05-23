@@ -820,6 +820,54 @@ def test_template_does_not_pollute_visible_text_of_ancestor():
     # contains the actual visible string.
 
 
+
+# ── 23. Single list field falls through to flat _pull ───────────────────
+
+
+def test_single_list_field_handled_by_flat_pull():
+    """When template has only ONE list field, _pull_lists_per_row
+    returns empty handled (needs >= 2 list fields to align rows).
+    The flat _pull then returns the list correctly."""
+    html = """
+    <html><body>
+      <ul>
+        <li class='row'>Alpha</li>
+        <li class='row'>Beta</li>
+        <li class='row'>Gamma</li>
+      </ul>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "names", "kind": "list", "selector": "ul > li.row"},
+        {"label": "title", "kind": "text", "selector": "ul"},  # scalar
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    # Only one list field → row extractor bails out. handled is empty,
+    # caller falls back to flat _pull which returns the full list.
+    assert handled == set(), handled
+    # Now verify the flat _pull returns the list correctly.
+    list_field = template[0]
+    list_result = _pull(tree, list_field)
+    assert list_result["value"] == ["Alpha", "Beta", "Gamma"], list_result
+    # Scalar field also works fine.
+    text_result = _pull(tree, template[1])
+    assert "Alpha" in (text_result["value"] or "")
+
+
+def test_scalar_only_template_returns_no_handled_lists():
+    """All scalar fields → row extractor returns empty handled set."""
+    html = "<html><body><h1>Title</h1><p class='d'>Desc</p></body></html>"
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "title", "kind": "text", "selector": "h1"},
+        {"label": "desc", "kind": "text", "selector": "p.d"},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    assert handled == set()
+    assert values == {}
+
+
 if __name__ == "__main__":
     import sys
     tests = [
