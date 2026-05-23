@@ -1156,9 +1156,38 @@ def _null_broadcast_columns(
     list_fields: list[tuple[str, Field]],
     values: dict[str, list[Any]],
 ) -> dict[str, list[Any]]:
-    """Replace per-column broadcasts with nulls."""
+    """Replace per-column broadcasts with nulls.
+
+    A field marked `kind: "list"` is the user's explicit declaration that
+    they expect a list of VARYING values across rows. So:
+
+      If a list column has all-identical-non-null values across >=3 rows
+      AND at least one other column shows variety
+      → null it.
+
+    This catches the entire broadcast bug class regardless of HOW the
+    broadcast happened (selector matches one element N times, or 24
+    distinct promo badges that all happen to have identical content,
+    or per-row scope collapses to the same node, etc.). Earlier
+    heuristics that gated on `flat_match_count < row_count` missed the
+    Target case where 24 sibling promo-badge elements each contain the
+    same "$199.99" text — flat count matched row count, so it shipped
+    24 rows of identical $199.99 lying that they're per-product prices.
+
+    Trade-off: a legitimate flat-rate store (every product the same
+    price, 3+ products) gets nulled here. We accept this — the user
+    can manually re-add the flat field as a scalar. Honest null beats
+    a misleading "this $199.99 is product X's price" when in fact it's
+    a shared global value masquerading as per-row data. Worst case the
+    user adds one scalar field; best case (and the common case) we
+    avoid the bug entirely.
+
+    Pre-condition: at least one column must show variety. If ALL
+    columns are flat, the page may legitimately have all-identical
+    content and we shouldn't touch it.
+    """
     rows_count = max((len(v) for v in values.values()), default=0)
-    if rows_count < 2:
+    if rows_count < 3:
         return values
 
     other_columns_varied = False
@@ -1171,18 +1200,14 @@ def _null_broadcast_columns(
         return values
 
     cleaned: dict[str, list[Any]] = {}
-    for label, field in list_fields:
+    for label, _field in list_fields:
         col = values.get(label, [])
         non_null = [v for v in col if v not in (None, "")]
-        if len(non_null) >= 2 and len(set(non_null)) == 1:
-            sel = field.get("selector", "")
-            try:
-                flat_n = len(tree.cssselect(sel))
-            except Exception:
-                flat_n = 0
-            if flat_n < rows_count:
-                cleaned[label] = [None] * len(col)
-                continue
+        # >=3 identical non-null values + sibling columns varying =
+        # almost certainly a broadcast. Null the column.
+        if len(non_null) >= 3 and len(set(non_null)) == 1:
+            cleaned[label] = [None] * len(col)
+            continue
         cleaned[label] = col
     return cleaned
 

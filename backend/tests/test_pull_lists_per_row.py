@@ -226,6 +226,57 @@ def test_legit_identical_values_preserved():
     assert values["price"] == ["$5", "$5", "$5"]
 
 
+# ── Test 5: Target Lego — every card has a duplicate promo-badge text ───
+
+def test_promo_badge_duplicated_per_card():
+    """The bug shape from the user's Target Lego JSON: each card
+    legitimately CONTAINS a promo-badge element with identical content
+    (e.g. every card has a 'Save with Target Circle — $199.99' upsell
+    pill rendered into its own DOM subtree). The selector matches N
+    distinct elements (one per card) so flat_match_count == row_count;
+    the OLD broadcast-detector didn't fire because it required
+    flat_match_count < row_count. New heuristic fires on user-intent:
+    the field was marked `kind: "list"` (varying expected) and we got
+    all-identical → null the column.
+    """
+    html = """
+    <html><body>
+      <div class="grid">
+        <article class="card">
+          <h3 class="t">Lego Set Alpha</h3>
+          <span class="promo">$199.99</span>
+          <span class="rating">4.5</span>
+        </article>
+        <article class="card">
+          <h3 class="t">Lego Set Beta</h3>
+          <span class="promo">$199.99</span>
+          <span class="rating">4.8</span>
+        </article>
+        <article class="card">
+          <h3 class="t">Lego Set Gamma</h3>
+          <span class="promo">$199.99</span>
+          <span class="rating">3.9</span>
+        </article>
+      </div>
+    </body></html>
+    """
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "div.grid > article.card > h3.t"},
+        {"label": "price", "kind": "list",
+         "selector": "div.grid > article.card > span.promo"},
+        {"label": "rating", "kind": "list",
+         "selector": "div.grid > article.card > span.rating"},
+    ]
+    values, _handled = _run(html, template)
+    assert values["title"] == ["Lego Set Alpha", "Lego Set Beta", "Lego Set Gamma"]
+    assert values["rating"] == ["4.5", "4.8", "3.9"]
+    # price col is all identical and rating/title vary — must be nulled.
+    assert values["price"] == [None, None, None], (
+        f"broadcast not nulled: {values['price']!r}"
+    )
+
+
 if __name__ == "__main__":
     import sys
     try:
@@ -239,6 +290,8 @@ if __name__ == "__main__":
         print("PASS test_dom_lca_when_prefix_fails_completely")
         test_legit_identical_values_preserved()
         print("PASS test_legit_identical_values_preserved")
+        test_promo_badge_duplicated_per_card()
+        print("PASS test_promo_badge_duplicated_per_card")
         print("ALL PASS")
     except AssertionError as e:
         print(f"FAIL: {e}")
