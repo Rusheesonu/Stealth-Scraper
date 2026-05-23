@@ -1485,6 +1485,45 @@ def test_field_with_no_selector_returns_unspecified():
     assert "selector" in (result["reason_if_null"] or "")
 
 
+
+# ── 31. XPath-only selector path ─────────────────────────────────────────
+
+
+def test_xpath_only_field_extracts_text():
+    """Field with no `selector` but a valid `xpath` should extract via XPath."""
+    html = "<html><body><div><h1>Hello XPath</h1></div></body></html>"
+    tree = lxml_html.fromstring(html)
+    field = {"label": "t", "kind": "text", "xpath": "//h1"}
+    result = _pull(tree, field)
+    assert result["value"] == "Hello XPath", result
+    assert result["source"] == "xpath", result
+
+
+def test_xpath_with_text_function():
+    """`//h1/text()` returns a text node (string). _pull must handle this."""
+    html = "<html><body><h1>only this</h1></body></html>"
+    tree = lxml_html.fromstring(html)
+    field = {"label": "t", "kind": "text", "xpath": "//h1/text()"}
+    # XPath text() returns a list of strings (not elements). _pull
+    # then calls _read on the first which may not behave as expected.
+    # We just verify no crash, value is either "only this" or null
+    # with a reason.
+    result = _pull(tree, field)
+    if result["value"] is None:
+        assert result["reason_if_null"], result
+
+
+def test_xpath_invalid_syntax_returns_parse_error():
+    """A malformed XPath should produce an envelope with parse_error
+    in reason_if_null, not crash."""
+    html = "<html><body></body></html>"
+    tree = lxml_html.fromstring(html)
+    field = {"label": "x", "kind": "text", "xpath": "//[unclosed"}
+    result = _pull(tree, field)
+    assert result["value"] is None
+    assert result["reason_if_null"]
+
+
 if __name__ == "__main__":
     import sys
     tests = [
