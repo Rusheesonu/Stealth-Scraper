@@ -348,6 +348,56 @@ def test_img_alt_text_fallback_in_list():
     assert result["value"] == ["Alpha", "Beta", "Gamma"], result
 
 
+
+# ── 8. `:has()` pseudo-selector rewrite to XPath ────────────────────────
+
+
+def test_has_pseudo_selector_rewritten_to_xpath():
+    """lxml's cssselect does not support `:has()`. Before this fix,
+    extraction silently returned a parse-error envelope. Now simple
+    `A:has(B)` is rewritten to the equivalent XPath descendant query
+    so users who paste a `:has()` selector get a real match."""
+    html = """
+    <html><body>
+      <article class="card">
+        <span class="price">$99</span>
+      </article>
+      <article class="card">
+        <p>No price here</p>
+      </article>
+      <article class="card">
+        <span class="price">$199</span>
+      </article>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "with_price",
+        "kind": "list",
+        "selector": "article.card:has(span.price)",
+    }
+    result = _pull(tree, field)
+    # Only the two cards that have a span.price descendant should match.
+    # The values should be the visible card text (joined).
+    assert isinstance(result["value"], list), result
+    assert len(result["value"]) == 2, result
+
+
+def test_has_pseudo_does_not_crash_on_complex_selector():
+    """Anything more complex than `A:has(B)` (e.g. `:has(A + B)`)
+    is left alone and degrades to honest null rather than crashing."""
+    html = "<html><body><div></div></body></html>"
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "x",
+        "kind": "text",
+        "selector": "div:has(> span + a)",
+    }
+    # Should not raise — must return an envelope (may be null).
+    result = _pull(tree, field)
+    assert "value" in result
+
+
 if __name__ == "__main__":
     import sys
     tests = [

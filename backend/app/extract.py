@@ -604,6 +604,21 @@ def _pull(tree, field: Field) -> FieldResult:
         except Exception as e:
             nodes = []
             parse_error = f"{type(e).__name__}: {str(e)[:200]}"
+            # `:has()` rewrite. cssselect can't parse it; try our
+            # narrow rewrite to XPath. If it works, treat the match
+            # as a CSS-selector match for provenance purposes.
+            if ":has(" in selector:
+                xp = _rewrite_has_to_xpath(selector)
+                if xp:
+                    try:
+                        rewritten_nodes = tree.xpath(xp)
+                        if rewritten_nodes:
+                            nodes = rewritten_nodes
+                            source = "selector"
+                            used = selector
+                            parse_error = None
+                    except Exception:
+                        pass
 
     # Relaxed-selector fallback. The picker's `buildCssSelector` walks
     # up to the first stable-looking id, but many sites embed PAGE-
@@ -856,6 +871,113 @@ def _apply_transforms(value: Any, transforms: list[Transform]) -> Any:
             # with the pre-transform value.
             pass
     return value
+
+
+
+# `:has()` rewrite — lxml's cssselect (Translator) raises
+# ExpressionError on `:has()` even though it's a stable CSS L4 feature
+# now shipped in every major browser. Rather than letting users hit
+# silent "selector parse error", we rewrite the simple AND common shape
+# `A:has(B)` -> XPath `descendant-or-self::A[descendant::B]` ourselves
+# and fall through to the xpath branch.
+#
+# Scope is deliberately small: only the *trailing* compound of the
+# whole selector may carry the `:has()`; the inner argument must be a
+# simple compound (tag + classes + optional [attr] / #id). Anything
+# more elaborate (`:has(> X)`, `:has(X + Y)`, multiple `:has`) is left
+# as-is and degrades to the normal parse-error envelope. Better to
+# handle 95% of real-world `:has()` use than to bury a buggy rewrite.
+_HAS_PSEUDO_RE = re.compile(r":has\(([^()]+)\)")
+_SIMPLE_COMPOUND_RE = re.compile(
+    r"^([a-zA-Z][\w-]*)?"
+    r"((?:[.#][\w-]+|\[[^\]]+\])*)"
+    r"$"
+)
+
+
+def _compound_to_xpath_predicates(compound: str):
+    """Translate a simple compound (tag.foo.bar[attr=val]) to (tag, [predicates])."""
+    m = _SIMPLE_COMPOUND_RE.match(compound)
+    if not m:
+        raise ValueError(f"compound not simple: {compound!r}")
+    tag = m.group(1) or "*"
+    rest = m.group(2) or ""
+    preds = []
+    i = 0
+    while i < len(rest):
+        ch = rest[i]
+        if ch == ".":
+            j = i + 1
+            while j < len(rest) and (rest[j].isalnum() or rest[j] in "-_"):
+                j += 1
+            cls = rest[i + 1:j]
+            preds.append(
+                "contains(concat(' ', normalize-space(@class), ' '), ' " + cls + " ')"
+            )
+            i = j
+        elif ch == "#":
+            j = i + 1
+            while j < len(rest) and (rest[j].isalnum() or rest[j] in "-_"):
+                j += 1
+            id_val = rest[i + 1:j]
+            preds.append("@id='" + id_val + "'")
+            i = j
+        elif ch == "[":
+            close = rest.find("]", i)
+            if close < 0:
+                raise ValueError(f"unbalanced bracket: {rest!r}")
+            attr_expr = rest[i + 1:close]
+            if "=" in attr_expr:
+                name, _, val = attr_expr.partition("=")
+                val = val.strip('"').strip("'")
+                preds.append("@" + name + "='" + val + "'")
+            else:
+                preds.append("@" + attr_expr)
+            i = close + 1
+        else:
+            raise ValueError(f"unexpected char {ch!r} in compound {compound!r}")
+    return tag, preds
+
+
+def _rewrite_has_to_xpath(selector: str):
+    """Best-effort rewrite of `OUTER:has(INNER)` to XPath. Returns None
+    when the selector isn't a simple shape we know how to translate."""
+    if ":has(" not in selector:
+        return None
+    matches = list(_HAS_PSEUDO_RE.finditer(selector))
+    if len(matches) != 1:
+        return None
+    m = matches[0]
+    inner = m.group(1).strip()
+    if any(ch in inner for ch in (">", "~", "+", " ", ",")):
+        return None
+    outer = (selector[: m.start()] + selector[m.end():]).strip()
+    if not outer:
+        outer = "*"
+    outer_compounds = [c for c in outer.split() if c]
+    try:
+        compound_xps = [_compound_to_xpath_predicates(c) for c in outer_compounds]
+        inner_tag, inner_preds = _compound_to_xpath_predicates(inner)
+    except ValueError:
+        return None
+    inner_pred_str = " and ".join(inner_preds) if inner_preds else ""
+    if inner_pred_str:
+        descendant_pred = "descendant::" + inner_tag + "[" + inner_pred_str + "]"
+    else:
+        descendant_pred = "descendant::" + inner_tag
+
+    parts = []
+    for idx, (tag, preds) in enumerate(compound_xps):
+        is_last = idx == len(compound_xps) - 1
+        local_preds = list(preds)
+        if is_last:
+            local_preds.append(descendant_pred)
+        pred_str = "][".join(local_preds)
+        if pred_str:
+            parts.append(tag + "[" + pred_str + "]")
+        else:
+            parts.append(tag)
+    return "//" + "//".join(parts)
 
 
 def _read(node, kind: str, attr: str) -> Any:
