@@ -72,9 +72,8 @@ const SOFTWARE_LD = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jetbrains.variable}`}>
-      <head>
-        <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='6' y='6' width='4' height='4' rx='1' fill='%23047857'/%3E%3C/svg%3E" />
-      </head>
+      {/* Favicon: Next auto-serves /app/icon.png (32x32) and
+          /app/apple-icon.png (180x180). No manual <link> needed. */}
       <body className="min-h-screen antialiased">
         {/* SoftwareApplication structured data — picked up by Google for
             knowledge panel + sitelinks. */}
