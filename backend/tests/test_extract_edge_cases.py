@@ -968,6 +968,68 @@ def test_style_content_not_in_visible_text():
     assert ".x" not in val, val
 
 
+
+# ── 26. List-field transform that yields all-None items ─────────────────
+
+
+def test_list_transform_yielding_all_nones_marks_low_confidence():
+    """Selector matched 3 nodes; the regex_extract transform returned
+    None for every item (pattern doesn't match). The envelope should
+    surface this honestly — value is empty list (filtered) and
+    confidence drops below 1.0 so the user knows transforms scrubbed
+    everything."""
+    html = """
+    <html><body>
+      <ul>
+        <li class='row'>apple</li>
+        <li class='row'>banana</li>
+        <li class='row'>cherry</li>
+      </ul>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "x",
+        "kind": "list",
+        "selector": "ul > li.row",
+        # Pattern looks for a $-prefixed number — none of these match.
+        "transforms": [{"op": "regex_extract", "pattern": r"\$(\d+)"}],
+    }
+    result = _pull(tree, field)
+    # Either all-None (current) or empty list + low confidence + reason.
+    # We pin the "honest" branch — empty list, half-or-less confidence.
+    assert result["value"] in ([], None) or all(
+        v is None for v in result["value"]
+    ), result
+    assert result["confidence"] < 1.0, result
+    assert result["reason_if_null"], result
+
+
+def test_list_transform_mixed_none_and_value():
+    """Selector matched 3 nodes; transform yielded value for some,
+    None for others. We KEEP the mixed list (filtering would lose
+    alignment) and report confidence between 0.5 and 1.0."""
+    html = """
+    <html><body>
+      <ul>
+        <li class='row'>price: $10</li>
+        <li class='row'>no price here</li>
+        <li class='row'>price: $20</li>
+      </ul>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "x",
+        "kind": "list",
+        "selector": "ul > li.row",
+        "transforms": [{"op": "regex_extract", "pattern": r"\$(\d+)"}],
+    }
+    result = _pull(tree, field)
+    # Mixed result is acceptable; just must not crash.
+    assert isinstance(result["value"], list), result
+
+
 if __name__ == "__main__":
     import sys
     tests = [

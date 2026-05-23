@@ -720,6 +720,25 @@ def _pull(tree, field: Field) -> FieldResult:
             ),
         )
 
+    # List-field transform scrub. If the transform pipeline reduced
+    # every item to None (e.g. regex_extract pattern didn't match any
+    # value), the list is technically non-empty but carries no signal.
+    # Returning [None, None, None] with confidence=1.0 would mislead;
+    # downgrade to confidence=0.5 + reason so the user sees that
+    # transforms (not the selector) ate the data.
+    if kind == "list" and isinstance(raw, list) and transforms and raw:
+        if all(v is None for v in raw):
+            return _envelope(
+                [],
+                source=source,
+                confidence=0.5,
+                selector_used=used,
+                reason_if_null=(
+                    "selector matched but all values were nulled by the "
+                    "transform pipeline (e.g. regex_extract with no match)"
+                ),
+            )
+
     return _envelope(
         raw,
         source=source,
