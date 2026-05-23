@@ -1337,6 +1337,52 @@ def test_resolve_url_transform_protocol_relative():
     assert _pull(tree, field)["value"] == "https://cdn.shop.com/asset.js"
 
 
+
+# ── 28. JSON-LD <script> extracted via html kind (script content visible) ─
+
+
+def test_jsonld_script_content_extractable_via_html_kind():
+    """JSON-LD lives in `<script type='application/ld+json'>`. After
+    iter 19, _visible_text excludes <script> from text extraction
+    (correctly — script tags aren't visible content). But the user
+    CAN still grab the JSON via kind='html' or by direct attribute.
+    Pin both paths."""
+    html = """
+    <html><body>
+      <script type='application/ld+json' id='ld'>
+      {"@context": "https://schema.org", "@type": "Product", "name": "Widget"}
+      </script>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    # Path A: kind='html' gives back the literal script element including
+    # its JSON body. Good for downstream JSON parsing.
+    field_html = {"label": "ld", "kind": "html", "selector": "script#ld"}
+    result = _pull(tree, field_html)
+    val = result["value"] or ""
+    assert "Widget" in val, val
+    assert "application/ld+json" in val, val
+
+    # Path B: kind='text' on the script DOES NOT return JSON content —
+    # iter 19 filtered scripts from visible text. This is intentional;
+    # the user should use kind='html' for raw script bodies.
+    field_text = {"label": "ld_text", "kind": "text", "selector": "script#ld"}
+    result_text = _pull(tree, field_text)
+    # Selector matched but visible text is empty → 0.5 confidence + reason.
+    assert result_text["confidence"] in (0.5, 0.0)
+
+
+def test_script_html_kind_returns_inner_text():
+    """Generic test that `kind='html'` on a node returns its outer
+    HTML (including the tag itself)."""
+    html = '<html><body><div id="m"><p>Hi</p></div></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {"label": "m", "kind": "html", "selector": "div#m"}
+    val = _pull(tree, field)["value"] or ""
+    assert "<p>Hi</p>" in val
+    assert val.startswith('<div')
+
+
 if __name__ == "__main__":
     import sys
     tests = [
