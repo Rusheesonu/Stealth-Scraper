@@ -12,35 +12,61 @@ export function truncate(s: string, n = 40) {
 }
 
 /**
- * Crude "structural" selector: drop every :nth-of-type + id/class anchor
- * that's per-instance (UUIDs, hashed CSS-in-JS classes, data-test ids
- * with digits) so two DOM elements with the same structural shape
- * compare equal. This is the FIRST pass of sibling detection.
+ * Crude "structural" selector: drop per-instance anchors so two DOM
+ * elements with the same structural shape compare equal. This is the
+ * FIRST pass of sibling detection.
  *
  * findSiblings() then narrows that pool by bbox column, and
  * computeListSelector() produces a stored selector that keeps only the
  * nth-of-type anchors the siblings actually agree on.
  *
- * What we strip:
- *   - :nth-of-type(N) — position anchors
- *   - #uuid / #long-hex — random per-instance IDs
- *   - .css-1abc23d — emotion / css-in-js classes
- *   - .sc-aBcDeF — styled-components base classes
- *   - .styled__Foo-sc-12abc34 — styled-components display + base
- *   - .jsx-1234567890 — Next.js styled-jsx
- *   - .Component__xyz1Ab — CSS Modules with double underscore
- *   - .Component_xyz1Ab — CSS Modules with single underscore (5+ chars
- *     after, to avoid false-positives on short suffixes like `bg_lg`)
- *   - ._3xK9j — leading-underscore hash classes
- *   - .product-card-1234 — semantic-name + multi-digit suffix
- *   - [data-test*="card-42"], [data-testid="row-N"] — attribute
- *     selectors whose value contains a 2+ digit run
+ * DESIGN — narrow heuristics, safe failure mode:
  *
- * What we KEEP (real semantic classes):
- *   - .product-card, .price, .h-text-md, .text-blue-500, .bg-gray-100
- *   - .grid, .flex, single-word descriptive classes
- *   - #main, #header, #footer (semantic ids without hex/digit runs)
- *   - [data-test="product-card-wrapper"] (no digits in value)
+ * We strip ONLY patterns that are documented deterministic output of
+ * specific CSS-in-JS libraries. Earlier versions also caught looser
+ * patterns (.Component_hash, ._3xK9j, .card-1234) but those risk
+ * stripping real semantic class names ('.menu_item', '.product-card-
+ * 2024'). Over-stripping = selector matches nothing = user sees null.
+ * Under-stripping = picker doesn't auto-detect siblings = user toggles
+ * list mode manually. Picking the safer failure mode.
+ *
+ * STRIPPED (library-deterministic only):
+ *   - :nth-of-type(N), :nth-child(N), :nth-last-of-type(N)
+ *   - #uuid (32-hex with 4 dashes)
+ *   - #long-hex (16+ contiguous hex chars)
+ *   - .css-XXXX — emotion (4+ chars after `css-`)
+ *   - .sc-XXXX — styled-components base (4+ chars after `sc-`)
+ *   - .jsx-NNNN — Next.js styled-jsx (4+ DIGITS after `jsx-`)
+ *   - .Component__XXXX — CSS Modules double-underscore (canonical emit)
+ *   - [data-test|data-testid|data-cy|data-qa|data-component|data-id|id]
+ *     ATTRIBUTE selectors whose value contains a 2+ digit run
+ *
+ * KEPT (real semantic classes — preserves user content):
+ *   - .product-card, .price, .grid, .flex, single-word descriptive
+ *   - .text-blue-500, .bg-gray-100, .h-12 (Tailwind utilities)
+ *   - .hidden, .d-none, .lg:hidden (framework conventions — could be
+ *     visibility utilities OR semantic class names; we keep them)
+ *   - .menu_item, .post_2024 (single underscore — could be semantic)
+ *   - .card-2024 (year-tag-like suffix — could be semantic)
+ *   - #main, #header (semantic ids without hex/digit runs)
+ *
+ * @example normalizeListSelector("div.grid > article.card:nth-of-type(3) > h3")
+ *   // returns: "div.grid > article.card > h3"
+ *
+ * @example normalizeListSelector("div.wrapper > div.css-1abc23d > span.text")
+ *   // returns: "div.wrapper > div > span.text"
+ *
+ * @example normalizeListSelector('div[data-testid="card-42"] > h3')
+ *   // returns: "div > h3"
+ *
+ * @example normalizeListSelector("body > main > article.product-card > .price")
+ *   // returns: "body > main > article.product-card > .price"  (unchanged — all semantic)
+ *
+ * @example normalizeListSelector("div.product-card-2024 > h3")
+ *   // returns: "div.product-card-2024 > h3"  (KEPT — could be a year tag, not a hash)
+ *
+ * @example normalizeListSelector("div.menu_item > a")
+ *   // returns: "div.menu_item > a"  (KEPT — single underscore could be semantic)
  */
 const UUID_ANCHOR_RE = /#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const LONG_HEX_ANCHOR_RE = /#[0-9a-f-]{16,}(?=\s|>|\.|:|$)/gi;
