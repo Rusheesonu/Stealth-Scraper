@@ -12,22 +12,78 @@ export function truncate(s: string, n = 40) {
 }
 
 /**
- * Crude "structural" selector: drop every :nth-of-type + UUID anchor so
- * two DOM elements with the same tag/class path compare equal. This is
- * the FIRST pass of sibling detection — it'll happily return everything
- * structurally similar (e.g. all 64 cells of a 4-column spec table on
- * Amazon). findSiblings() then narrows that pool by bbox column, and
+ * Crude "structural" selector: drop every :nth-of-type + id/class anchor
+ * that's per-instance (UUIDs, hashed CSS-in-JS classes, data-test ids
+ * with digits) so two DOM elements with the same structural shape
+ * compare equal. This is the FIRST pass of sibling detection.
+ *
+ * findSiblings() then narrows that pool by bbox column, and
  * computeListSelector() produces a stored selector that keeps only the
  * nth-of-type anchors the siblings actually agree on.
+ *
+ * What we strip:
+ *   - :nth-of-type(N) — position anchors
+ *   - #uuid / #long-hex — random per-instance IDs
+ *   - .css-1abc23d — emotion / css-in-js classes
+ *   - .sc-aBcDeF — styled-components base classes
+ *   - .styled__Foo-sc-12abc34 — styled-components display + base
+ *   - .jsx-1234567890 — Next.js styled-jsx
+ *   - .Component__xyz1Ab — CSS Modules with double underscore
+ *   - .Component_xyz1Ab — CSS Modules with single underscore (5+ chars
+ *     after, to avoid false-positives on short suffixes like `bg_lg`)
+ *   - ._3xK9j — leading-underscore hash classes
+ *   - .product-card-1234 — semantic-name + multi-digit suffix
+ *   - [data-test*="card-42"], [data-testid="row-N"] — attribute
+ *     selectors whose value contains a 2+ digit run
+ *
+ * What we KEEP (real semantic classes):
+ *   - .product-card, .price, .h-text-md, .text-blue-500, .bg-gray-100
+ *   - .grid, .flex, single-word descriptive classes
+ *   - #main, #header, #footer (semantic ids without hex/digit runs)
+ *   - [data-test="product-card-wrapper"] (no digits in value)
  */
 const UUID_ANCHOR_RE = /#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const LONG_HEX_ANCHOR_RE = /#[0-9a-f-]{16,}(?=\s|>|\.|:|$)/gi;
 
+// CSS-in-JS / CSS-Modules / styled-components / styled-jsx hashed classes.
+// Order matters — most-specific first so we don't partial-match.
+const HASHED_CLASS_REGEXES: RegExp[] = [
+  // emotion / css-in-js: .css-1abc23d
+  /\.css-[a-zA-Z0-9]{4,}(?=[\s>.:[]|$)/g,
+  // styled-components base: .sc-aBcDeF
+  /\.sc-[a-zA-Z0-9]{4,}(?=[\s>.:[]|$)/g,
+  // Next.js styled-jsx: .jsx-1234567890
+  /\.jsx-\d{4,}(?=[\s>.:[]|$)/g,
+  // CSS Modules with double-underscore: .Component__xyz1Ab
+  /\.[a-zA-Z][a-zA-Z0-9-]*__[A-Za-z0-9-]{4,}(?=[\s>.:[]|$)/g,
+  // CSS Modules with single underscore + 5+ random chars: .Component_xyz1Ab
+  /\.[a-zA-Z][a-zA-Z0-9-]*_[A-Za-z0-9-]{5,}(?=[\s>.:[]|$)/g,
+  // Leading-underscore hash classes: ._3xK9j (CSS Modules short form)
+  /\._[A-Za-z0-9]{4,}(?=[\s>.:[]|$)/g,
+  // Semantic-name + 3+ digit suffix: .card-1234 (real-world hash leak)
+  // Tightened to require 3+ digits AT THE END so we don't nuke
+  // bg-gray-500 or text-blue-500 (which have a SHORT digit suffix).
+  /\.[a-zA-Z][a-zA-Z-]*-\d{4,}(?=[\s>.:[]|$)/g,
+];
+
+// Attribute selectors whose VALUE contains a digit run (likely per-row
+// markers like data-testid="card-42"). Strips the whole [attr=value]
+// part — we keep tag and class context.
+const HASHED_ATTR_RE =
+  /\[(data-test|data-testid|data-cy|data-qa|data-component|data-id|id)([*^$~|]?=)["'][^"']*\d{2,}[^"']*["']\]/g;
+
 export function normalizeListSelector(css: string): string {
-  return css
+  let out = css
     .replace(/:nth-of-type\(\d+\)/g, "")
+    .replace(/:nth-child\(\d+\)/g, "")
+    .replace(/:nth-last-of-type\(\d+\)/g, "")
     .replace(UUID_ANCHOR_RE, "")
     .replace(LONG_HEX_ANCHOR_RE, "")
+    .replace(HASHED_ATTR_RE, "");
+  for (const re of HASHED_CLASS_REGEXES) {
+    out = out.replace(re, "");
+  }
+  return out
     // clean up orphaned combinators left behind after stripping anchors
     .replace(/\s*>\s*>\s*/g, " > ")
     .replace(/\s+>\s+/g, " > ")
@@ -102,10 +158,18 @@ export function computeListSelector(
     }
     out.push(step);
   }
-  return out
+  let joined = out
     .join(" > ")
     .replace(UUID_ANCHOR_RE, "")
     .replace(LONG_HEX_ANCHOR_RE, "")
+    .replace(HASHED_ATTR_RE, "");
+  // Apply the same hashed-class strips here so the STORED selector
+  // also generalizes across sibling cards (not just the structural
+  // pattern used for sibling detection).
+  for (const re of HASHED_CLASS_REGEXES) {
+    joined = joined.replace(re, "");
+  }
+  return joined
     .replace(/\s*>\s*>\s*/g, " > ")
     .replace(/\s+>\s+/g, " > ")
     .trim();
