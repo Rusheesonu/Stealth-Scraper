@@ -387,24 +387,82 @@ async def _snapshot_inner(
             # heavy ones where intersection-observer cascades are still
             # firing.
             await _force_eager_all_images(tab)
-            await _wait_until_page_stable(tab, min_wait=0.2, max_wait=6.0, quiet_window=0.35)
+            # Multi-signal image gate (2-streak naturalWidth>0) — restored
+            # after the audit found _wait_for_images had been orphaned by
+            # the adaptive-wait refactor. The unified `quiet_window`
+            # detector alone can miss in-flight decodes when the page
+            # mutation timestamp has gone quiet but pixels are still
+            # arriving from the CDN.
+            await _wait_for_images(tab, timeout=6.0)
+            # Final settle. Bumped quiet_window from 0.35 → 0.6 — the
+            # 0.35s window can return inside a SPA carousel rotation gap;
+            # 0.6s is wider than typical micro-pause patterns we've seen
+            # on real SPAs. Static pages still bail at ~0.6s, so the perf
+            # cost on fast pages is small.
+            await _wait_until_page_stable(tab, min_wait=0.2, max_wait=6.0, quiet_window=0.6)
         except Exception:
             # Renderer didn't accept the resize (probably an OOM-style
             # rejection on huge pages) — fall back to the old strategy:
             # bbox first then screenshot with capture_beyond_viewport.
             needs_beyond_viewport = True
 
-        # 7. Collect elements at the expanded viewport.
-        data = await _evaluate_json(tab, COLLECT_ELEMENTS_JS)
+        # ── STRUCTURAL FIX: DOM lock for bbox+screenshot coherence ──────
+        # The bbox table (from COLLECT_ELEMENTS_JS) and the screenshot
+        # pixels (from Page.captureScreenshot) MUST come from an
+        # identical DOM/layout state. Otherwise hover overlays drift
+        # off the elements they describe — the recurring "mismatch"
+        # bug class. Every prior fix in this file (1bb9393, 70f826f,
+        # 73401da, a24b00d, 4f2c0d2) tightened a wait but never closed
+        # the live-DOM gap between these two operations.
+        #
+        # Solution: freeze page JS execution between the two calls.
+        # Timers don't fire, observer callbacks queue, React effects
+        # don't run, no DOM mutation can land. Both artifacts read from
+        # the same locked state. Re-enable in a finally so a failure
+        # during walk/screenshot still restores normal execution.
+        #
+        # Image decode in-flight at lock time is GPU-internal and CAN
+        # complete during the locked window — but the bbox table and
+        # the screenshot raster from the SAME post-decode layout, so
+        # they remain mutually coherent.
+        #
+        # Also pause the lazy-image-killer's MutationObserver: even
+        # with JS execution disabled, the observer's callback queue
+        # could drain on re-enable and mutate attrs. The `paused` flag
+        # makes the callback a no-op during the window.
+        await tab.send(cdp.emulation.set_script_execution_disabled(value=True))
+        await tab.evaluate("window.__stealthLazyKillerPaused = true")
+        try:
+            # Two requestAnimationFrame round-trips flush any pending
+            # rAF-scheduled writes from the unfrozen world into a final
+            # layout before we sample.
+            await tab.evaluate(
+                "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))",
+                await_promise=True,
+            )
 
-        # 8. Screenshot at the SAME expanded viewport. Only fall back to
-        # capture_beyond_viewport when the page was taller than our
-        # height clamp (rare; only mega-scroll pages).
-        shot = await tab.send(cdp.page.capture_screenshot(
-            format_="png",
-            capture_beyond_viewport=needs_beyond_viewport,
-        ))
-        screenshot_b64 = shot if isinstance(shot, str) else str(shot)
+            # 7. Collect elements at the expanded viewport — under DOM lock.
+            data = await _evaluate_json(tab, COLLECT_ELEMENTS_JS)
+
+            # 8. Screenshot at the SAME locked state. Only fall back to
+            # capture_beyond_viewport when the page was taller than our
+            # height clamp (rare; only mega-scroll pages).
+            shot = await tab.send(cdp.page.capture_screenshot(
+                format_="png",
+                capture_beyond_viewport=needs_beyond_viewport,
+            ))
+            screenshot_b64 = shot if isinstance(shot, str) else str(shot)
+        finally:
+            # Restore — always. Even if collect/screenshot raised, page
+            # JS must come back or the tab is unusable for the next user.
+            try:
+                await tab.evaluate("window.__stealthLazyKillerPaused = false")
+            except Exception:
+                pass
+            try:
+                await tab.send(cdp.emulation.set_script_execution_disabled(value=False))
+            except Exception:
+                pass
 
         # 9. Capture page HTML + cookies for block-detection downstream.
         # First 8KB of outerHTML is enough for every known anti-bot
@@ -631,6 +689,12 @@ async def _install_lazy_image_killer(tab) -> None:
             };
 
             const obs = new MutationObserver((muts) => {
+                // Belt-and-suspenders with setScriptExecutionDisabled —
+                // during bbox+screenshot capture we set this flag so the
+                // observer is a no-op even if its callback queue drains
+                // mid-lock on some Chromium builds. Restored before the
+                // unlock in snapshot._snapshot_inner's finally block.
+                if (window.__stealthLazyKillerPaused) return;
                 for (const m of muts) {
                     for (const node of m.addedNodes) {
                         if (node.nodeType !== 1) continue;
