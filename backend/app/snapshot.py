@@ -145,7 +145,43 @@ async def take_snapshot(
                 await _warmup_session(url)
             return await _snapshot_inner(url, viewport_width, viewport_height, actions)
 
-    return await with_transient_retry(_once, label="snapshot")
+    result = await with_transient_retry(_once, label="snapshot")
+
+    # Thin-result auto-retry. If the page came back with essentially
+    # nothing, our adaptive wait probably bailed before the site
+    # finished hydrating — typical on heavy SPAs whose initial render
+    # is a skeleton with no interactive elements yet. ONE retry on a
+    # fresh tab with the same code path; if the page is legitimately
+    # near-empty (some blog posts) we just accept what we get.
+    #
+    # Threshold: 5. Real-world pages we sampled bottom out at ~30
+    # elements. Below 5 is "the wait fired prematurely" or "the page
+    # is a true edge case" — retrying is cheap (~3-8s) and only
+    # happens on pages where we'd otherwise return junk.
+    THIN_ELEMENTS_THRESHOLD = 5
+    elements_count = len(result.elements or [])
+    if elements_count < THIN_ELEMENTS_THRESHOLD:
+        log.info(
+            "snapshot.thin_retry",
+            extra={"url": url, "first_elements": elements_count},
+        )
+        # Brief pause before re-navigating — lets server-side rate
+        # limits cool off and gives any pending CDN cache populates a
+        # head start.
+        await asyncio.sleep(2.0)
+        try:
+            retry = await with_transient_retry(_once, label="snapshot_retry")
+            if len(retry.elements or []) > elements_count:
+                return retry
+        except Exception as e:
+            # Retry crashed for some reason — log and return the
+            # original thin result rather than failing the whole call.
+            log.warning(
+                "snapshot.thin_retry_failed",
+                extra={"url": url, "error": repr(e)},
+            )
+
+    return result
 
 
 # Per-process cache of (hostname → already-warmed) so a 100-URL crawl
@@ -252,26 +288,40 @@ async def _snapshot_inner(
 
         await tab.get(url)
         await _wait_ready(tab, timeout=8.0)
-        await asyncio.sleep(0.5)
+
+        # Install the MutationObserver-based stability detector ONCE,
+        # right after the page is parseable. Survives until the tab
+        # closes. Without this, `_wait_until_page_stable` has no
+        # mutation timestamp to read and falls back to its hard cap on
+        # every poll.
+        await _install_stability_shim(tab)
 
         # Install a MutationObserver that auto-eagers any <img> the page
         # adds AFTER this point (React mounts, infinite scroll, etc).
         # This is the fix for the "image rendered partially" bug — the
-        # one-shot force-eager pass in step 3 only catches images that
+        # one-shot force-eager pass below only catches images that
         # exist NOW, but real e-commerce SPAs add product cards
         # continuously during scroll. The observer runs forever inside
         # the page until the tab closes; no perf concern since it's
         # cheap (attribute-only edits).
         await _install_lazy_image_killer(tab)
 
+        # Adaptive wait for the initial render to settle. REPLACES the
+        # old fixed `asyncio.sleep(0.5)` — bails in ~quiet_window on
+        # static pages (HN, blogs, docs) and waits up to max_wait on
+        # SPAs (Amazon, Target, LinkedIn) that fetch data after the
+        # initial HTML.
+        await _wait_until_page_stable(tab, min_wait=0.2, max_wait=8.0, quiet_window=0.4)
+
         # Run pre-snapshot actions (dismiss cookie banners, log in, etc).
         # Failures are logged but don't abort — best-effort.
         if actions:
             try:
                 await run_actions(tab, actions)
-                # Give the page a moment to settle after actions before we
-                # start collecting elements / taking screenshots.
-                await asyncio.sleep(0.4)
+                # Adaptive settle after actions instead of fixed sleep —
+                # cookie-banner dismiss might trigger an immediate XHR
+                # that we need to wait for, or might do nothing.
+                await _wait_until_page_stable(tab, min_wait=0.1, max_wait=4.0, quiet_window=0.3)
             except Exception as e:
                 log.warning("snapshot.actions_failed", extra={"url": url, "error": repr(e)})
 
@@ -284,24 +334,16 @@ async def _snapshot_inner(
         # loaders that skip force-eager. Bounded — no infinite scroll.
         await _scroll_full_height(tab)
 
-        # 5. Scroll back to origin and wait for the layout + imagery to
-        # finish. The image wait uses naturalWidth > 0 (proves the
-        # image actually decoded, not just downloaded — see helper for
-        # why img.complete alone lies) AND requires a streak of
-        # consecutive all-loaded readings so a React mid-mount doesn't
-        # slip through.
+        # 5. Scroll back to origin. The adaptive wait below subsumes
+        # what used to be: _wait_for_images + _wait_for_stable_height +
+        # sleep(0.3). All three were variants of "is the page quiet?"
+        # — now a single unified check. Image-decode is covered by the
+        # `pending_images` signal inside `_wait_until_page_stable`;
+        # layout-height stability is covered by the mutation timestamp
+        # (height changes cause DOM mutations).
         await tab.evaluate("window.scrollTo(0, 0)")
         await _force_eager_all_images(tab)              # catch React-mounted images
-        await _wait_for_images(tab, timeout=6.0)        # was 4s — heavy grids need it
-        # Poll until two consecutive samples of body scrollHeight agree —
-        # catches the Amazon failure mode where a banner / filter sidebar
-        # lazy-inserts content right around the 500ms mark and shoves
-        # everything below it down ~70px. Without this, bbox collection
-        # happens on the pre-insert layout and the screenshot ends up
-        # capturing the post-insert layout, producing that "coming above
-        # again" vertical offset. Cheap belt-and-suspenders; bounded.
-        await _wait_for_stable_height(tab, timeout=3.0)
-        await asyncio.sleep(0.3)
+        await _wait_until_page_stable(tab, min_wait=0.2, max_wait=8.0, quiet_window=0.4)
 
         # 6. EXPAND THE VIEWPORT to the full document height BEFORE
         # both bbox collection and screenshot.
@@ -342,17 +384,15 @@ async def _snapshot_inner(
             # Let the page settle at the new viewport. Intersection
             # observers that fire newly-visible will run their handlers
             # in this window. After expansion, MANY more product cards
-            # become "visible" simultaneously on e-commerce grids → those
-            # images start loading. _wait_for_stable_height alone wasn't
-            # enough (only checks layout, not images); we ALSO wait for
-            # image decode here. Without this second image wait, the
-            # screenshot fires while new images are still arriving from
-            # the CDN — that's the "image partially rendered" bug.
-            await asyncio.sleep(0.3)
-            await _wait_for_stable_height(tab, timeout=1.5)
-            await _force_eager_all_images(tab)               # catch newly-mounted lazy
-            await _wait_for_images(tab, timeout=5.0)         # second decode wait
-            await _wait_for_stable_height(tab, timeout=1.0)  # absorb any post-image layout shift
+            # become "visible" simultaneously on e-commerce grids →
+            # those images start loading; the page re-runs layout. The
+            # adaptive wait below covers all three signals (DOM
+            # mutations, image decode, readyState) in one pass — bails
+            # in ~quiet_window on light pages, holds up to max_wait on
+            # heavy ones where intersection-observer cascades are still
+            # firing.
+            await _force_eager_all_images(tab)
+            await _wait_until_page_stable(tab, min_wait=0.2, max_wait=6.0, quiet_window=0.35)
         except Exception:
             # Renderer didn't accept the resize (probably an OOM-style
             # rejection on huge pages) — fall back to the old strategy:
@@ -621,6 +661,128 @@ async def _install_lazy_image_killer(tab) -> None:
             });
         })()
     """)
+
+
+async def _install_stability_shim(tab) -> None:
+    """Install a MutationObserver that timestamps the last DOM change.
+
+    Combined with `document.readyState` and an in-viewport image-decode
+    check, this gives `_wait_until_page_stable` a three-signal "page is
+    quiet" detector that bails early on fast pages and waits patiently
+    on slow ones.
+
+    Lives until the tab closes (which is the end of the snapshot — pool
+    closes the tab via context manager). Idempotent — safe to call
+    multiple times per page lifetime.
+
+    Why MutationObserver rather than wrapping fetch/XHR: any meaningful
+    network response from a real-world page eventually causes a DOM
+    write (data renders into a card, a skeleton flips to content, an
+    image src is set). Network requests that DON'T touch the DOM —
+    analytics beacons, fire-and-forget telemetry — also don't matter
+    for snapshot quality. So tracking DOM activity gives us the right
+    signal with far less surface area than monkey-patching fetch + XHR
+    + sendBeacon + WebSocket + EventSource."""
+    await tab.evaluate(r"""
+        (() => {
+            if (window.__stealthStabilityInstalled) return;
+            window.__stealthStabilityInstalled = true;
+            window.__stealthLastMutation = performance.now();
+            const mo = new MutationObserver(() => {
+                window.__stealthLastMutation = performance.now();
+            });
+            mo.observe(document.documentElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                characterData: true,
+            });
+        })()
+    """)
+
+
+async def _wait_until_page_stable(
+    tab,
+    *,
+    min_wait: float = 0.15,
+    max_wait: float = 10.0,
+    quiet_window: float = 0.4,
+) -> float:
+    """Adaptive 'page is quiet' wait — REPLACES fixed asyncio.sleep() calls.
+
+    Bails as soon as ALL of these are true:
+      - document.readyState === 'complete'
+      - No DOM mutations in the last `quiet_window` seconds
+        (covers XHR/fetch responses that render, image src writes,
+         React hydration, infinite-scroll inserts — anything that
+         actually changes what gets snapshotted)
+      - All in-viewport images have decoded (naturalWidth > 0)
+      - At least `min_wait` seconds have elapsed since we started
+        (floor: don't bail on a still-rendering empty page that
+         happens to look quiet for 100ms)
+
+    Hard-capped at `max_wait`. Polls every 100ms — cheap.
+
+    Returns elapsed seconds (for observability). The whole point of
+    this function: a fast static page returns in ~quiet_window seconds
+    (~400ms). A slow SPA waits up to max_wait. Same code path, no
+    branching on site type, no fixed sleeps to tune per site."""
+    loop = asyncio.get_event_loop()
+    start = loop.time()
+    deadline = start + max_wait
+    floor_at = start + min_wait
+
+    while True:
+        now = loop.time()
+        if now >= deadline:
+            return now - start
+        try:
+            state = await tab.evaluate(r"""
+                (() => {
+                    const last = window.__stealthLastMutation || 0;
+                    const ago = (performance.now() - last) / 1000;
+                    let pending = 0;
+                    for (const img of document.images) {
+                        const r = img.getBoundingClientRect();
+                        // Only worry about images at/near the viewport.
+                        // Off-screen images may legitimately not have
+                        // loaded yet and shouldn't gate the snapshot.
+                        if (r.bottom < -200 || r.top > window.innerHeight + 500) continue;
+                        if (!img.currentSrc && !img.src) { pending++; continue; }
+                        if (img.src && img.src.startsWith('data:')) continue;
+                        if (img.naturalWidth === 0) pending++;
+                    }
+                    return [
+                        document.readyState === 'complete' ? 1 : 0,
+                        ago,
+                        pending,
+                    ];
+                })()
+            """)
+            if isinstance(state, tuple):
+                state = state[0]
+        except Exception:
+            await asyncio.sleep(0.1)
+            continue
+
+        if not isinstance(state, list) or len(state) < 3:
+            await asyncio.sleep(0.1)
+            continue
+
+        ready = int(state[0] or 0) == 1
+        mutation_ago = float(state[1] or 0)
+        pending_images = int(state[2] or 0)
+
+        all_quiet = (
+            ready
+            and mutation_ago >= quiet_window
+            and pending_images == 0
+            and now >= floor_at
+        )
+        if all_quiet:
+            return now - start
+
+        await asyncio.sleep(0.1)
 
 
 async def _wait_for_stable_height(tab, timeout: float, samples: int = 3) -> None:
