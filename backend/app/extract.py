@@ -859,6 +859,28 @@ def _t_to_float(v: Any, _: Transform) -> Any:
         return None
 
 
+def _t_resolve_url(v: Any, t: Transform) -> Any:
+    """Join a (possibly) relative URL against a base URL supplied as
+    `value`. Uses Python's urljoin which handles:
+      * absolute http(s):// URLs — passed through unchanged
+      * protocol-relative `//host/path` — adopts the base scheme
+      * path-relative `/products/123` — joined against base origin
+
+    Returns the original value on any error so a malformed base URL
+    can't break a whole extraction run.
+    """
+    if not isinstance(v, str) or not v:
+        return v
+    base = t.get("value") or ""
+    if not base:
+        return v
+    try:
+        from urllib.parse import urljoin
+        return urljoin(base, v)
+    except Exception:
+        return v
+
+
 def _t_collapse_whitespace(v: Any, _: Transform) -> Any:
     """Replace any run of whitespace (incl. newlines) with a single space."""
     if not isinstance(v, str):
@@ -879,6 +901,7 @@ TRANSFORM_OPS = {
     "to_int":             _t_to_int,
     "to_float":           _t_to_float,
     "collapse_whitespace": _t_collapse_whitespace,
+    "resolve_url":        _t_resolve_url,
 }
 
 
@@ -1179,7 +1202,12 @@ def _is_placeholder_src(val: str) -> bool:
 # The currency symbol is captured separately so we can recognize a
 # bare "$" (or any of the others) as a split-price fragment.
 _PRICE_CURRENCY_RE = re.compile(r"^[$€£¥₹₽]$")
-_PRICE_JOINED_RE = re.compile(r"^\s*[$€£¥₹₽]?\s*\d[\d,]*(?:[.,]\d+)?\s*$")
+# Allow currency symbol EITHER before or after the digits. European
+# stores commonly render '19,99 €' (currency trailing); the picker
+# captures the symbol span and we must climb to reassemble the price.
+_PRICE_JOINED_RE = re.compile(
+    r"^\s*[$€£¥₹₽]?\s*\d[\d,.]*(?:[.,]\d+)?\s*[$€£¥₹₽]?\s*$"
+)
 
 
 def _maybe_join_split_price(node, current_text: str) -> str | None:

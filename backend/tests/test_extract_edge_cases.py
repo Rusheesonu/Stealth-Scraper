@@ -1080,6 +1080,263 @@ def test_picture_element_text_kind_returns_alt():
     assert result["value"] == "Hero subject", result
 
 
+
+# ── 13. Trailing-currency split price (European format) ─────────────────
+
+
+def test_split_price_climbs_for_trailing_euro():
+    """European stores often render `19,99 €` (currency AFTER the digits).
+    When the user picks the € span, we should climb and assemble the
+    full trailing-currency price string."""
+    html = """
+    <html><body>
+      <p class="price">
+        <span class="d">19</span><span class="f">,99</span><span class="c">€</span>
+      </p>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "price", "kind": "text", "selector": "span.c"}
+    result = _pull(tree, field)
+    # Joined visible text "19,99€" — trailing currency price climb
+    # should assemble it.
+    assert result["value"] in ("19,99€", "19,99 €"), result
+
+
+def test_split_price_with_spaces_trailing_currency():
+    """`19,99 €` with whitespace between digits and symbol still climbs."""
+    html = """
+    <html><body>
+      <p class="price">
+        <span class="d">19,99</span><span class="c"> €</span>
+      </p>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "price", "kind": "text", "selector": "span.c"}
+    result = _pull(tree, field)
+    # Currency leading or trailing both acceptable; just must be full price.
+    val = result["value"] or ""
+    assert "19,99" in val and "€" in val, result
+
+
+
+# ── 14. Discount price: strikethrough <s> + active price extracted distinctly ─
+
+
+def test_strikethrough_and_current_price_extracted_distinctly():
+    """Cards with `<s>$50</s>` (was) and `<span class='now'>$30</span>` (now).
+    Per-row extraction must return TWO lists aligned by row position."""
+    html = """
+    <html><body>
+      <div class="grid">
+        <article class="card">
+          <h3>Alpha</h3>
+          <s class="was">$50</s>
+          <span class="now">$30</span>
+        </article>
+        <article class="card">
+          <h3>Beta</h3>
+          <s class="was">$80</s>
+          <span class="now">$60</span>
+        </article>
+        <article class="card">
+          <h3>Gamma</h3>
+          <s class="was">$100</s>
+          <span class="now">$75</span>
+        </article>
+      </div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "div.grid > article.card > h3"},
+        {"label": "was", "kind": "list",
+         "selector": "div.grid > article.card > s.was"},
+        {"label": "now", "kind": "list",
+         "selector": "div.grid > article.card > span.now"},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    assert {"title", "was", "now"}.issubset(handled), handled
+    assert values["title"] == ["Alpha", "Beta", "Gamma"]
+    assert values["was"] == ["$50", "$80", "$100"]
+    assert values["now"] == ["$30", "$60", "$75"]
+
+
+
+# ── 15. Empty list when no row matches at all ────────────────────────────
+
+
+def test_list_field_with_zero_matches_returns_envelope():
+    """Selector matches zero nodes — _pull must return a null-value
+    envelope with reason_if_null set, not crash and not silent-fail."""
+    html = "<html><body><div></div></body></html>"
+    tree = lxml_html.fromstring(html)
+    field = {"label": "missing", "kind": "list", "selector": "ul.nope > li"}
+    result = _pull(tree, field)
+    assert result["value"] == [], result
+    assert result["confidence"] == 0.0, result
+    assert result["reason_if_null"], result
+
+
+def test_pull_lists_per_row_zero_rows_returns_empty_handled():
+    """When the template has list fields but the page has no matching
+    rows at all, _pull_lists_per_row should return an empty values dict
+    and an EMPTY handled set so the caller falls back to per-field
+    _pull() (which then returns honest nulls)."""
+    html = "<html><body><div class='empty-state'>No items</div></body></html>"
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "div.grid > article.card > h3"},
+        {"label": "price", "kind": "list",
+         "selector": "div.grid > article.card > span.price"},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    # No rows → either empty values dict OR all-empty lists, but no exception.
+    assert handled in (set(), {"title", "price"}), handled
+    for v in values.values():
+        assert v == [] or all(x is None for x in v), v
+
+
+
+# ── 16. Modern CSS selector forms (`:not`, `~`, `[class*=]`) ─────────────
+
+
+def test_selector_not_pseudo_works():
+    """`a:not(.disabled)` should match anchors without the disabled class."""
+    html = """
+    <html><body>
+      <a class='link'>One</a>
+      <a class='link disabled'>Two</a>
+      <a class='link'>Three</a>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "links", "kind": "list", "selector": "a:not(.disabled)"}
+    result = _pull(tree, field)
+    assert result["value"] == ["One", "Three"], result
+
+
+def test_selector_general_sibling_works():
+    """`h2 ~ p` — any <p> that follows an <h2> within the same parent."""
+    html = """
+    <html><body>
+      <section>
+        <h2>Heading</h2>
+        <p>Paragraph one</p>
+        <span>not a paragraph</span>
+        <p>Paragraph two</p>
+      </section>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "paras", "kind": "list", "selector": "h2 ~ p"}
+    result = _pull(tree, field)
+    assert result["value"] == ["Paragraph one", "Paragraph two"], result
+
+
+def test_selector_attribute_substring_works():
+    """`[class*='price']` — match any element whose class contains 'price'."""
+    html = """
+    <html><body>
+      <div class='item'>Junk</div>
+      <div class='price-now'>$10</div>
+      <div class='item-price-old'>$20</div>
+      <div class='other'>Junk</div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "p", "kind": "list", "selector": "[class*='price']"}
+    result = _pull(tree, field)
+    assert result["value"] == ["$10", "$20"], result
+
+
+
+# ── 17. href semantics — js:, relative, mailto, tel, absolute ────────────
+
+
+def test_javascript_href_returned_literal():
+    """`href='javascript:void(0)'` is a real (if dangerous) value.
+    Downstream consumers may want to detect and filter, but extraction
+    must return the literal string — never strip / mangle it."""
+    html = '<html><body><a class="x" href="javascript:doStuff()">go</a></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {"label": "h", "kind": "attr", "attr": "href", "selector": "a.x"}
+    assert _pull(tree, field)["value"] == "javascript:doStuff()"
+
+
+def test_relative_href_returned_as_is():
+    """`href='/products/123'` returns the raw relative path. Users can
+    resolve against base URL via the upcoming resolve_url transform."""
+    html = '<html><body><a class="x" href="/products/123">go</a></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {"label": "h", "kind": "attr", "attr": "href", "selector": "a.x"}
+    assert _pull(tree, field)["value"] == "/products/123"
+
+
+def test_mailto_and_tel_hrefs_preserved():
+    """`mailto:` and `tel:` schemes are valid hrefs and should pass through."""
+    html = """
+    <html><body>
+      <a class="m" href="mailto:hi@example.com">email</a>
+      <a class="t" href="tel:+15551234567">call</a>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    fm = {"label": "m", "kind": "attr", "attr": "href", "selector": "a.m"}
+    ft = {"label": "t", "kind": "attr", "attr": "href", "selector": "a.t"}
+    assert _pull(tree, fm)["value"] == "mailto:hi@example.com"
+    assert _pull(tree, ft)["value"] == "tel:+15551234567"
+
+
+
+# ── 18. resolve_url transform — convert relative href to absolute ────────
+
+
+def test_resolve_url_transform_relative_to_absolute():
+    """A `resolve_url` transform joins a relative href against a base
+    URL. Use case: extracted '/products/123' + base 'https://shop.com'
+    → 'https://shop.com/products/123'."""
+    html = '<html><body><a class="x" href="/products/123">go</a></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "url",
+        "kind": "attr",
+        "attr": "href",
+        "selector": "a.x",
+        "transforms": [
+            {"op": "resolve_url", "value": "https://shop.example.com/category/"}
+        ],
+    }
+    result = _pull(tree, field)
+    assert result["value"] == "https://shop.example.com/products/123", result
+
+
+def test_resolve_url_transform_already_absolute_passthrough():
+    """Absolute URLs are unchanged."""
+    html = '<html><body><a class="x" href="https://other.com/page">go</a></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "url", "kind": "attr", "attr": "href", "selector": "a.x",
+        "transforms": [{"op": "resolve_url", "value": "https://shop.example.com/"}],
+    }
+    assert _pull(tree, field)["value"] == "https://other.com/page"
+
+
+def test_resolve_url_transform_protocol_relative():
+    """Protocol-relative URLs (`//cdn.example.com/x.jpg`) take the
+    scheme from the base URL."""
+    html = '<html><body><a class="x" href="//cdn.shop.com/asset.js">go</a></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "url", "kind": "attr", "attr": "href", "selector": "a.x",
+        "transforms": [{"op": "resolve_url", "value": "https://shop.example.com/"}],
+    }
+    assert _pull(tree, field)["value"] == "https://cdn.shop.com/asset.js"
+
+
 if __name__ == "__main__":
     import sys
     tests = [
