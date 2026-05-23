@@ -1648,13 +1648,13 @@ def test_display_none_inline_style_excluded_from_extraction():
     assert _pull(tree, field)["value"] == "visible title"
 
 
-def test_responsive_hidden_class_excluded_bootstrap():
-    """Bootstrap's `.d-none` (and `.d-md-none` etc.) hide content
-    responsively. Must be filtered same as inline display:none."""
+def test_html5_hidden_attribute_excluded():
+    """HTML5 spec: the `hidden` global attribute is equivalent to
+    `display:none`. lxml exposes it via attrib presence."""
     html = """
     <html><body>
       <div class="card">visible title</div>
-      <div class="card d-none">HIDDEN BOOTSTRAP COPY</div>
+      <div class="card" hidden>HIDDEN HTML5 COPY</div>
     </body></html>
     """
     tree = lxml_html.fromstring(html)
@@ -1662,27 +1662,53 @@ def test_responsive_hidden_class_excluded_bootstrap():
     assert _pull(tree, field)["value"] == "visible title"
 
 
-def test_responsive_hidden_class_excluded_tailwind():
-    """Tailwind's `lg:hidden` (and `md:hidden`, etc.) — class name
-    includes a colon. Must still filter."""
+def test_aria_hidden_true_excluded():
+    """WAI-ARIA: aria-hidden=\"true\" means the element is hidden
+    from accessibility tree (typical mirror-copy pattern)."""
     html = """
     <html><body>
       <div class="card">visible title</div>
-      <div class="card lg:hidden">HIDDEN TAILWIND COPY</div>
+      <div class="card" aria-hidden="true">HIDDEN ARIA COPY</div>
     </body></html>
     """
     tree = lxml_html.fromstring(html)
     field = {"label": "card", "kind": "text", "selector": "div.card"}
     assert _pull(tree, field)["value"] == "visible title"
+
+
+def test_framework_class_names_NOT_treated_as_hidden():
+    """The picker MUST NOT filter elements just because their class
+    name happens to include `.hidden`, `.d-none`, or `.lg:hidden` —
+    those tokens may be used as semantic class names on visible
+    elements (e.g. `.hidden-feature-flag`). The earlier over-aggressive
+    filter risked dropping real content. This test pins that we now
+    require an unambiguous spec-defined hidden marker (inline style,
+    `aria-hidden=true`, or HTML5 `hidden` attribute)."""
+    html = """
+    <html><body>
+      <div class="card hidden">this is actually rendered</div>
+      <div class="card d-none">so is this</div>
+      <div class="card lg:hidden">and this</div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "card", "kind": "list", "selector": "div.card"}
+    result = _pull(tree, field)
+    # All three rendered — no over-filtering on framework class names.
+    assert result["value"] == [
+        "this is actually rendered",
+        "so is this",
+        "and this",
+    ], result
 
 
 def test_hidden_ancestor_filters_per_row_extraction():
-    """List extraction with mobile + desktop card grids both in DOM.
-    Each visible card must produce exactly one row — the hidden
-    sibling copy must not duplicate."""
+    """List extraction with mobile + desktop card grids both in DOM,
+    where the mobile grid is hidden via INLINE style="display:none"
+    (spec-universal). Each visible card must produce exactly one row."""
     html = """
     <html><body>
-      <section class="desktop-grid">
+      <section>
         <article class="card">
           <h3>Real A</h3><span class="p">$10</span>
         </article>
@@ -1693,7 +1719,7 @@ def test_hidden_ancestor_filters_per_row_extraction():
           <h3>Real C</h3><span class="p">$30</span>
         </article>
       </section>
-      <section class="mobile-grid" style="display: none">
+      <section style="display: none">
         <article class="card">
           <h3>Mobile Ghost A</h3><span class="p">$99</span>
         </article>

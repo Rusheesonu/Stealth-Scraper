@@ -1208,37 +1208,35 @@ def _has_template_ancestor(node) -> bool:
     return False
 
 
-# Class names that universally mean "hidden". NOT site-specific — these
-# are framework / CSS-utility conventions used across the web:
-#   - vanilla:   hidden, invisible
-#   - Bootstrap: d-none, d-md-none, d-lg-none, d-xl-none, d-xxl-none
-#   - Tailwind:  lg:hidden, md:hidden, sm:hidden, xl:hidden, 2xl:hidden
-#   - common UX: mobile-hidden, desktop-hidden, hide-mobile, hide-desktop,
-#                hidden-mobile, hidden-desktop, hidden-xs/sm/md/lg
-# The screen-reader-only patterns are handled separately in `_is_hidden`
-# via `_HIDDEN_CLASSES_RE` (sr-only, a-offscreen, visually-hidden, etc).
-_RESPONSIVE_HIDDEN_CLASSES_RE = re.compile(
-    r"(?:^|\s)("
-    r"hidden|d-none|invisible"
-    r"|d-(?:sm|md|lg|xl|xxl)-none"
-    r"|(?:sm|md|lg|xl|2xl):hidden"
-    r"|mobile-hidden|desktop-hidden|hide-mobile|hide-desktop"
-    r"|hidden-mobile|hidden-desktop|hidden-xs|hidden-sm|hidden-md|hidden-lg"
-    r")(?=$|\s)",
-    re.IGNORECASE,
-)
+# Hidden-element detection — strictly SPEC-defined signals only.
+# Earlier versions matched framework class names (Bootstrap .d-none,
+# Tailwind .lg:hidden, .mobile-hidden, etc.) but those risk false-
+# positive on any site using those tokens as SEMANTIC class names
+# rather than visibility utilities. Over-filtering = user sees null;
+# under-filtering = user sees duplicates they can spot. Picking the
+# safer failure mode.
+#
+# What we still detect (all W3C / WHATWG spec-universal):
+#   - inline style="display:none" or "visibility:hidden"
+#   - aria-hidden="true" (WAI-ARIA standard)
+#   - hidden HTML5 global attribute (`<div hidden>...</div>`)
+#
+# Removed: framework class name patterns. Real-world sites that ship
+# responsive duplicates with `.d-none` will produce duplicates in
+# extraction; users will see and can ignore them, or re-pick from a
+# non-duplicate region. That's preferable to silently dropping content
+# on sites where `.hidden` happens to be a semantic class name.
 
 
 def _is_node_visually_hidden(node) -> bool:
-    """Single-node visibility check — returns True if this specific
-    element is hidden via inline `style="display:none"`, the inline
-    visibility:hidden style, or one of the universal hidden CSS class
-    tokens (`.hidden`, `.d-none`, `.lg:hidden`, etc.).
+    """Single-node visibility check — returns True only when the
+    element has an unambiguous, spec-defined hidden marker:
+    inline `display:none` / `visibility:hidden` style, `aria-hidden=
+    "true"`, or the HTML5 `hidden` global attribute. Class names are
+    NOT checked — they're too easy to misinterpret across sites.
 
     Used by `_has_hidden_ancestor` to walk up looking for any hidden
-    ancestor — when a responsive site renders both mobile + desktop
-    versions of a card and only one is visible, lxml's cssselect
-    returns BOTH; we filter the hidden copy here."""
+    ancestor."""
     try:
         attrs = node.attrib
     except AttributeError:
@@ -1247,12 +1245,14 @@ def _is_node_visually_hidden(node) -> bool:
     if style:
         if _DISPLAY_NONE_RE.search(style) or _VISIBILITY_HIDDEN_RE.search(style):
             return True
-    classes = attrs.get("class", "") or ""
-    if classes and _RESPONSIVE_HIDDEN_CLASSES_RE.search(classes):
-        return True
-    # aria-hidden="true" — Amazon's a-offscreen mirror pattern and
-    # many other accessibility-hidden duplicates.
+    # WAI-ARIA: aria-hidden="true" means the element is hidden from
+    # the accessibility tree (typically a visually-hidden mirror copy
+    # like Amazon's a-offscreen pattern).
     if (attrs.get("aria-hidden", "") or "").lower() == "true":
+        return True
+    # HTML5 `hidden` global attribute. Spec: equivalent to display:none.
+    # Note: attrib presence check, NOT value — the attribute is boolean.
+    if "hidden" in attrs:
         return True
     return False
 

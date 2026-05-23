@@ -45,8 +45,27 @@ export function truncate(s: string, n = 40) {
 const UUID_ANCHOR_RE = /#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const LONG_HEX_ANCHOR_RE = /#[0-9a-f-]{16,}(?=\s|>|\.|:|$)/gi;
 
-// CSS-in-JS / CSS-Modules / styled-components / styled-jsx hashed classes.
-// Order matters — most-specific first so we don't partial-match.
+// CSS-in-JS hashed classes — STRICTLY library-deterministic patterns only.
+// Earlier versions matched broader CSS-Module patterns (single-underscore,
+// leading-underscore, semantic-name + digit suffix) but those risk
+// false-positive on real semantic class names. Over-stripping breaks the
+// extracted selector (matches nothing → user sees null); under-stripping
+// just means the picker doesn't auto-detect siblings → user sets list
+// mode manually. Safer failure mode is keeping the heuristic narrow.
+//
+// What we still strip (each is the documented public output format of
+// a specific CSS-in-JS library, NOT a guess about general patterns):
+//   - emotion: .css-XXXX (4+ chars after `css-`)
+//   - styled-components: .sc-XXXX (4+ chars after `sc-`)
+//   - Next.js styled-jsx: .jsx-NNNN (4+ DIGITS after `jsx-`)
+//   - CSS Modules with double underscore: .Component__hash (canonical
+//     CSS Modules emit format)
+//
+// Removed (too risky for false-positive):
+//   - .Component_hash5+ (single underscore) — some sites use this as
+//     semantic naming (e.g. `.menu_item`)
+//   - ._3xK9j (leading underscore) — semantic prefix in some projects
+//   - .card-1234 (digit-suffix) — could be a real version-numbered class
 const HASHED_CLASS_REGEXES: RegExp[] = [
   // emotion / css-in-js: .css-1abc23d
   /\.css-[a-zA-Z0-9]{4,}(?=[\s>.:[]|$)/g,
@@ -56,14 +75,6 @@ const HASHED_CLASS_REGEXES: RegExp[] = [
   /\.jsx-\d{4,}(?=[\s>.:[]|$)/g,
   // CSS Modules with double-underscore: .Component__xyz1Ab
   /\.[a-zA-Z][a-zA-Z0-9-]*__[A-Za-z0-9-]{4,}(?=[\s>.:[]|$)/g,
-  // CSS Modules with single underscore + 5+ random chars: .Component_xyz1Ab
-  /\.[a-zA-Z][a-zA-Z0-9-]*_[A-Za-z0-9-]{5,}(?=[\s>.:[]|$)/g,
-  // Leading-underscore hash classes: ._3xK9j (CSS Modules short form)
-  /\._[A-Za-z0-9]{4,}(?=[\s>.:[]|$)/g,
-  // Semantic-name + 3+ digit suffix: .card-1234 (real-world hash leak)
-  // Tightened to require 3+ digits AT THE END so we don't nuke
-  // bg-gray-500 or text-blue-500 (which have a SHORT digit suffix).
-  /\.[a-zA-Z][a-zA-Z-]*-\d{4,}(?=[\s>.:[]|$)/g,
 ];
 
 // Attribute selectors whose VALUE contains a digit run (likely per-row
