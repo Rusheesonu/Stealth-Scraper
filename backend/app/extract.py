@@ -1138,6 +1138,33 @@ def _read(node, kind: str, attr: str) -> Any:
                             if alt:
                                 return alt
                             break
+                elif tag == "meta":
+                    # Schema.org microdata convention: <meta itemprop=
+                    # "price" content="199.99"> — the value lives in
+                    # `content`, not in visible text. Same for
+                    # <meta property="og:title" ...>.
+                    content = (node.get("content") or "").strip()
+                    if content:
+                        return content
+            # Schema.org microdata fallback for non-<meta> nodes. When
+            # a node has `itemprop` set, ANY of these attributes may
+            # carry the canonical value: `content` (meta/link), `value`
+            # (data/object), `datetime` (time element), `src/href`
+            # (resource), `datetime`. When text is empty + one of these
+            # is set, prefer the attribute over the empty visible text.
+            # No site-specific code — purely structural (the attribute
+            # set is the schema.org spec for microdata).
+            if not visible:
+                try:
+                    if node.get("itemprop") is not None:
+                        for microdata_attr in (
+                            "content", "value", "datetime", "href", "src",
+                        ):
+                            mv = (node.get(microdata_attr) or "").strip()
+                            if mv:
+                                return mv
+                except Exception:
+                    pass
             return visible
         return str(node).strip()
     except Exception:

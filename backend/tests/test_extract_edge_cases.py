@@ -1524,6 +1524,112 @@ def test_xpath_invalid_syntax_returns_parse_error():
     assert result["reason_if_null"]
 
 
+# ── Schema.org microdata extraction ─────────────────────────────────────
+
+
+def test_microdata_meta_itemprop_uses_content_attr():
+    """`<meta itemprop="price" content="199.99">` carries the value in
+    `content`, not visible text. kind=text on this node should return
+    the content attribute (matching the schema.org microdata spec)."""
+    html = """
+    <html><body>
+      <div itemscope itemtype="https://schema.org/Product">
+        <meta itemprop="price" content="199.99"/>
+      </div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "price", "kind": "text",
+             "selector": "meta[itemprop='price']"}
+    result = _pull(tree, field)
+    assert result["value"] == "199.99", result
+
+
+def test_microdata_time_itemprop_uses_datetime_attr():
+    """`<time itemprop="datePublished" datetime="2026-05-24">May 24</time>` —
+    when the visible text is empty (just whitespace), fall back to
+    the datetime attribute. When text IS present, text wins (e.g.
+    `<time>May 24</time>` returns 'May 24' as before)."""
+    html = """
+    <html><body>
+      <article>
+        <time itemprop="datePublished" datetime="2026-05-24T10:00:00Z"></time>
+      </article>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "date", "kind": "text",
+             "selector": "time[itemprop='datePublished']"}
+    result = _pull(tree, field)
+    assert result["value"] == "2026-05-24T10:00:00Z", result
+
+
+def test_microdata_link_itemprop_uses_href_attr():
+    """`<link itemprop="image" href="https://cdn..."/>` — link tags
+    have neither text nor src; the URL is in href. Fallback should
+    catch this."""
+    html = """
+    <html><body>
+      <link itemprop="image" href="https://cdn.example.com/img.jpg"/>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "image", "kind": "text",
+             "selector": "link[itemprop='image']"}
+    result = _pull(tree, field)
+    assert result["value"] == "https://cdn.example.com/img.jpg", result
+
+
+def test_microdata_visible_text_wins_over_attr():
+    """When a microdata-tagged element has BOTH visible text AND a
+    content attribute, the visible text wins (it's authoritative —
+    content is a fallback for empty-text elements like <meta>)."""
+    html = """
+    <html><body>
+      <span itemprop="name" content="ignore me">Real Product Name</span>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "name", "kind": "text",
+             "selector": "span[itemprop='name']"}
+    result = _pull(tree, field)
+    assert result["value"] == "Real Product Name", result
+
+
+def test_microdata_per_row_extraction_aligned():
+    """Real-world product grid using microdata — verify per-row
+    extraction works when each row has multiple itemprops."""
+    html = """
+    <html><body>
+      <div class="grid">
+        <div itemscope itemtype="https://schema.org/Product">
+          <span itemprop="name">Widget A</span>
+          <meta itemprop="price" content="10.00"/>
+        </div>
+        <div itemscope itemtype="https://schema.org/Product">
+          <span itemprop="name">Widget B</span>
+          <meta itemprop="price" content="20.00"/>
+        </div>
+        <div itemscope itemtype="https://schema.org/Product">
+          <span itemprop="name">Widget C</span>
+          <meta itemprop="price" content="30.00"/>
+        </div>
+      </div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "name", "kind": "list",
+         "selector": "div.grid > div > span[itemprop='name']"},
+        {"label": "price", "kind": "list",
+         "selector": "div.grid > div > meta[itemprop='price']"},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    assert {"name", "price"}.issubset(handled), handled
+    assert values["name"] == ["Widget A", "Widget B", "Widget C"], values
+    assert values["price"] == ["10.00", "20.00", "30.00"], values
+
+
 if __name__ == "__main__":
     import sys
     tests = [
