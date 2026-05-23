@@ -340,71 +340,37 @@ async def _snapshot_inner(
         await _force_eager_all_images(tab)              # catch React-mounted images
         await _wait_until_page_stable(tab, min_wait=0.2, max_wait=8.0, quiet_window=0.4)
 
-        # 6. EXPAND THE VIEWPORT to the full document height BEFORE
-        # both bbox collection and screenshot.
+        # 6. KEEP THE ORIGINAL VIEWPORT. Do NOT expand to page height.
         #
-        # Previous version used capture_beyond_viewport=True at the
-        # screenshot step, but that briefly resizes the viewport during
-        # capture — which triggers layout shifts on pages with `vh`-sized
-        # sections, sticky headers, or intersection-observer reveals
-        # (Target, most modern e-commerce). The bbox data from step 5
-        # then references the pre-shift layout while the screenshot
-        # captures the post-shift layout, producing the visible offset
-        # where hover overlays appear above/below the actual element.
+        # Earlier versions of this code expanded the viewport to the
+        # full document height (clamped at 24000px) so the screenshot
+        # could capture everything in one pass. That broke modern
+        # e-commerce (Target, Walmart, Best Buy) because:
+        #   - `100vh` / `100dvh` sticky elements suddenly become 24000px
+        #   - IntersectionObservers fire for every below-fold element
+        #     simultaneously, triggering a layout-reflow storm
+        #   - CSS Grid / Flex containers with `min-height: 100vh` tear
+        #     apart (image children float free of their text children
+        #     in the same card)
+        # The Target Lego search result was a textbook example: cards
+        # split visually into "title+price up top" and "image floating
+        # below" because the grid container reflowed mid-screenshot.
         #
-        # Fix: do the expansion FIRST, settle the layout, then collect
-        # bboxes + screenshot at the same expanded viewport. Everything
-        # is captured in identical layout state, alignment is exact.
-        #
-        # Clamp to 24000px height — anything taller and we accept the
-        # small alignment risk via capture_beyond_viewport rather than
-        # OOM the renderer.
-        try:
-            raw_height = await tab.evaluate("document.documentElement.scrollHeight")
-            if isinstance(raw_height, tuple):
-                raw_height = raw_height[0]
-            page_height = max(int(raw_height or viewport_height), viewport_height)
-        except Exception:
-            page_height = viewport_height
-        clamped_height = min(page_height, 24000)
-        needs_beyond_viewport = page_height > clamped_height
-
-        try:
-            await tab.send(cdp.emulation.set_device_metrics_override(
-                width=viewport_width,
-                height=clamped_height,
-                device_scale_factor=1,
-                mobile=False,
-            ))
-            # Let the page settle at the new viewport. Intersection
-            # observers that fire newly-visible will run their handlers
-            # in this window. After expansion, MANY more product cards
-            # become "visible" simultaneously on e-commerce grids →
-            # those images start loading; the page re-runs layout. The
-            # adaptive wait below covers all three signals (DOM
-            # mutations, image decode, readyState) in one pass — bails
-            # in ~quiet_window on light pages, holds up to max_wait on
-            # heavy ones where intersection-observer cascades are still
-            # firing.
-            await _force_eager_all_images(tab)
-            # Multi-signal image gate (2-streak naturalWidth>0) — restored
-            # after the audit found _wait_for_images had been orphaned by
-            # the adaptive-wait refactor. The unified `quiet_window`
-            # detector alone can miss in-flight decodes when the page
-            # mutation timestamp has gone quiet but pixels are still
-            # arriving from the CDN.
-            await _wait_for_images(tab, timeout=6.0)
-            # Final settle. Bumped quiet_window from 0.35 → 0.6 — the
-            # 0.35s window can return inside a SPA carousel rotation gap;
-            # 0.6s is wider than typical micro-pause patterns we've seen
-            # on real SPAs. Static pages still bail at ~0.6s, so the perf
-            # cost on fast pages is small.
-            await _wait_until_page_stable(tab, min_wait=0.2, max_wait=6.0, quiet_window=0.6)
-        except Exception:
-            # Renderer didn't accept the resize (probably an OOM-style
-            # rejection on huge pages) — fall back to the old strategy:
-            # bbox first then screenshot with capture_beyond_viewport.
-            needs_beyond_viewport = True
+        # Fix: leave the viewport alone. The bbox walk uses
+        # getBoundingClientRect() which returns *page-relative*
+        # coordinates (rect.left + scrollX, rect.top + scrollY — see
+        # extract_js.py:167–168), so below-the-fold elements are still
+        # captured with correct positions. For the screenshot we pass
+        # capture_beyond_viewport=True; CDP handles full-page capture
+        # internally by scrolling and stitching the renderer's tiles,
+        # which preserves the original `100vh` semantics.
+        await _force_eager_all_images(tab)
+        await _wait_for_images(tab, timeout=6.0)
+        await _wait_until_page_stable(tab, min_wait=0.2, max_wait=6.0, quiet_window=0.6)
+        # capture_beyond_viewport=True always — let Chromium's native
+        # full-page capture do the scroll-and-stitch without us pre-
+        # resizing the viewport.
+        needs_beyond_viewport = True
 
         # ── STRUCTURAL FIX: bbox + screenshot coherence ─────────────────
         # The bbox table (from COLLECT_ELEMENTS_JS) and the screenshot
