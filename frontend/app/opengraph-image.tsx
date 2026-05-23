@@ -5,8 +5,12 @@ import { ImageResponse } from "next/og";
  * /opengraph-image and uses it for social preview cards. 1200×630 is the
  * de-facto standard size for Twitter/X, LinkedIn, Slack, Discord, etc.
  *
- * Brand chrome only: dark canvas, wordmark, tagline, footer. The 4×4 dot
- * grid (matches /components/brand.tsx) sits next to the wordmark.
+ * NOTE: Satori (the renderer under `ImageResponse`) is strict — it does
+ * NOT support radial gradients, has limited CSS coverage, and every flex
+ * container needs an explicit `display: flex`. An earlier version of this
+ * file used `radial-gradient(...)` and returned 0 bytes in prod. Keep
+ * this implementation conservative: solid backgrounds, plain text, flex
+ * layout, no custom fonts.
  */
 export const runtime = "edge";
 export const alt = "Stealth-Scraper — the visual scraper for AI agents";
@@ -14,10 +18,7 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function OG() {
-  // Hex colors mirror globals.css `data-theme="dark"` tokens so the OG card
-  // reads as a faithful slice of the product UI.
   const bg = "#0a0a0a";
-  const surface = "#111111";
   const border = "#262626";
   const muted = "#8a8a8a";
   const strong = "#ededed";
@@ -25,136 +26,121 @@ export default async function OG() {
 
   try {
     return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          backgroundColor: bg,
-          backgroundImage: `radial-gradient(circle at 1px 1px, ${border} 1px, transparent 0)`,
-          backgroundSize: "32px 32px",
-          padding: "72px",
-          color: strong,
-          fontFamily: "Inter, system-ui, sans-serif",
-        }}
-      >
-        {/* Top — wordmark with the 4x4 dot grid */}
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gridTemplateRows: "repeat(3, 1fr)",
-              gap: 4,
-              width: 44,
-              height: 44,
-            }}
-          >
-            {Array.from({ length: 9 }).map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: 2,
-                  background: i === 4 ? accent : `${muted}40`,
-                }}
-              />
-            ))}
-          </div>
-          <div
-            style={{
-              fontSize: 32,
-              fontWeight: 600,
-              letterSpacing: "-0.01em",
-              color: strong,
-            }}
-          >
-            Stealth-Scraper
-          </div>
-        </div>
-
-        {/* Middle — headline + supporting line */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 940 }}>
-          <div
-            style={{
-              fontSize: 72,
-              fontWeight: 600,
-              lineHeight: 1.05,
-              letterSpacing: "-0.035em",
-              color: strong,
-            }}
-          >
-            The visual scraper for AI agents.
-          </div>
-          <div
-            style={{
-              fontSize: 28,
-              lineHeight: 1.45,
-              letterSpacing: "-0.01em",
-              color: muted,
-              maxWidth: 880,
-            }}
-          >
-            Point, click, save, ship. Click any element, save the recipe,
-            run it forever — with selectors you can actually debug.
-          </div>
-        </div>
-
-        {/* Footer — surface card with the URL + accent dot */}
+      (
         <div
           style={{
+            width: "100%",
+            height: "100%",
             display: "flex",
-            alignItems: "center",
+            flexDirection: "column",
             justifyContent: "space-between",
-            borderTop: `1px solid ${border}`,
-            paddingTop: 24,
+            backgroundColor: bg,
+            padding: "72px",
+            color: strong,
+            fontFamily: "system-ui, sans-serif",
           }}
         >
+          {/* Top — wordmark */}
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            <div
+              style={{
+                display: "flex",
+                width: 44,
+                height: 44,
+                borderRadius: 10,
+                background: accent,
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontSize: 26,
+                fontWeight: 700,
+              }}
+            >
+              S
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 32,
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
+                color: strong,
+              }}
+            >
+              Stealth-Scraper
+            </div>
+          </div>
+
+          {/* Middle — headline + supporting line */}
           <div
             style={{
               display: "flex",
-              alignItems: "center",
-              gap: 12,
-              fontFamily: "JetBrains Mono, monospace",
-              fontSize: 22,
-              color: muted,
+              flexDirection: "column",
+              gap: 24,
+              maxWidth: 940,
             }}
           >
             <div
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: 999,
-                background: accent,
+                display: "flex",
+                fontSize: 72,
+                fontWeight: 600,
+                lineHeight: 1.05,
+                letterSpacing: "-0.035em",
+                color: strong,
               }}
-            />
-            stealthscraper.dev
+            >
+              The visual scraper for AI agents.
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 28,
+                lineHeight: 1.45,
+                letterSpacing: "-0.01em",
+                color: muted,
+                maxWidth: 880,
+              }}
+            >
+              Point, click, save, ship. Clean JSON from any page.
+            </div>
           </div>
+
+          {/* Footer — URL + accent dot */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 12,
-              fontFamily: "JetBrains Mono, monospace",
-              fontSize: 20,
-              color: muted,
-              background: surface,
-              border: `1px solid ${border}`,
-              borderRadius: 10,
-              padding: "10px 18px",
+              justifyContent: "space-between",
+              borderTop: `1px solid ${border}`,
+              paddingTop: 24,
             }}
           >
-            $ curl stealthscraper.dev/api/extract
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                fontSize: 22,
+                color: muted,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background: accent,
+                }}
+              />
+              <span>stealthscraper.dev</span>
+            </div>
           </div>
         </div>
-      </div>
-    ),
-    { ...size },
-  );
+      ),
+      { ...size },
+    );
   } catch (err) {
     console.error("opengraph-image render failed", err);
     return new ImageResponse(
