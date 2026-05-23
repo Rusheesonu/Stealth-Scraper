@@ -1383,6 +1383,59 @@ def test_script_html_kind_returns_inner_text():
     assert val.startswith('<div')
 
 
+
+# ── 29. Universal selector `*` and child-only `>` ────────────────────────
+
+
+def test_universal_selector_with_descendant():
+    """`.card > *` matches direct children of any element with .card class."""
+    html = """
+    <html><body>
+      <div class="card">
+        <h3>Title</h3>
+        <span class="meta">Meta</span>
+        <p>Body</p>
+      </div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "kids", "kind": "list", "selector": ".card > *"}
+    result = _pull(tree, field)
+    assert result["value"] == ["Title", "Meta", "Body"], result
+
+
+def test_first_child_pseudo_works():
+    """`li:first-child` should match the first li in each parent."""
+    html = """
+    <html><body>
+      <ul>
+        <li>first</li>
+        <li>second</li>
+      </ul>
+      <ul>
+        <li>another first</li>
+        <li>another second</li>
+      </ul>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "f", "kind": "list", "selector": "li:first-child"}
+    assert _pull(tree, field)["value"] == ["first", "another first"]
+
+
+def test_nth_child_pseudo_works():
+    """`li:nth-child(2)` should match the SECOND li in each parent."""
+    html = """
+    <html><body>
+      <ul><li>1</li><li>2</li><li>3</li></ul>
+      <ul><li>a</li><li>b</li><li>c</li></ul>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "n", "kind": "list", "selector": "li:nth-child(2)"}
+    assert _pull(tree, field)["value"] == ["2", "b"]
+
+
 if __name__ == "__main__":
     import sys
     tests = [
