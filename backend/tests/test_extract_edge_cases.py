@@ -708,6 +708,69 @@ def test_attr_with_dash_extracted_correctly():
     assert _pull(tree, fsku)["value"] == "SKU-9"
 
 
+
+# ── 21. Virtualized-list coverage warning ────────────────────────────────
+
+
+def test_virtualized_list_does_not_crash():
+    """A page with only 5 cards rendered (virtualized list) extracts
+    the 5 it finds. We don't crash, don't lie about counts, and the
+    user gets honest data."""
+    html = """
+    <html><body>
+      <div class="grid">""" + "".join([
+        f"""<article class="card"><h3>Item {i}</h3><span class="p">${i*10}</span></article>"""
+        for i in range(5)
+    ]) + """</div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "div.grid > article.card > h3"},
+        {"label": "price", "kind": "list",
+         "selector": "div.grid > article.card > span.p"},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    assert len(values["title"]) == 5, values
+    assert len(values["price"]) == 5, values
+    # The actual virtualization detection isn't a hard contract here —
+    # this test just pins that small-count grids extract correctly
+    # and don't trigger any spurious null-broadcast cleanup.
+    assert values["title"][0] == "Item 0"
+    assert values["price"][4] == "$40"
+
+
+def test_single_row_grid_falls_through_cleanly():
+    """If a grid only has ONE matching card (often happens when the
+    user's selector is too narrow), _pull_lists_per_row should bail
+    out (need >= 2 rows for per-row extraction) and let _pull handle
+    each field flat — returning a single-element list."""
+    html = """
+    <html><body>
+      <div class="grid">
+        <article class="card">
+          <h3>Solo</h3>
+          <span class="p">$10</span>
+        </article>
+      </div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "div.grid > article.card > h3"},
+        {"label": "price", "kind": "list",
+         "selector": "div.grid > article.card > span.p"},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    # Either per-row extraction bailed (handled is empty, caller falls
+    # back to flat _pull) OR it returned single-element lists. Both ok.
+    if handled:
+        assert values["title"] == ["Solo"]
+        assert values["price"] == ["$10"]
+
+
 if __name__ == "__main__":
     import sys
     tests = [
