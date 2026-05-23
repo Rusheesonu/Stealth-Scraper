@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Save, Trash2, MousePointerClick } from "lucide-react";
+import { Check, Copy, Plus, Save, Trash2, MousePointerClick } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { Kbd } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { PickedField } from "@/components/picker/picker-client";
@@ -25,6 +26,10 @@ type Props = {
   /** Indices of fields just prefilled from AI extract — get a 6s accent
    *  ring so the user can see "these came from AI, you should review them". */
   highlightIdxs?: Set<number>;
+  /** Power-user escape hatch: open the "type a CSS/XPath selector" dialog.
+   *  Owner renders the dialog (so it can call confirmField on the picker).
+   *  When omitted the row hides — keeps this component usable in tests. */
+  onAddManual?: () => void;
 };
 
 /**
@@ -38,10 +43,22 @@ type Props = {
  * Header is two lines: eyebrow + count headline. The "click the snapshot"
  * hint is woven into the empty state, not a separate paragraph at the top.
  */
-export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorForIndex, onSelectField, highlightIdxs }: Props) {
+export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorForIndex, onSelectField, highlightIdxs, onAddManual }: Props) {
   const [templateName, setTemplateName] = useState("");
   const [showSave, setShowSave] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
   const hasListField = fields.some((f) => f.kind === "list");
+
+  async function copySavedId() {
+    if (savedId == null) return;
+    try {
+      await navigator.clipboard.writeText(String(savedId));
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 1400);
+    } catch {
+      /* clipboard unavailable — silent */
+    }
+  }
 
   return (
     <aside className="flex h-full w-80 flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)]">
@@ -136,6 +153,14 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
                         {f.label}
                       </span>
                       <KindChip kind={f.kind} attr={f.attr} />
+                      {f.element_id === -2 && (
+                        <span
+                          className="inline-flex h-[18px] shrink-0 items-center rounded px-1.5 font-mono text-[11px] leading-none ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]"
+                          title="Added manually — no element on the snapshot to highlight"
+                        >
+                          manual
+                        </span>
+                      )}
                       {(f.transforms?.length ?? 0) > 0 && (
                         <span
                           className="inline-flex h-[18px] shrink-0 items-center rounded px-1.5 font-mono text-[11px] leading-none ring-1 ring-inset ring-[var(--color-border)] bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]"
@@ -165,6 +190,22 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
         )}
       </div>
 
+      {/* Manual-add row — escape hatch for power users with a DevTools-tested
+          selector. Subtle, sits between the field list and the primary CTA
+          so it doesn't compete for attention. */}
+      {onAddManual && (
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+          <button
+            type="button"
+            onClick={onAddManual}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[var(--color-border)] px-3 py-1.5 text-[12px] text-[var(--color-fg-muted)] transition-[border-color,background,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
+          >
+            <Plus className="h-3 w-3" />
+            Add field manually
+          </button>
+        </div>
+      )}
+
       {/* Footer — primary save action. Has its own divider above. */}
       <div className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-3">
         {savedId != null ? (
@@ -176,8 +217,22 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
           >
             <Check className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-accent)]" />
             <span className="text-[var(--color-fg)]">
-              Saved · <span className="font-mono">#{savedId}</span>
+              Saved · <span className="font-mono">id: {savedId}</span>
             </span>
+            <IconButton
+              onClick={copySavedId}
+              size="xs"
+              tone="quiet"
+              aria-label={`Copy template id ${savedId}`}
+              title="Copy id"
+              className="-my-1"
+            >
+              {copiedId ? (
+                <Check className="h-3 w-3 text-[var(--color-accent)]" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+            </IconButton>
             <Link
               href="/templates"
               className="ml-auto text-[11px] font-medium text-[var(--color-accent)] hover:underline"

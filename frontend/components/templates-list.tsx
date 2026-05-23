@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Play, Trash2, ExternalLink } from "lucide-react";
+import { Check, Copy, Loader2, Play, Trash2, ExternalLink } from "lucide-react";
 import { api, type ExtractResponse, type SavedTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -15,6 +15,17 @@ export function TemplatesList() {
   const [runUrls, setRunUrls] = useState<Record<number, string>>({});
   const [runningId, setRunningId] = useState<number | null>(null);
   const [results, setResults] = useState<{ res: ExtractResponse; url: string } | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  async function copyId(id: number) {
+    try {
+      await navigator.clipboard.writeText(String(id));
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1400);
+    } catch {
+      // clipboard unavailable — silently no-op
+    }
+  }
 
   async function load() {
     try {
@@ -95,9 +106,24 @@ export function TemplatesList() {
           >
             <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-semibold">{t.name}</h3>
-                  <Badge tone="muted">#{t.id}</Badge>
+                <h3 className="text-base font-semibold">{t.name}</h3>
+                <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
+                  <span>
+                    id: <span className="text-[var(--color-fg)]">{t.id}</span>
+                  </span>
+                  <IconButton
+                    onClick={() => copyId(t.id)}
+                    size="xs"
+                    tone="quiet"
+                    aria-label={`Copy template id ${t.id}`}
+                    title="Copy id"
+                  >
+                    {copiedId === t.id ? (
+                      <Check className="h-3 w-3 text-[var(--color-accent)]" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </IconButton>
                 </div>
                 <a
                   href={t.source_url}

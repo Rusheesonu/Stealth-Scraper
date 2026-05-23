@@ -7,37 +7,9 @@ import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProgrammaticAccessPanel } from "@/components/programmatic-access";
 import { api, type ApiKey } from "@/lib/api";
 import { cn } from "@/lib/utils";
-
-type Lang = "python" | "typescript" | "curl";
-
-const SDK_TABS: { id: Lang; label: string; iconText: string }[] = [
-  { id: "python", label: "Python", iconText: "py" },
-  { id: "typescript", label: "TypeScript", iconText: "ts" },
-  { id: "curl", label: "cURL", iconText: "$" },
-];
-
-function buildSnippets(apiKey: string): Record<Lang, string> {
-  return {
-    python: `# pip install stealth-scraper
-from stealth_scraper import StealthClient
-
-client = StealthClient(api_key="${apiKey}")
-result = client.snapshot("https://news.ycombinator.com/")
-print(result.elements[:3])`,
-    typescript: `// npm install stealth-scraper
-import { StealthClient } from 'stealth-scraper';
-
-const client = new StealthClient({ apiKey: '${apiKey}' });
-const result = await client.snapshot('https://news.ycombinator.com/');
-console.log(result.elements.slice(0, 3));`,
-    curl: `curl -X POST https://api.stealthscraper.dev/snapshot \\
-  -H "Authorization: Bearer ${apiKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"url":"https://news.ycombinator.com/"}'`,
-  };
-}
 
 export default function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
@@ -46,8 +18,6 @@ export default function ApiKeysPage() {
   const [newName, setNewName] = useState("");
   const [justCreated, setJustCreated] = useState<{ name: string; key: string } | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
-  const [sdkTab, setSdkTab] = useState<Lang>("python");
-  const [sdkCopied, setSdkCopied] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<{ id: number; name: string } | null>(null);
   const [revoking, setRevoking] = useState(false);
 
@@ -102,19 +72,6 @@ export default function ApiKeysPage() {
       await navigator.clipboard.writeText(justCreated.key);
       setCopyState("copied");
       setTimeout(() => setCopyState("idle"), 1200);
-    } catch {}
-  }
-
-  // SDK samples use the just-created key when available — proves it works
-  // end-to-end. Otherwise we show the canonical ssk_xxx placeholder.
-  const sampleKey = justCreated?.key ?? "ssk_xxx";
-  const snippets = buildSnippets(sampleKey);
-
-  async function copySnippet() {
-    try {
-      await navigator.clipboard.writeText(snippets[sdkTab]);
-      setSdkCopied(true);
-      setTimeout(() => setSdkCopied(false), 1200);
     } catch {}
   }
 
@@ -237,61 +194,13 @@ export default function ApiKeysPage() {
           </div>
         )}
 
-        {/* SDK samples — tabbed. Uses justCreated.key when available so the
-            sample is copy-paste-runnable right after creation. */}
-        <div className="mt-10 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
-          <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-3 py-2">
-            <div className="flex items-center gap-0.5">
-              {SDK_TABS.map(({ id, label, iconText }) => {
-                const active = sdkTab === id;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setSdkTab(id)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium",
-                      "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
-                      active
-                        ? "bg-[var(--color-surface)] text-[var(--color-fg-strong)] ring-1 ring-[var(--color-border)]"
-                        : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
-                    )}
-                  >
-                    <span className={cn(
-                      "inline-flex h-4 w-4 items-center justify-center rounded-sm font-mono text-[11px]",
-                      active
-                        ? "bg-[var(--color-accent-faint)] text-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent-line)]"
-                        : "bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]",
-                    )}>
-                      {iconText}
-                    </span>
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={copySnippet}
-              className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[11px] text-[var(--color-fg-muted)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)]"
-              title="Copy snippet"
-            >
-              {sdkCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-              {sdkCopied ? "copied" : "copy"}
-            </button>
-          </div>
-          <pre className="overflow-x-auto bg-[var(--color-ink-1)] px-5 py-4 font-mono text-[13px] leading-[1.65] text-[var(--color-fg)]">
-{snippets[sdkTab]}
-          </pre>
-          {!justCreated && (
-            <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
-              Replace <code>ssk_xxx</code> with the key shown when you create one above.
-            </div>
-          )}
-          {justCreated && (
-            <div className="border-t border-[color:var(--color-accent)]/30 bg-[var(--color-accent-faint)] px-5 py-2.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
-              Snippet contains your new key — copy and save it now.
-            </div>
-          )}
-        </div>
+        {/* Programmatic access — terminal-styled snippet generator. Six
+            languages, live-bound to the user's saved templates and the
+            most recent live key (or the just-created plaintext key). */}
+        <ProgrammaticAccessPanel
+          apiKeys={keys}
+          justCreatedKey={justCreated?.key ?? null}
+        />
       </div>
 
       {/* Revoke confirmation modal — no native confirm(). */}

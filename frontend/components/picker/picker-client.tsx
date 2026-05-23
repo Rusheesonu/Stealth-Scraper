@@ -12,8 +12,10 @@ import { UrlForm } from "@/components/url-form";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Badge, Kbd } from "@/components/ui/badge";
 import { LabelModal } from "@/components/picker/label-modal";
+import { ManualFieldModal } from "@/components/picker/manual-field-modal";
+import { Modal } from "@/components/motion-primitives";
 import { SnapshotCanvas } from "@/components/picker/snapshot-canvas";
 import { FieldSidebar } from "@/components/picker/field-sidebar";
 import { ResultsPanel } from "@/components/picker/results-panel";
@@ -101,6 +103,12 @@ export function PickerClient() {
   const [savedId, setSavedId] = useState<number | null>(null);
   const [targetUrl, setTargetUrl] = useState<string>("");
   const [batchOpen, setBatchOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [crossHostPrompt, setCrossHostPrompt] = useState<{
+    nextUrl: string;
+    currentHost: string;
+    nextHost: string;
+  } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   /** Which field is open in the detail drawer? null = closed. */
   const [detailIdx, setDetailIdx] = useState<number | null>(null);
@@ -290,9 +298,103 @@ export function PickerClient() {
     setFields((prev) => prev.filter((_, i) => i !== index));
   }
 
+  /** Add a field the user typed in (CSS / XPath) rather than clicked on
+   *  the snapshot. Stored with `element_id = -2` + empty bbox so the
+   *  sidebar can tag it `manual` and the canvas overlay skips it (nothing
+   *  to highlight). The backend treats the selector the same as a clicked
+   *  field. */
+  function addManualField(input: {
+    label: string;
+    kind: TemplateField["kind"];
+    selector: string;
+    xpath?: string;
+    attr?: string;
+  }) {
+    const field: PickedField = {
+      label: input.label,
+      selector: input.selector,
+      xpath: input.xpath,
+      kind: input.kind,
+      attr: input.attr ?? "",
+      element_id: -2,
+      bbox: { x: 0, y: 0, w: 0, h: 0 },
+    };
+    setFields((prev) => [...prev, field]);
+    setManualOpen(false);
+    flashToast(`Added "${input.label}" — manual selector`);
+  }
+
   /** Apply a partial patch to one field — used by the FieldDetailDrawer. */
   function updateField(index: number, patch: Partial<PickedField>) {
     setFields((prev) => prev.map((f, i) => (i === index ? { ...f, ...patch } : f)));
+  }
+
+  /** Normalised hostname for cross-site comparison. Strips the `www.`
+   *  prefix and lower-cases — `URL.hostname` is good enough here, we
+   *  don't need PSL accuracy (`amzn.co.uk` vs `amazon.co.uk` is fine
+   *  to treat as different). Returns null when the URL is unparsable
+   *  so callers can fall back to "definitely different". */
+  function normHost(u: string): string | null {
+    try {
+      const h = new URL(u).hostname.toLowerCase();
+      return h.startsWith("www.") ? h.slice(4) : h;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Re-snapshot the picker in place for a NEW URL while preserving the
+   *  current template fields. The existing url-driven useEffect resets
+   *  state on query change, so we bypass it: push the route + manually
+   *  call `api.snapshot` and patch state. Fields stay put; the saved
+   *  banner clears (a new template will be a new save).
+   *
+   *  Used after the user submits a URL with the SAME hostname as the
+   *  current snapshot, or explicitly picks "Start fresh in this tab"
+   *  (in which case `clearFields = true`). */
+  async function swapSnapshot(nextUrl: string, opts: { clearFields: boolean }) {
+    // Update the route so refreshes / back-button work, but suppress the
+    // useEffect's blanket state-reset by marking the URL as already loaded.
+    lastLoadedUrl.current = nextUrl;
+    router.push(`/pick?url=${encodeURIComponent(nextUrl)}`);
+    setSnapshot(null);
+    setLoadError(null);
+    setSavedId(null);
+    setResults(null);
+    setBatchResults(null);
+    setTargetUrl(nextUrl);
+    if (opts.clearFields) setFields([]);
+    setLoading(true);
+    try {
+      const res = await api.snapshot(nextUrl);
+      setSnapshot(res);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** Handle the user submitting the URL input (Enter key). Decides
+   *  between "swap snapshot in place" (same site) and the cross-site
+   *  confirm prompt. No-op when the URL didn't actually change. */
+  function onUrlSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const next = targetUrl.trim();
+    if (!next || next === url) return;
+    const here = normHost(url);
+    const there = normHost(next);
+    if (here && there && here === there) {
+      void swapSnapshot(next, { clearFields: false });
+      return;
+    }
+    // Different host (or unparsable). Ask before we throw away the work
+    // they've done on the current site.
+    setCrossHostPrompt({
+      nextUrl: next,
+      currentHost: here ?? url,
+      nextHost: there ?? next,
+    });
   }
 
   function templatePayload() {
@@ -420,6 +522,11 @@ export function PickerClient() {
             faded: idx > 0,
           }));
         }
+        // Skip fields with no real bbox (AI-prefilled, manually-typed
+        // selectors). The sidebar still lists them, but there's nothing
+        // to highlight on the snapshot — and a 0×0 overlay would pin a
+        // stray label at the top-left.
+        if (!f.bbox || (f.bbox.w === 0 && f.bbox.h === 0)) return [];
         return [{ bbox: f.bbox, label: f.label, color, faded: false }];
       }),
     [fields, colorForIndex]
@@ -524,10 +631,15 @@ export function PickerClient() {
           ) : null}
         </div>
 
-        {/* Extract-target controls */}
-        <div className="flex flex-1 items-center gap-2 md:max-w-2xl">
+        {/* URL bar — editable. Submitting (Enter) re-snapshots the picker
+            on the new URL. Same hostname → swap in place, keep fields.
+            Different hostname → confirm dialog (selectors won't transfer). */}
+        <form
+          onSubmit={onUrlSubmit}
+          className="flex flex-1 items-center gap-2 md:max-w-2xl"
+        >
           <div className="hidden font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)] md:block whitespace-nowrap">
-            Extract from
+            URL
           </div>
           <div className="relative flex-1">
             <Input
@@ -538,9 +650,11 @@ export function PickerClient() {
               placeholder={url}
               className="pr-8"
               spellCheck={false}
+              aria-label="Snapshot URL — edit and press Enter to load a different page"
             />
             {targetUrl && targetUrl !== url && (
               <button
+                type="button"
                 onClick={() => setTargetUrl(url)}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)] hover:text-[var(--color-fg)]"
                 title="Reset to snapshot URL"
@@ -549,7 +663,9 @@ export function PickerClient() {
               </button>
             )}
           </div>
-        </div>
+          {/* Hidden submit — Enter on the input still triggers onUrlSubmit. */}
+          <button type="submit" className="hidden" aria-hidden="true" tabIndex={-1} />
+        </form>
 
         <div className="flex items-center gap-1.5">
           <Button
@@ -577,14 +693,15 @@ export function PickerClient() {
         </div>
       </header>
 
-      {/* Warning strip when running on a different URL than the snapshot */}
+      {/* Warning strip when the URL input differs from the snapshot. Enter
+          re-snapshots; Run extract uses whatever's in the box. */}
       {targetUrl && targetUrl !== url && (
-        <div className="flex items-center justify-center gap-2 border-b border-[color:var(--color-warning)]/25 bg-[var(--color-warning-soft)] px-4 py-1.5">
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-b border-[color:var(--color-warning)]/25 bg-[var(--color-warning-soft)] px-4 py-1.5">
           <span className="font-mono text-[11px] text-[var(--color-fg)]">
-            ⚠ Extracting from a different URL than the one you picked on.
+            ⚠ URL differs from the current snapshot.
           </span>
           <span className="text-[11px] text-[var(--color-fg-muted)]">
-            Selectors should still match if the page structure is the same.
+            Press <Kbd>↵</Kbd> to re-snapshot, or Run extract to test selectors here.
           </span>
         </div>
       )}
@@ -601,7 +718,7 @@ export function PickerClient() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.32, delay: 0.5, ease: [0.32, 0.72, 0, 1] }}
-              className="pointer-events-none fixed bottom-8 left-1/2 z-30 -translate-x-1/2"
+              className="fixed bottom-8 left-1/2 z-30 -translate-x-1/2"
             >
               <div
                 className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] text-white shadow-[var(--shadow-popover)]"
@@ -613,8 +730,16 @@ export function PickerClient() {
               >
                 <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
                 <span className="text-white/90">Click any element on the page to add it as a field</span>
-                <span className="ml-2 text-white/50">·</span>
+                <span className="text-white/50">·</span>
                 <span className="text-white/55">drag to box-select</span>
+                <span className="text-white/50">·</span>
+                <button
+                  type="button"
+                  onClick={() => setManualOpen(true)}
+                  className="text-white/85 underline-offset-2 hover:text-white hover:underline"
+                >
+                  type a selector
+                </button>
               </div>
             </motion.div>
           )}
@@ -691,6 +816,7 @@ export function PickerClient() {
                 colorForIndex={colorForIndex}
                 onSelectField={(i) => setDetailIdx(i)}
                 highlightIdxs={aiPrefillIdxs}
+                onAddManual={() => setManualOpen(true)}
               />
             </motion.div>
           )}
@@ -704,6 +830,42 @@ export function PickerClient() {
           onCancel={() => setPending(null)}
           onConfirm={confirmField}
           existingLabels={fields.map((f) => f.label)}
+        />
+      )}
+
+      {manualOpen && (
+        <ManualFieldModal
+          existingLabels={fields.map((f) => f.label)}
+          onCancel={() => setManualOpen(false)}
+          onConfirm={addManualField}
+        />
+      )}
+
+      {crossHostPrompt && (
+        <CrossHostPrompt
+          currentHost={crossHostPrompt.currentHost}
+          nextHost={crossHostPrompt.nextHost}
+          nextUrl={crossHostPrompt.nextUrl}
+          onOpenInNewTab={() => {
+            window.open(
+              `/pick?url=${encodeURIComponent(crossHostPrompt.nextUrl)}`,
+              "_blank",
+              "noopener,noreferrer",
+            );
+            setCrossHostPrompt(null);
+            // Restore the URL bar so the current tab visibly didn't change.
+            setTargetUrl(url);
+          }}
+          onStartFresh={() => {
+            const next = crossHostPrompt.nextUrl;
+            setCrossHostPrompt(null);
+            void swapSnapshot(next, { clearFields: true });
+          }}
+          onCancel={() => {
+            // Restore URL input to the previous (snapshot) value.
+            setTargetUrl(url);
+            setCrossHostPrompt(null);
+          }}
         />
       )}
 
@@ -779,6 +941,67 @@ export function PickerClient() {
         </div>
       )}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cross-hostname URL prompt — the user typed a URL on a different site
+// than the current snapshot. Their CSS selectors won't transfer (Amazon's
+// `.a-price-whole` is nothing on Target), so we ask before throwing work
+// away. Three lanes: open the new URL in a NEW tab (keeps current work),
+// start fresh in THIS tab (clears fields, re-snapshots), or cancel.
+// ─────────────────────────────────────────────────────────────────────────
+
+function CrossHostPrompt({
+  currentHost,
+  nextHost,
+  nextUrl,
+  onOpenInNewTab,
+  onStartFresh,
+  onCancel,
+}: {
+  currentHost: string;
+  nextHost: string;
+  nextUrl: string;
+  onOpenInNewTab: () => void;
+  onStartFresh: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal open={true} onClose={onCancel} className="max-w-md">
+      <div className="px-5 pt-5 pb-2">
+        <h2 className="text-[18px] font-semibold tracking-[-0.01em] text-[var(--color-fg-strong)]">
+          Switch to a different site?
+        </h2>
+        <p className="mt-1.5 text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
+          This template was built for{" "}
+          <span className="font-mono text-[var(--color-fg)]">{currentHost}</span>.
+          Its selectors probably won&apos;t match{" "}
+          <span className="font-mono text-[var(--color-fg)]">{nextHost}</span> —
+          different sites use different HTML.
+        </p>
+        <div className="mt-3 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
+          {nextUrl}
+        </div>
+      </div>
+
+      <div className="px-5 pb-5 pt-4">
+        <div className="flex flex-col gap-2">
+          <Button variant="primary" size="md" onClick={onOpenInNewTab} className="w-full justify-center">
+            Open in new tab
+          </Button>
+          <Button variant="secondary" size="md" onClick={onStartFresh} className="w-full justify-center">
+            Start fresh in this tab
+          </Button>
+          <Button variant="ghost" size="md" onClick={onCancel} className="w-full justify-center">
+            Cancel
+          </Button>
+        </div>
+        <p className="mt-3 text-[11px] leading-[1.5] text-[var(--color-fg-muted)]">
+          New tab keeps your current picks safe. Start fresh clears them and snapshots the new URL.
+        </p>
+      </div>
+    </Modal>
   );
 }
 
