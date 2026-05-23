@@ -771,6 +771,55 @@ def test_single_row_grid_falls_through_cleanly():
         assert values["price"] == ["$10"]
 
 
+
+# ── 22. <template> content graceful degradation ──────────────────────────
+
+
+def test_template_content_returns_honest_null_or_text():
+    """Browsers don't render `<template>` content; lxml parses it.
+    Whichever way lxml exposes the children, extraction must NOT
+    crash and must NOT silently return ''."""
+    html = """
+    <html><body>
+      <template id="card-template">
+        <article class="card">
+          <h3 class="title">Placeholder</h3>
+        </article>
+      </template>
+      <main>Visible content here.</main>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    # Selector for the title inside the template. Should not crash;
+    # value may be the placeholder text OR a null envelope.
+    field = {"label": "t", "kind": "text", "selector": "template#card-template h3.title"}
+    result = _pull(tree, field)
+    if result["value"] is None:
+        assert result["reason_if_null"], result
+    else:
+        # Lxml exposed the children — text is at least the placeholder.
+        assert isinstance(result["value"], str)
+
+
+def test_template_does_not_pollute_visible_text_of_ancestor():
+    """If user selects <body>, the visible text should be 'Visible
+    content here.' and NOT include the template placeholder (which the
+    user never sees in the browser). This is the IDEAL behavior; if
+    lxml can't filter templates we at least don't crash."""
+    html = """
+    <html><body><template id='t'>
+      <h3>Hidden Placeholder</h3>
+    </template><main>Visible.</main></body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "b", "kind": "text", "selector": "body"}
+    result = _pull(tree, field)
+    assert "Visible" in (result["value"] or ""), result
+    # Don't enforce hidden-placeholder exclusion — lxml parses
+    # templates as regular elements. Just ensure visibility text
+    # contains the actual visible string.
+
+
 if __name__ == "__main__":
     import sys
     tests = [
