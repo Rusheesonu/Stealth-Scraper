@@ -669,6 +669,45 @@ def test_noscript_text_content_at_parent_level_includes_real_content():
     # we must not crash.
 
 
+
+# ── 20. Bracket / data-bind attribute extraction + transforms ────────────
+
+
+def test_data_bind_attr_extracted_literally():
+    """`data-bind='text: price, click: onSelect'` should come back
+    literal — the user can then use regex_extract to pluck the
+    `text: price` segment with a transform pipeline."""
+    html = (
+        '<html><body><span class="p" '
+        'data-bind="text: price, click: onSelect">$10</span></body></html>'
+    )
+    tree = lxml_html.fromstring(html)
+    field = {"label": "b", "kind": "attr", "attr": "data-bind", "selector": "span.p"}
+    result = _pull(tree, field)
+    assert result["value"] == "text: price, click: onSelect", result
+
+
+def test_input_value_extracted_as_attr():
+    """`<input value='john@example.com'>` — value attr round-trips."""
+    html = '<html><body><input class="e" type="email" value="john@example.com"/></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {"label": "e", "kind": "attr", "attr": "value", "selector": "input.e"}
+    assert _pull(tree, field)["value"] == "john@example.com"
+
+
+def test_attr_with_dash_extracted_correctly():
+    """Custom attrs like `data-product-id` must be extracted exactly."""
+    html = (
+        '<html><body><article class="x" '
+        'data-product-id="ABC-123" data-product-sku="SKU-9">item</article></body></html>'
+    )
+    tree = lxml_html.fromstring(html)
+    fpid = {"label": "pid", "kind": "attr", "attr": "data-product-id", "selector": "article.x"}
+    fsku = {"label": "sku", "kind": "attr", "attr": "data-product-sku", "selector": "article.x"}
+    assert _pull(tree, fpid)["value"] == "ABC-123"
+    assert _pull(tree, fsku)["value"] == "SKU-9"
+
+
 if __name__ == "__main__":
     import sys
     tests = [
