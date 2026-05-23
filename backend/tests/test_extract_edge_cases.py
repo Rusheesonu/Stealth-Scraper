@@ -868,6 +868,69 @@ def test_scalar_only_template_returns_no_handled_lists():
     assert values == {}
 
 
+
+# ── 24. Transform pipeline edge cases ───────────────────────────────────
+
+
+def test_regex_extract_no_match_produces_null_envelope():
+    """`regex_extract` with a pattern that doesn't match should null
+    the value. The envelope must report the null honestly — confidence
+    drops, reason_if_null is set."""
+    html = '<html><body><span class="p">Just normal text</span></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "x",
+        "kind": "text",
+        "selector": "span.p",
+        "transforms": [{"op": "regex_extract", "pattern": r"\$(\d+)"}],
+    }
+    result = _pull(tree, field)
+    assert result["value"] is None, result
+    assert result["confidence"] < 1.0, result
+    assert result["reason_if_null"], result
+
+
+def test_to_int_on_non_numeric_returns_null():
+    """`to_int` on non-numeric text returns None — pin envelope."""
+    html = '<html><body><span class="p">not a number</span></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "n", "kind": "text", "selector": "span.p",
+        "transforms": [{"op": "to_int"}],
+    }
+    result = _pull(tree, field)
+    assert result["value"] is None
+    assert result["reason_if_null"]
+
+
+def test_transform_pipeline_chain_strip_to_int():
+    """Chain transforms: strip whitespace → strip '$' prefix → to_int."""
+    html = '<html><body><span class="p">  $1,299  </span></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "n", "kind": "text", "selector": "span.p",
+        "transforms": [
+            {"op": "strip"},
+            {"op": "strip_prefix", "value": "$"},
+            {"op": "to_int"},
+        ],
+    }
+    result = _pull(tree, field)
+    assert result["value"] == 1299, result
+
+
+def test_unknown_transform_op_is_no_op():
+    """Unknown ops should be silently ignored — pin for forward compat
+    when removing/renaming ops."""
+    html = '<html><body><span class="p">hello</span></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {
+        "label": "p", "kind": "text", "selector": "span.p",
+        "transforms": [{"op": "this_op_does_not_exist"}],
+    }
+    assert _pull(tree, field)["value"] == "hello"
+
+
 if __name__ == "__main__":
     import sys
     tests = [
