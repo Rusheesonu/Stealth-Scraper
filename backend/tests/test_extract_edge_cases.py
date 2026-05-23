@@ -1436,6 +1436,55 @@ def test_nth_child_pseudo_works():
     assert _pull(tree, field)["value"] == ["2", "b"]
 
 
+
+# ── 30. Duplicate selector across two labels doesn't crash ───────────────
+
+
+def test_duplicate_selectors_across_labels_extract_aligned():
+    """User accidentally duplicated the same selector for two labels.
+    Extraction should still produce aligned per-row results (both
+    labels get the same values), not crash."""
+    html = """
+    <html><body>
+      <div class="grid">
+        <article class="card">
+          <h3 class="title">Alpha</h3>
+          <span class="p">$10</span>
+        </article>
+        <article class="card">
+          <h3 class="title">Beta</h3>
+          <span class="p">$20</span>
+        </article>
+      </div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "name1", "kind": "list",
+         "selector": "div.grid > article.card > h3.title"},
+        {"label": "name2", "kind": "list",
+         "selector": "div.grid > article.card > h3.title"},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    # Both labels should get the same alignment — or the row extractor
+    # bails and each gets handled by flat _pull. Either is fine; we
+    # just must not crash.
+    if handled:
+        assert values["name1"] == values["name2"]
+        assert values["name1"] in (["Alpha", "Beta"], [])
+
+
+def test_field_with_no_selector_returns_unspecified():
+    """Field missing both `selector` and `xpath` — should return null
+    with reason 'field has neither selector nor xpath'."""
+    html = "<html><body><h1>hi</h1></body></html>"
+    tree = lxml_html.fromstring(html)
+    field = {"label": "x", "kind": "text"}
+    result = _pull(tree, field)
+    assert result["value"] is None
+    assert "selector" in (result["reason_if_null"] or "")
+
+
 if __name__ == "__main__":
     import sys
     tests = [
