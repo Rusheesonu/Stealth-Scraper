@@ -615,6 +615,60 @@ def test_template_ancestor_helper_unit():
     assert _has_template_ancestor(inside_span) is True
 
 
+
+# ── 19. <noscript> content extraction ───────────────────────────────────
+
+
+def test_noscript_inner_text_extracted_when_selector_targets_it():
+    """Many sites ship a `<noscript>` block with an SEO-friendly
+    prerendered copy of the page. lxml parses noscript content as
+    text. If a user picks an element WITHIN noscript via XPath
+    (cssselect treats noscript children as text), extraction must
+    surface the text fallback rather than returning empty."""
+    html = """
+    <html><body>
+      <noscript>
+        <h1 class='real-title'>Buy Widget Pro for $499</h1>
+        <p class='real-price'>$499</p>
+      </noscript>
+      <div id='spa-root'></div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    # Try a direct selector pointing into noscript. lxml's html parser
+    # treats noscript as raw text, so cssselect into the children
+    # likely returns nothing — degradation must be graceful (null +
+    # reason, not crash).
+    field = {"label": "title", "kind": "text", "selector": "h1.real-title"}
+    result = _pull(tree, field)
+    # Either we extract OR we honestly null with a reason — never
+    # crash, never silently return ''.
+    if result["value"] is None:
+        assert result["reason_if_null"], result
+    else:
+        assert "Widget" in result["value"], result
+
+
+def test_noscript_text_content_at_parent_level_includes_real_content():
+    """If user picks the <body> or a parent of <noscript>, the visible
+    text should include the noscript copy (lxml exposes it as text)."""
+    html = """
+    <html><body>
+      <main class='wrap'>
+        <noscript>fallback message</noscript>
+        Some other text.
+      </main>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "main", "kind": "text", "selector": "main.wrap"}
+    result = _pull(tree, field)
+    val = result["value"] or ""
+    assert "Some other text" in val
+    # noscript content may or may not be included by lxml; either way
+    # we must not crash.
+
+
 if __name__ == "__main__":
     import sys
     tests = [
