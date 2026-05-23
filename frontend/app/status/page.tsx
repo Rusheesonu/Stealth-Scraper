@@ -1,66 +1,44 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Loader2 } from "lucide-react";
 import { PageShell } from "@/components/nav";
-import { api, type StatusResponse } from "@/lib/api";
+import type { StatusResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { StatusClientRefresh } from "./client";
 
 /**
- * Status page — designed surface, not a default. The audit (May 22)
- * flagged the prior version as "reads as a Hetzner-clone default" —
- * fixed here with a proper hierarchy:
+ * Status page — server-rendered for SEO + first-paint. The initial
+ * verdict (operational / degraded / error) ships in the HTML; the
+ * 30-second polling refresh is delegated to a client child component
+ * that hydrates with the SSR data as its seed.
  *
- *   1. HERO STATUS — display-sized verdict line with a glowing dot.
- *      One thing per viewport, calmly authoritative.
- *   2. METADATA STRIP — version, egress region, last refresh — quiet
- *      mono labels, never the focal point.
- *   3. COMPONENT GRID — borderless list with tabular alignment,
- *      per-row dot + label + status pill. No card chrome — the page
- *      already IS the card.
- *
- * Design choices defended:
- *   • Display-size headline reserves accent visual weight for the
- *     RIGHT moment (a single status verdict at a time).
- *   • No "Refreshed Xs ago" banner — it's a footnote, not a CTA. Lives
- *     in the metadata strip with monospace caption type.
- *   • Subtle accent line under the banner (border-b) replaces the
- *     bordered Card. The page reads as a long single document, not a
- *     bento grid of bordered boxes.
- *   • Component list uses divide-y separators (Apple Settings style)
- *     not bordered rows. Lighter visual weight, same scan affordance.
+ * Design rationale (preserved from the prior client-only version):
+ *   1. HERO STATUS — display-sized verdict with a glowing dot
+ *   2. METADATA STRIP — version, egress region, last refresh
+ *   3. COMPONENT GRID — divide-y list, dot + label + status pill
  */
 
 type ComponentStatus = "operational" | "idle" | "degraded" | "not configured" | string;
 
+export const dynamic = "force-dynamic";
 
-export default function StatusPage() {
-  const [data, setData] = useState<StatusResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [lastFetched, setLastFetched] = useState<Date | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    async function tick() {
-      try {
-        const res = await api.status();
-        if (alive) {
-          setData(res);
-          setError(null);
-          setLastFetched(new Date());
-        }
-      } catch (e) {
-        if (alive) setError(e instanceof Error ? e.message : String(e));
-      }
+async function fetchStatus(): Promise<{ data: StatusResponse | null; error: string | null }> {
+  try {
+    const res = await fetch("https://api.stealthscraper.dev/status", {
+      cache: "no-store",
+      // 5s server-side timeout — don't let a wedged backend stall page render
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) {
+      return { data: null, error: `HTTP ${res.status}` };
     }
-    void tick();
-    const id = setInterval(tick, 30_000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, []);
+    const data = (await res.json()) as StatusResponse;
+    return { data, error: null };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export default async function StatusPage() {
+  const { data, error } = await fetchStatus();
 
   const allOk =
     data?.components.every(
@@ -74,17 +52,15 @@ export default function StatusPage() {
         c.status !== "not configured",
     ).length ?? 0;
 
-  // Compose hero state (single source of truth for headline + accent).
-  let heroState: "loading" | "error" | "ok" | "degraded";
-  if (error) heroState = "error";
-  else if (!data) heroState = "loading";
+  let heroState: "error" | "ok" | "degraded";
+  if (error || !data) heroState = "error";
   else if (allOk) heroState = "ok";
   else heroState = "degraded";
 
   return (
     <PageShell maxWidth="max-w-3xl">
       <div className="pt-8 pb-16 md:pt-12">
-        {/* ── Hero status ────────────────────────────────────────── */}
+        {/* Hero status */}
         <div className="relative">
           <div className="mb-3 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
             <span className="h-1 w-1 rounded-full bg-[var(--color-fg-subdued)]" />
@@ -97,7 +73,6 @@ export default function StatusPage() {
               heroState === "ok" && "text-[var(--color-fg-display)]",
               heroState === "degraded" && "text-[var(--color-warning)]",
               heroState === "error" && "text-[var(--color-danger,var(--color-warning))]",
-              heroState === "loading" && "text-[var(--color-fg-muted)]",
             )}
           >
             {heroState === "ok" && (
@@ -116,12 +91,6 @@ export default function StatusPage() {
               <span className="inline-flex items-center gap-4">
                 <HeroDot tone="warn" />
                 Status check failed
-              </span>
-            )}
-            {heroState === "loading" && (
-              <span className="inline-flex items-center gap-4 text-[var(--color-fg-muted)]">
-                <Loader2 className="h-7 w-7 animate-spin" />
-                Checking…
               </span>
             )}
           </h1>
@@ -149,21 +118,12 @@ export default function StatusPage() {
                 {error}
               </span>
             )}
-            {lastFetched && (
-              <>
-                <span>·</span>
-                <span>refreshed {timeAgo(lastFetched)}</span>
-                <span className="text-[var(--color-fg-subdued)]/70">auto · 30s</span>
-              </>
-            )}
           </div>
 
-          {/* Subtle accent line under the banner — a single design
-              gesture that says "this is composed, not stamped." */}
           <div className="mt-10 h-px w-full bg-gradient-to-r from-transparent via-[var(--color-border)] to-transparent" />
         </div>
 
-        {/* ── Components list ────────────────────────────────────── */}
+        {/* Components list */}
         {data && (
           <div className="mt-10">
             <div className="mb-4 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
@@ -188,7 +148,11 @@ export default function StatusPage() {
           </div>
         )}
 
-        {/* ── Footer ─────────────────────────────────────────────── */}
+        {/* Client-side 30s refresh — re-fetches the same endpoint and
+            re-renders the verdict + components in place. */}
+        <StatusClientRefresh initialData={data} />
+
+        {/* Footer */}
         <div className="mt-16 text-center text-[13px] text-[var(--color-fg-muted)]">
           Incidents and maintenance updates on{" "}
           <a
@@ -212,14 +176,8 @@ export default function StatusPage() {
 
 // ── Bits ─────────────────────────────────────────────────────────────────
 
-/**
- * Hero dot — display-sized, with a soft accent halo + a ping animation
- * on the OK state. Bigger than a row dot; carries enough visual weight
- * to live next to a 52px display heading.
- */
 function HeroDot({ tone }: { tone: "ok" | "warn" }) {
-  const color =
-    tone === "ok" ? "var(--color-accent)" : "var(--color-warning)";
+  const color = tone === "ok" ? "var(--color-accent)" : "var(--color-warning)";
   return (
     <span className="relative inline-flex h-3 w-3">
       <span
@@ -234,11 +192,6 @@ function HeroDot({ tone }: { tone: "ok" | "warn" }) {
   );
 }
 
-/**
- * Row dot — small, static, single-color. Reserves the ping animation
- * for the hero (avoiding the "10 ping animations on one page" Casino-
- * feeling failure mode).
- */
 function RowDot({ status }: { status: ComponentStatus }) {
   if (status === "operational") {
     return <span className="h-2 w-2 rounded-full bg-[var(--color-accent)]" />;
@@ -249,11 +202,6 @@ function RowDot({ status }: { status: ComponentStatus }) {
   return <span className="h-2 w-2 rounded-full bg-[var(--color-warning)]" />;
 }
 
-/**
- * Status pill — mono label with a subtle background. The "data, not
- * decoration" alternative to colored badges. Consistent width via
- * tabular-nums + lowercase status copy.
- */
 function StatusPill({ status }: { status: ComponentStatus }) {
   let tone: "ok" | "muted" | "warn" = "ok";
   if (status !== "operational") {
@@ -271,11 +219,4 @@ function StatusPill({ status }: { status: ComponentStatus }) {
       {status}
     </span>
   );
-}
-
-
-function timeAgo(d: Date): string {
-  const sec = Math.max(1, Math.floor((Date.now() - d.getTime()) / 1000));
-  if (sec < 60) return `${sec}s ago`;
-  return `${Math.floor(sec / 60)}m ago`;
 }

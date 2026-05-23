@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Brand } from "@/components/brand";
 
 export const metadata: Metadata = {
-  title: "Page not found · Stealth-Scraper",
+  title: "Page not found",
   description: "The page you were looking for doesn't exist.",
 };
 
@@ -40,7 +40,7 @@ export default function NotFound() {
           <Link href="/marketplace">
             <Button variant="secondary" size="md">Marketplace</Button>
           </Link>
-          <Link href="https://github.com/rushikeshsonu/Stealth-Scraper#readme" target="_blank" rel="noreferrer">
+          <Link href="https://github.com/Rusheesonu/stealth-browser#readme" target="_blank" rel="noreferrer">
             <Button variant="ghost" size="md">Docs</Button>
           </Link>
         </div>

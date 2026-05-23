@@ -46,8 +46,7 @@ export const metadata: Metadata = {
 };
 
 // JSON-LD SoftwareApplication structured data. Helps Google generate
-// rich result cards (rating stars, price). The aggregateRating is an
-// early-stage signal — refresh once we have more real reviews.
+// rich result cards. Prices match the /pricing page exactly.
 const SOFTWARE_LD = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -59,15 +58,10 @@ const SOFTWARE_LD = {
   operatingSystem: "Web",
   offers: [
     { "@type": "Offer", price: "0", priceCurrency: "USD", name: "Free" },
-    { "@type": "Offer", price: "19", priceCurrency: "USD", name: "Hobby" },
-    { "@type": "Offer", price: "79", priceCurrency: "USD", name: "Pro" },
-    { "@type": "Offer", price: "299", priceCurrency: "USD", name: "Scale" },
+    { "@type": "Offer", price: "29", priceCurrency: "USD", name: "Hobby" },
+    { "@type": "Offer", price: "99", priceCurrency: "USD", name: "Pro" },
+    { "@type": "Offer", price: "299", priceCurrency: "USD", name: "Business" },
   ],
-  aggregateRating: {
-    "@type": "AggregateRating",
-    ratingValue: "4.9",
-    ratingCount: "12",
-  },
   author: {
     "@type": "Person",
     name: "Rushikesh Sonu",

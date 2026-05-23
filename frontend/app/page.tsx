@@ -12,7 +12,6 @@ import { FeaturedTemplates } from "@/components/featured-templates";
 import { ClickFlowDemo } from "@/components/click-flow-demo";
 import { SdkPreview } from "@/components/sdk-preview";
 import { OssSection } from "@/components/oss-section";
-import { FounderNote } from "@/components/founder-note";
 import { LandingFaq } from "@/components/landing-faq";
 import { createClient } from "@/lib/supabase/server";
 
@@ -42,7 +41,7 @@ export default async function Home() {
       <SdkPreview />
       <AiExtractCta />
       <OssSection />
-      <FounderNote />
+      <GithubStarsStrip />
       <PricingTeaser />
       <LandingFaq />
       <CtaStrip />
@@ -208,6 +207,32 @@ function PricingTeaser() {
         </Link>
       </div>
     </Section>
+  );
+}
+
+function GithubStarsStrip() {
+  // Understated social-proof row. The shields.io badge reads the real
+  // star count from GitHub at request time — we don't invent a number.
+  return (
+    <section className="mx-auto max-w-4xl py-10 md:py-14">
+      <a
+        href="https://github.com/Rusheesonu/stealth-browser"
+        target="_blank"
+        rel="noreferrer"
+        className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4 transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://img.shields.io/github/stars/Rusheesonu/stealth-browser?style=social"
+          alt="GitHub stars"
+          width={120}
+          height={20}
+        />
+        <span className="font-mono text-[12px] text-[var(--color-fg-muted)]">
+          Open-source engine. MIT licensed.
+        </span>
+      </a>
+    </section>
   );
 }
 

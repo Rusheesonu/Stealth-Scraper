@@ -23,7 +23,8 @@ export default async function OG() {
   const strong = "#ededed";
   const accent = "#10b981";
 
-  return new ImageResponse(
+  try {
+    return new ImageResponse(
     (
       <div
         style={{
@@ -154,4 +155,26 @@ export default async function OG() {
     ),
     { ...size },
   );
+  } catch (err) {
+    console.error("opengraph-image render failed", err);
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            display: "flex",
+            width: "100%",
+            height: "100%",
+            background: "#0a0a0a",
+            color: "#fff",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 64,
+          }}
+        >
+          Stealth-Scraper
+        </div>
+      ),
+      { ...size },
+    );
+  }
 }
