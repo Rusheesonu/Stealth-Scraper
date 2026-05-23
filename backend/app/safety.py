@@ -234,12 +234,12 @@ class SafetyCheck:
     async def __aenter__(self) -> "SafetyCheck":
         allowed, reason = await robots_check(self.url, override=self.override_robots)
         if not allowed:
+            # NOTE: this path is currently unreachable from public/paid HTTP
+            # endpoints — they all pass override_robots=True. Kept for any
+            # future opt-in compliance mode (e.g. an enterprise plan that
+            # asks us to honor robots.txt server-side). Message kept short.
             raise PermissionError(
-                f"Scrape blocked: {reason} for {self.url}. "
-                f"This site's robots.txt disallows automated access "
-                f"for your user-agent. Authenticated users on a paid "
-                f"plan can override per-request if they have a legal "
-                f"basis (own the site, signed contract, etc)."
+                f"Scrape blocked by robots.txt for {self.url}."
             )
         await limiter.acquire(self.url)
         return self

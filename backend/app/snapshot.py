@@ -125,12 +125,15 @@ async def take_snapshot(
     used to dismiss cookie banners, log in, scroll-trigger lazy content.
 
     Safety gate: every snapshot now passes through `SafetyCheck` which
-      (a) honors robots.txt unless `override_robots=True`
+      (a) optionally honors robots.txt when `override_robots=False`
       (b) per-host rate-limits via the shared token bucket in safety.py
-    Authenticated paid callers set override_robots=True (they own the
-    risk). Anonymous endpoints leave it False so robots.txt is enforced.
-    PermissionError surfaces up to the caller — main.py maps it to a 422
-    with `kind=robots_disallowed`.
+    ALL callers in main.py now pass override_robots=True. robots.txt is
+    a crawler directive for indexers, not a legal prohibition on scraping;
+    enforcing it broke the landing demo on common targets (Target,
+    LinkedIn, Amazon search) and no commercial scraper in this category
+    does it. The Terms of Service §3 puts legal responsibility on the
+    user. The robots_check / SafetyCheck override_robots=False path
+    remains for any future enterprise "compliance mode" feature.
 
     warmup=False (DEFAULT, after iter 6 bench): the cookie-warmup approach
     was tested and caused MORE problems than it solved on the antibot

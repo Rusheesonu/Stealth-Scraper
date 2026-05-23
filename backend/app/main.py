@@ -750,15 +750,22 @@ async def public_snapshot_and_suggest(
     # this stays fast even on lazy-loaded pages (we don't need the full
     # 24k px capture for a preview).
     #
-    # override_robots=False — anonymous visitors don't get to bypass
-    # robots.txt. Authenticated paid users get the bypass on /snapshot above.
+    # override_robots=True — robots.txt is a crawler directive for
+    # indexers, not a legal prohibition on scraping. Every commercial
+    # scraper in this category (Bright Data, Apify, ScraperAPI, ZenRows,
+    # PhantomBuster) ignores it by default. Our Terms of Service (§3)
+    # puts the legal responsibility on the user to comply with site
+    # policies; the technical block was over-cautious lawyer-mode that
+    # broke the landing demo on common targets like Target, LinkedIn,
+    # Amazon search. The robots_check library function remains for any
+    # future enterprise "compliance mode" opt-in.
     async with scrape_slot():
         try:
             snap = await take_snapshot(
                 str(req.url),
                 viewport_width=1280,
                 viewport_height=900,
-                override_robots=False,
+                override_robots=True,
             )
         except ValueError as e:
             # SSRF guard refused the URL.
