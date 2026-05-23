@@ -426,6 +426,38 @@ def test_numeric_entities_decoded():
     assert _pull(tree, field)["value"] == "Price: €19.99"
 
 
+
+# ── 10. Comment nodes don't leak into visible text ─────────────────────
+
+
+def test_html_comment_nodes_skipped_in_visible_text():
+    """`<div><!-- price below -->$19.99</div>` — the comment node
+    should NOT appear in the extracted text. lxml comment nodes have
+    a non-string `.tag`, so the visit guard in `_visible_text`
+    skips them implicitly. Pin the behavior."""
+    html = (
+        '<html><body>'
+        '<div class="p"><!-- price below -->$19.99</div>'
+        '</body></html>'
+    )
+    tree = lxml_html.fromstring(html)
+    field = {"label": "p", "kind": "text", "selector": "div.p"}
+    result = _pull(tree, field)
+    assert result["value"] == "$19.99", result
+    # Make sure the comment text didn't leak in.
+    assert "price below" not in (result["value"] or "")
+
+
+def test_html_comment_between_siblings_does_not_glue():
+    """`<p>Hello<!-- spacer -->world</p>` should yield 'Helloworld' —
+    comments are NOT whitespace, they just don't appear at all."""
+    html = '<html><body><p>Hello<!-- spacer -->world</p></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {"label": "p", "kind": "text", "selector": "p"}
+    result = _pull(tree, field)
+    assert result["value"] == "Helloworld", result
+
+
 if __name__ == "__main__":
     import sys
     tests = [
