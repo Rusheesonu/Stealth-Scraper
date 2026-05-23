@@ -37,7 +37,7 @@ export default function TermsPage() {
             agree to these terms.
           </p>
           <p>
-            The service is operated by Rushikesh Sonu, a sole proprietorship
+            The service is operated by Rushikesh Koochana, a sole proprietorship
             based in India. If you don&apos;t agree to these terms, don&apos;t
             use the service.
           </p>

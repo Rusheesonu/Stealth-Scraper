@@ -38,7 +38,7 @@ export default function PrivacyPage() {
       <div className="flex flex-col gap-10 text-[16px] leading-[1.65] text-[var(--color-fg)]">
         <Section title="Who we are">
           <p>
-            Stealth-Scraper is operated as a sole proprietorship by Rushikesh Sonu
+            Stealth-Scraper is operated as a sole proprietorship by Rushikesh Koochana
             (the &quot;founder&quot;, &quot;we&quot;, &quot;us&quot;) from India.
             For any privacy-related question, contact{" "}
             <Mail>support@stealthscraper.dev</Mail>. The founder also acts as

@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/page-header";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "Built by Rushikesh Sonu — ex-data engineer, 5 years scraping 500+ sites.",
+    "Built by Rushikesh Koochana — ex-data engineer, 5 years scraping 500+ sites.",
 };
 
 /**
@@ -18,7 +18,7 @@ export default function AboutPage() {
     <PageShell maxWidth="max-w-2xl">
       <PageHeader
         eyebrow="About"
-        title="Built by Rushikesh Sonu"
+        title="Built by Rushikesh Koochana"
         backHref="/"
         backLabel="Home"
       />

@@ -64,7 +64,7 @@ const SOFTWARE_LD = {
   ],
   author: {
     "@type": "Person",
-    name: "Rushikesh Sonu",
+    name: "Rushikesh Koochana",
     url: "https://x.com/rushikeshsonu",
   },
 };
