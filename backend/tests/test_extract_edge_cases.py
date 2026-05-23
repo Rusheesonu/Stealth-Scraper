@@ -536,6 +536,85 @@ def test_deeply_nested_text_joined_correctly():
     assert _pull(tree, field)["value"] == "inner"
 
 
+# ── <template> content is inert in browsers; must not leak into scrapes ─
+
+
+def test_template_descendants_excluded_from_scalar_extraction():
+    """`<template>` contents are an inert document-fragment in real
+    browsers — invisible to users, not part of the live DOM. lxml's
+    cssselect doesn't know this and would happily return divs inside
+    `<template>`. We filter them out at the selector layer."""
+    html = """
+    <html><body>
+      <div class="card">visible content</div>
+      <template>
+        <div class="card">SHOULD NOT BE SCRAPED</div>
+      </template>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "card", "kind": "text", "selector": "div.card"}
+    # Only the visible card's content should be returned.
+    result = _pull(tree, field)
+    assert result["value"] == "visible content", result
+    assert "SHOULD NOT BE SCRAPED" not in str(result["value"])
+
+
+def test_template_descendants_excluded_from_list_extraction():
+    """Same rule for list extraction — the row in the <template> must
+    not appear in the per-row output."""
+    html = """
+    <html><body>
+      <div class="grid">
+        <article class="card">
+          <h3>Real A</h3><span class="p">$10</span>
+        </article>
+        <article class="card">
+          <h3>Real B</h3><span class="p">$20</span>
+        </article>
+      </div>
+      <template>
+        <div class="grid">
+          <article class="card">
+            <h3>Template Ghost</h3><span class="p">$99</span>
+          </article>
+        </div>
+      </template>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "div.grid > article.card > h3"},
+        {"label": "price", "kind": "list",
+         "selector": "div.grid > article.card > span.p"},
+    ]
+    values, handled = _pull_lists_per_row(tree, template)
+    assert {"title", "price"}.issubset(handled), handled
+    assert values["title"] == ["Real A", "Real B"], values
+    assert values["price"] == ["$10", "$20"], values
+    assert "Template Ghost" not in values["title"]
+    assert "$99" not in values["price"]
+
+
+def test_template_ancestor_helper_unit():
+    """Direct unit test on the helper itself."""
+    from app.extract import _has_template_ancestor
+    html = """
+    <html><body>
+      <div class="outside"><span>A</span></div>
+      <template>
+        <div class="inside"><span>B</span></div>
+      </template>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    outside_span = tree.cssselect("div.outside > span")[0]
+    inside_span = tree.cssselect("div.inside > span")[0]
+    assert _has_template_ancestor(outside_span) is False
+    assert _has_template_ancestor(inside_span) is True
+
+
 if __name__ == "__main__":
     import sys
     tests = [

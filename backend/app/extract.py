@@ -597,7 +597,14 @@ def _pull(tree, field: Field) -> FieldResult:
     parse_error: str | None = None
     if selector:
         try:
-            nodes = tree.cssselect(selector)
+            raw_nodes = tree.cssselect(selector)
+            # Drop matches inside <template> — browsers treat template
+            # content as an inert document fragment, not the live DOM.
+            # lxml's cssselect doesn't know this and returns them as
+            # if they were real. For a scraper this is the wrong call
+            # — a real user can't see template content. Filter at the
+            # earliest gate so per-row + per-field logic both benefit.
+            nodes = [n for n in raw_nodes if not _has_template_ancestor(n)]
             if nodes:
                 source = "selector"
                 used = selector
@@ -1080,6 +1087,28 @@ _PLACEHOLDER_SRC_RE = re.compile(
 )
 
 
+def _has_template_ancestor(node) -> bool:
+    """Walk up from `node` looking for a `<template>` ancestor. Returns
+    True if found. Used to filter cssselect matches that are inside
+    template document-fragments — those are inert in real browsers and
+    shouldn't be treated as scrapable content.
+
+    Bounded: walks at most 30 levels (real DOMs rarely exceed this; an
+    infinite-loop guard for malformed trees with cycles)."""
+    cur = node
+    for _ in range(30):
+        try:
+            cur = cur.getparent()
+        except Exception:
+            return False
+        if cur is None:
+            return False
+        tag = getattr(cur, "tag", None)
+        if isinstance(tag, str) and tag.lower() == "template":
+            return True
+    return False
+
+
 def _is_placeholder_src(val: str) -> bool:
     """A src/href is a 'placeholder' when it's empty, a 1x1 gif data URI,
     a tiny SVG data URI, `#`, `about:blank`, or starts with a known
@@ -1389,7 +1418,7 @@ def _try_prefix_lcp(
 
     row_selector = " > ".join(prefix)
     try:
-        rows = tree.cssselect(row_selector)
+        rows = [r for r in tree.cssselect(row_selector) if not _has_template_ancestor(r)]
     except Exception:
         return None
     if len(rows) < 2:
@@ -1431,6 +1460,8 @@ def _try_dom_lca(
             matches = tree.cssselect(sel)
         except Exception:
             matches = []
+        # Filter out matches inside <template> — see _has_template_ancestor.
+        matches = [m for m in matches if not _has_template_ancestor(m)]
         if not matches:
             return None
         field_matches.append((label, field, matches))
