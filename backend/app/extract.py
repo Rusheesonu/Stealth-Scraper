@@ -1038,6 +1038,24 @@ def _read(node, kind: str, attr: str) -> Any:
                         first = sset.split(",")[0].strip().split()
                         if first and first[0]:
                             return first[0]
+                # <picture> wrapper fallback. The picker may have
+                # captured <picture> itself; the meaningful src lives
+                # on the inner <img> (or first <source srcset>). Walk
+                # the children and pick the first useful URL.
+                tag = getattr(node, "tag", None)
+                if tag == "picture":
+                    for child in node.iter():
+                        ctag = getattr(child, "tag", None)
+                        if ctag == "img":
+                            img_src = (child.get("src") or "").strip()
+                            if img_src and not _is_placeholder_src(img_src):
+                                return img_src
+                        elif ctag == "source":
+                            srcset = child.get("srcset") or ""
+                            if srcset:
+                                first = srcset.split(",")[0].strip().split()
+                                if first and first[0]:
+                                    return first[0]
             except Exception:
                 pass
         return val
@@ -1088,6 +1106,15 @@ def _read(node, kind: str, attr: str) -> Any:
                         cap = (node.get("value") or "").strip()
                         if cap:
                             return cap
+                elif tag == "picture":
+                    # <picture> contains <source> + a fallback <img>;
+                    # the visible text proxy is the inner <img>'s alt.
+                    for child in node.iter():
+                        if getattr(child, "tag", None) == "img":
+                            alt = (child.get("alt") or "").strip()
+                            if alt:
+                                return alt
+                            break
             return visible
         return str(node).strip()
     except Exception:

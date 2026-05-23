@@ -1030,6 +1030,56 @@ def test_list_transform_mixed_none_and_value():
     assert isinstance(result["value"], list), result
 
 
+
+# ── 27. <picture> element — extract inner <img> alt or first srcset ─────
+
+
+def test_picture_element_attr_src_picks_inner_img_src():
+    """When the picker captures `<picture>` and the user asks for
+    `src` attr, we should walk into the inner `<img>` and return its
+    src (or first source's srcset)."""
+    html = """
+    <html><body>
+      <picture class='hero'>
+        <source srcset='https://cdn.example.com/hi.avif' type='image/avif'/>
+        <source srcset='https://cdn.example.com/hi.webp' type='image/webp'/>
+        <img src='https://cdn.example.com/fallback.jpg' alt='Hero image'/>
+      </picture>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "src", "kind": "attr", "attr": "src", "selector": "picture.hero"}
+    result = _pull(tree, field)
+    # `<picture>` itself has no `src` attr. Without smart fallback,
+    # this returns None. With the fallback (this iter's fix), it
+    # should return EITHER the inner <img> fallback OR the first
+    # <source srcset> URL — both are correct outcomes (browser
+    # would pick one based on format support; our scraper picks
+    # the highest-quality variant available in the markup).
+    assert result["value"] in (
+        "https://cdn.example.com/fallback.jpg",
+        "https://cdn.example.com/hi.avif",
+        "https://cdn.example.com/hi.webp",
+    ), result
+
+
+def test_picture_element_text_kind_returns_alt():
+    """`kind=text` on `<picture>` should return the alt of the inner
+    `<img>` (a `<picture>` has no direct visible text content)."""
+    html = """
+    <html><body>
+      <picture class='hero'>
+        <source srcset='https://cdn.example.com/hi.avif' type='image/avif'/>
+        <img src='/x.jpg' alt='Hero subject'/>
+      </picture>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "txt", "kind": "text", "selector": "picture.hero"}
+    result = _pull(tree, field)
+    assert result["value"] == "Hero subject", result
+
+
 if __name__ == "__main__":
     import sys
     tests = [
