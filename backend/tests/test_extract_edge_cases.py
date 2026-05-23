@@ -497,6 +497,45 @@ def test_aria_role_row_list_extraction():
     assert values["status"] == ["Done", "Open", "Blocked"], values
 
 
+
+# ── 12. All-whitespace text becomes empty, not preserved ─────────────────
+
+
+def test_all_whitespace_text_becomes_empty_string():
+    """`<span>   \\n\\t   </span>` should normalize to '' so the
+    envelope reports the field as empty rather than carrying useless
+    whitespace as a 'value'. The whitespace-collapse logic in
+    `_visible_text` handles this — pin it."""
+    html = "<html><body><span class='w'>   \n\t   </span></body></html>"
+    tree = lxml_html.fromstring(html)
+    field = {"label": "w", "kind": "text", "selector": "span.w"}
+    result = _pull(tree, field)
+    # Empty selector match should produce empty-value envelope with
+    # confidence 0.5 (selector hit but value empty).
+    assert result["value"] in (None, ""), result
+    assert result["confidence"] == 0.5, result
+
+
+def test_mixed_text_with_inner_elements_preserves_spaces():
+    """`<p>Hello <strong>world</strong> from earth</p>` should yield
+    'Hello world from earth' — internal whitespace between text runs
+    is preserved (only collapsed)."""
+    html = "<html><body><p class='m'>Hello <strong>world</strong> from earth</p></body></html>"
+    tree = lxml_html.fromstring(html)
+    field = {"label": "m", "kind": "text", "selector": "p.m"}
+    result = _pull(tree, field)
+    assert result["value"] == "Hello world from earth", result
+
+
+def test_deeply_nested_text_joined_correctly():
+    """`<div><span><strong>inner</strong></span></div>` clicked at outer
+    div should return the joined inner text."""
+    html = '<html><body><div class="o"><span><strong>inner</strong></span></div></body></html>'
+    tree = lxml_html.fromstring(html)
+    field = {"label": "o", "kind": "text", "selector": "div.o"}
+    assert _pull(tree, field)["value"] == "inner"
+
+
 if __name__ == "__main__":
     import sys
     tests = [
