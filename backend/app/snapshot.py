@@ -430,17 +430,28 @@ async def _snapshot_inner(
         # with JS execution disabled, the observer's callback queue
         # could drain on re-enable and mutate attrs. The `paused` flag
         # makes the callback a no-op during the window.
-        await tab.send(cdp.emulation.set_script_execution_disabled(value=True))
-        await tab.evaluate("window.__stealthLazyKillerPaused = true")
+        #
+        # Order matters: rAF flush BEFORE disable. With JS disabled the
+        # rAF callback can never fire and Promise.evaluate would error
+        # with "Promise was collected" (the promise is GC'd before any
+        # resolution). Pre-flush, then lock.
         try:
             # Two requestAnimationFrame round-trips flush any pending
             # rAF-scheduled writes from the unfrozen world into a final
-            # layout before we sample.
+            # layout before we sample. Bounded — Chromium guarantees rAF
+            # runs within ~16ms, so the inner promise resolves quickly.
             await tab.evaluate(
                 "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))",
                 await_promise=True,
             )
+        except Exception:
+            # Flush failed (CSP refused eval, frame torn down) — proceed
+            # anyway; the lock below is the real coherence guarantee.
+            pass
 
+        await tab.evaluate("window.__stealthLazyKillerPaused = true")
+        await tab.send(cdp.emulation.set_script_execution_disabled(value=True))
+        try:
             # 7. Collect elements at the expanded viewport — under DOM lock.
             data = await _evaluate_json(tab, COLLECT_ELEMENTS_JS)
 
