@@ -117,23 +117,15 @@ async def take_snapshot(
     viewport_height: int = 900,
     actions: list[BrowserAction] | None = None,
     warmup: bool = False,
-    override_robots: bool = False,
 ) -> SnapshotResult:
     """One-shot snapshot with a restart+retry on transient nodriver flakes.
 
     Optional actions run after navigation but before element collection —
     used to dismiss cookie banners, log in, scroll-trigger lazy content.
 
-    Safety gate: every snapshot now passes through `SafetyCheck` which
-      (a) optionally honors robots.txt when `override_robots=False`
-      (b) per-host rate-limits via the shared token bucket in safety.py
-    ALL callers in main.py now pass override_robots=True. robots.txt is
-    a crawler directive for indexers, not a legal prohibition on scraping;
-    enforcing it broke the landing demo on common targets (Target,
-    LinkedIn, Amazon search) and no commercial scraper in this category
-    does it. The Terms of Service §3 puts legal responsibility on the
-    user. The robots_check / SafetyCheck override_robots=False path
-    remains for any future enterprise "compliance mode" feature.
+    Safety gate: every snapshot passes through `SafetyCheck`, which is
+    now a pure per-host rate-limit wrapper (the robots.txt block was
+    removed — see safety.py docstring for why).
 
     warmup=False (DEFAULT, after iter 6 bench): the cookie-warmup approach
     was tested and caused MORE problems than it solved on the antibot
@@ -147,11 +139,8 @@ async def take_snapshot(
     instead of re-using the same browser session."""
 
     async def _once() -> SnapshotResult:
-        # SafetyCheck runs robots.txt + rate-limit BEFORE we burn a browser
-        # tab. PermissionError (robots disallowed) propagates out — caller
-        # decides how to surface it. The rate limiter just waits, never
-        # raises.
-        async with SafetyCheck(url, override_robots=override_robots):
+        # SafetyCheck rate-limits per host BEFORE we burn a browser tab.
+        async with SafetyCheck(url):
             if warmup:
                 await _warmup_session(url)
             return await _snapshot_inner(url, viewport_width, viewport_height, actions)

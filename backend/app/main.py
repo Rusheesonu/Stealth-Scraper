@@ -529,30 +529,19 @@ async def snapshot_endpoint(
         snap = None
         scrape_error: Exception | None = None
         try:
-            # Authenticated callers explicitly want to scrape — they own
-            # the legal/ethical risk. override_robots=True bypasses robots.txt.
             # Per-host rate limiting still applies (safety.RateLimiter).
+            # Legal responsibility for the target URL is on the caller —
+            # see Terms of Service §3.
             snap = await take_snapshot(
                 str(req.url),
                 viewport_width=req.viewport_width,
                 viewport_height=req.viewport_height,
                 actions=actions_payload,
-                override_robots=True,
             )
         except ValueError as e:
             # SSRF guard refused the URL — structured 422. NOT a billable
             # failure, so no refund (the request was invalid, not the page).
             raise _unsafe_url_http422(str(e)) from e
-        except PermissionError as e:
-            # robots.txt block. Refund — the user attempted in good faith.
-            await refunds.auto_refund_if_failed(
-                user_id=user_id, url=str(req.url), snap_title=None,
-                element_count=0, blocked=False, detected_vendor=None, error=e,
-            )
-            raise HTTPException(
-                status_code=422,
-                detail={"kind": "robots_disallowed", "message": str(e)},
-            ) from e
         except Exception as e:
             scrape_error = e
             await refunds.auto_refund_if_failed(
@@ -749,39 +738,16 @@ async def public_snapshot_and_suggest(
     # 1. Snapshot the page. Tighter viewport than logged-in /snapshot so
     # this stays fast even on lazy-loaded pages (we don't need the full
     # 24k px capture for a preview).
-    #
-    # override_robots=True — robots.txt is a crawler directive for
-    # indexers, not a legal prohibition on scraping. Every commercial
-    # scraper in this category (Bright Data, Apify, ScraperAPI, ZenRows,
-    # PhantomBuster) ignores it by default. Our Terms of Service (§3)
-    # puts the legal responsibility on the user to comply with site
-    # policies; the technical block was over-cautious lawyer-mode that
-    # broke the landing demo on common targets like Target, LinkedIn,
-    # Amazon search. The robots_check library function remains for any
-    # future enterprise "compliance mode" opt-in.
     async with scrape_slot():
         try:
             snap = await take_snapshot(
                 str(req.url),
                 viewport_width=1280,
                 viewport_height=900,
-                override_robots=True,
             )
         except ValueError as e:
             # SSRF guard refused the URL.
             raise _unsafe_url_http422(str(e)) from e
-        except PermissionError as e:
-            # robots.txt disallowed — structured 422 so the landing modal
-            # can render a helpful "this site asked us not to crawl" msg.
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "kind": "robots_disallowed",
-                    "message": str(e),
-                    "suggestion": "This site's robots.txt disallows crawling. "
-                                  "Try a public docs page or a marketplace listing.",
-                },
-            ) from e
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
 
@@ -1055,15 +1021,9 @@ async def assist_schema(
                 str(req.url),
                 viewport_width=req.viewport_width,
                 viewport_height=req.viewport_height,
-                override_robots=True,  # authenticated paid user → they own the risk
             )
         except ValueError as e:
             raise _unsafe_url_http422(str(e)) from e
-        except PermissionError as e:
-            raise HTTPException(
-                status_code=422,
-                detail={"kind": "robots_disallowed", "message": str(e)},
-            ) from e
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"snapshot failed: {e}") from e
 
