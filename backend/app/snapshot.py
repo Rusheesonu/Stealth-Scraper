@@ -204,11 +204,6 @@ async def _warmup_session(target_url: str) -> None:
     host = (u.hostname or "").lower()
     if not host or host in _warmed_hosts:
         return
-    # Skip warmup for sites known not to need it (cheap heuristic — these
-    # don't run anti-bot challenges at root so warming is wasted time).
-    if host.endswith(("toscrape.com", "ycombinator.com", "httpbin.org", "example.com", "wikipedia.org")):
-        _warmed_hosts.add(host)
-        return
 
     root = f"{u.scheme}://{u.hostname}/"
     if target_url.rstrip("/") == root.rstrip("/"):
