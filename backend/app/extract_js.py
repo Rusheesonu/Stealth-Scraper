@@ -69,6 +69,40 @@ COLLECT_ELEMENTS_JS = r"""
         return false;
     }
 
+    // Stable data-* attributes that QA tooling, test frameworks, and
+    // component libraries plant on elements precisely because they're
+    // meant to be selector-stable across redesigns / class-name
+    // hashing churn. Order matters — first hit wins per ancestor.
+    //
+    // Why this matters for the row extractor: Target's product cards
+    // (and most modern SPA sites — Shopify, Nike, Sephora, etc.) ship
+    // hashed class names like `.styles__Card-sc-9b8eaa-0` that differ
+    // across components AND across page loads. The class-only selector
+    // builder produces paths whose components disagree at deep levels,
+    // so the LCP `_pull_lists_per_row` computes breaks early — either
+    // bailing out, or anchoring on the grid container and broadcasting
+    // a single matched price across N rows. Anchoring on
+    // `[data-test='@web/.../ProductCard']` instead produces selectors
+    // that share the card-level prefix cleanly across all fields.
+    const STABLE_DATA_ATTRS = [
+        "data-test", "data-testid", "data-test-id",
+        "data-cy", "data-qa", "data-automation",
+        "data-component", "data-component-name",
+        "data-tracking-id", "data-analytics-id",
+    ];
+
+    function stableDataAttr(el) {
+        if (!el || !el.getAttribute) return null;
+        for (const name of STABLE_DATA_ATTRS) {
+            const val = el.getAttribute(name);
+            // Bound value length — some sites stuff long JSON blobs into
+            // data attrs (Walmart, Etsy). 80 chars is enough to be
+            // identifying without poisoning the selector.
+            if (val && val.length > 0 && val.length <= 80) return { name, value: val };
+        }
+        return null;
+    }
+
     function buildCssSelector(el) {
         // Prefer id if CSS-safe, unique, AND not a per-element random id.
         if (el.id && /^[a-zA-Z0-9][\w-]*$/.test(el.id) && !isRandomId(el.id) && document.querySelectorAll("#" + el.id).length === 1) {
@@ -82,11 +116,20 @@ COLLECT_ELEMENTS_JS = r"""
                 parts.unshift("#" + cur.id);
                 break;
             }
-            // Single useful class to stabilize (skip utility/hash classes)
-            const cls = Array.from(cur.classList || []).find(
-                c => /^[a-zA-Z][\w-]{1,40}$/.test(c) && !/^(is-|has-|css-|tw-|sc-|_)/.test(c)
-            );
-            if (cls) part += "." + cssEscape(cls);
+            // Prefer stable data-* attributes over class names — they're
+            // intentionally engineered to survive class-name hashing, so
+            // they produce selectors that share clean prefixes across
+            // sibling rows. See STABLE_DATA_ATTRS above.
+            const dataAttr = stableDataAttr(cur);
+            if (dataAttr) {
+                part += `[${dataAttr.name}="${String(dataAttr.value).replace(/"/g, '\\"')}"]`;
+            } else {
+                // Single useful class to stabilize (skip utility/hash classes)
+                const cls = Array.from(cur.classList || []).find(
+                    c => /^[a-zA-Z][\w-]{1,40}$/.test(c) && !/^(is-|has-|css-|tw-|sc-|_)/.test(c)
+                );
+                if (cls) part += "." + cssEscape(cls);
+            }
             // Disambiguate with nth-of-type
             const parent = cur.parentElement;
             if (parent) {

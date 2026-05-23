@@ -926,14 +926,46 @@ async def _wait_ready(tab, timeout: float) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Per-row extraction (unchanged from previous version)
+# Per-row list extraction. Two strategies — CSS-prefix LCP for clean
+# grids, DOM-LCA fallback for hashed-class SPA sites where selector
+# strings diverge. Plus a broadcast-detector safety net that nulls
+# columns where one global element is being captured across every row.
 # ─────────────────────────────────────────────────────────────────────────
 
 def _pull_lists_per_row(
     tree, template: list[Field]
 ) -> tuple[dict[str, list[Any]], set[str]]:
-    """Returns (values_by_label, labels_handled). Labels not in the set
-    should fall back to per-field extraction."""
+    """Per-row list extraction.
+
+    Two strategies, tried in order:
+
+      1. CSS-prefix LCP — split each list field's selector on `>`,
+         find the longest common prefix, use it as the row container.
+         Fast, works for clean grids where every field's selector
+         shares a clean ancestor path.
+
+      2. DOM-LCA fallback — when prefix-LCP yields no usable container
+         (no common prefix, prefix matches < 2 rows, or yields a
+         broadcast — i.e. every field returns the same scoped value
+         across all rows), find each field's matches in the tree and
+         walk UP from the field with the fewest matches looking for
+         the smallest ancestor that "owns" exactly one match from
+         every other field. That ancestor is the row container. The
+         DOM walk doesn't care about selector strings — it works off
+         actual DOM ancestry, which can't be faked by hashed-class
+         SPA sites (Target, Shopify, Nike, Sephora, etc.).
+
+    Safety: if BOTH strategies produce a column where every row has
+    the IDENTICAL non-empty value AND that field's flat-tree match
+    count is far smaller than the row count (clear broadcast signal —
+    one global element captured N times), that column gets nulled
+    rather than lying about per-row alignment. Frontend `zipRecords`
+    requires equal lengths; nulls preserve alignment without
+    inventing data.
+
+    Returns (values_by_label, labels_handled). Labels not in the
+    handled set fall back to per-field `_pull()`.
+    """
     list_fields: list[tuple[str, Field]] = []
     for f in template:
         if f.get("kind") != "list":
@@ -947,21 +979,41 @@ def _pull_lists_per_row(
     if len(list_fields) < 2:
         return {}, set()
 
+    values = _try_prefix_lcp(tree, list_fields)
+
+    if values is None or _looks_like_broadcast(tree, list_fields, values):
+        dom_values = _try_dom_lca(tree, list_fields)
+        if dom_values is not None:
+            values = dom_values
+
+    if values is None:
+        return {}, set()
+
+    cleaned = _null_broadcast_columns(tree, list_fields, values)
+    return cleaned, {label for label, _ in list_fields}
+
+
+def _try_prefix_lcp(
+    tree, list_fields: list[tuple[str, Field]]
+) -> dict[str, list[Any]] | None:
+    """Original CSS-selector-prefix row extraction. Returns None when
+    prefix is empty / prefix matches < 2 rows / parse error — caller
+    will try the DOM-LCA fallback."""
     parsed = [_split_selector(f[1]["selector"]) for f in list_fields]
     prefix = _longest_common_prefix(parsed)
 
     if len(prefix) == 0:
-        return {}, set()
+        return None
     if any(len(prefix) >= len(parts) for parts in parsed):
-        return {}, set()
+        return None
 
     row_selector = " > ".join(prefix)
     try:
         rows = tree.cssselect(row_selector)
     except Exception:
-        return {}, set()
+        return None
     if len(rows) < 2:
-        return {}, set()
+        return None
 
     suffixes = [" > ".join(parts[len(prefix):]) for parts in parsed]
 
@@ -975,7 +1027,164 @@ def _pull_lists_per_row(
                 matches = []
             values[label].append(_read(matches[0], "text", attr) if matches else None)
 
-    return values, {label for label, _ in list_fields}
+    return values
+
+
+def _try_dom_lca(
+    tree, list_fields: list[tuple[str, Field]]
+) -> dict[str, list[Any]] | None:
+    """DOM-based row extraction. Works when class names diverge across
+    fields so CSS-prefix LCP can't find a clean container.
+
+    Algorithm:
+      1. For each list field, get ALL its tree-wide matches.
+      2. The field with the FEWEST matches is our anchor.
+      3. Walk UP from each anchor looking for the smallest ancestor
+         that "owns" exactly one match from each OTHER field.
+      4. Per-row scope each field by finding its flat-tree matches
+         that are descendants of the row container.
+    """
+    field_matches: list[tuple[str, Field, list[Any]]] = []
+    for label, field in list_fields:
+        sel = field.get("selector", "")
+        try:
+            matches = tree.cssselect(sel)
+        except Exception:
+            matches = []
+        if not matches:
+            return None
+        field_matches.append((label, field, matches))
+
+    field_matches.sort(key=lambda fm: len(fm[2]))
+    anchor_matches = field_matches[0][2]
+    other_fields_matches = [fm[2] for fm in field_matches[1:]]
+    expected_rows = len(anchor_matches)
+
+    if expected_rows < 2:
+        return None
+
+    row_containers: list[Any] = []
+    for anchor in anchor_matches:
+        container = _find_row_container(anchor, other_fields_matches)
+        if container is None:
+            return None
+        row_containers.append(container)
+
+    seen_ids: set[int] = set()
+    unique_containers: list[Any] = []
+    for c in row_containers:
+        if id(c) in seen_ids:
+            continue
+        seen_ids.add(id(c))
+        unique_containers.append(c)
+    if len(unique_containers) < 2:
+        return None
+
+    values: dict[str, list[Any]] = {label: [] for label, _, _ in field_matches}
+    row_descendant_sets: list[set[int]] = [
+        {id(d) for d in row.iter()} for row in unique_containers
+    ]
+
+    for row_idx, _row in enumerate(unique_containers):
+        descendants = row_descendant_sets[row_idx]
+        for label, field, all_matches in field_matches:
+            attr = field.get("attr", "")
+            scoped = next((m for m in all_matches if id(m) in descendants), None)
+            values[label].append(_read(scoped, "text", attr) if scoped is not None else None)
+
+    return values
+
+
+def _find_row_container(
+    anchor: Any,
+    other_fields_matches: list[list[Any]],
+) -> Any | None:
+    """Walk UP from `anchor` looking for the smallest ancestor that
+    contains exactly one match from EACH other field's match list."""
+    cur = anchor
+    for _hop in range(12):
+        cur = cur.getparent() if hasattr(cur, "getparent") else None
+        if cur is None:
+            return None
+        descendants = {id(d) for d in cur.iter()}
+        ok = True
+        for matches in other_fields_matches:
+            inside = sum(1 for m in matches if id(m) in descendants)
+            if inside != 1:
+                ok = False
+                break
+        if ok:
+            return cur
+    return None
+
+
+def _looks_like_broadcast(
+    tree, list_fields: list[tuple[str, Field]], values: dict[str, list[Any]]
+) -> bool:
+    """Detect when a column is all-identical-non-null AND the field's
+    flat-tree match count is far smaller than the row count."""
+    if not values:
+        return False
+    rows_count = max((len(v) for v in values.values()), default=0)
+    if rows_count < 2:
+        return False
+
+    any_varied = False
+    any_broadcast = False
+    for label, field in list_fields:
+        col = values.get(label, [])
+        non_null = [v for v in col if v not in (None, "")]
+        if not non_null:
+            continue
+        distinct = len(set(non_null))
+        if distinct > 1:
+            any_varied = True
+            continue
+        sel = field.get("selector", "")
+        try:
+            flat_matches = tree.cssselect(sel)
+        except Exception:
+            flat_matches = []
+        if len(flat_matches) < max(2, rows_count // 2):
+            any_broadcast = True
+
+    return any_varied and any_broadcast
+
+
+def _null_broadcast_columns(
+    tree,
+    list_fields: list[tuple[str, Field]],
+    values: dict[str, list[Any]],
+) -> dict[str, list[Any]]:
+    """Replace per-column broadcasts with nulls."""
+    rows_count = max((len(v) for v in values.values()), default=0)
+    if rows_count < 2:
+        return values
+
+    other_columns_varied = False
+    for col in values.values():
+        non_null = [v for v in col if v not in (None, "")]
+        if len(set(non_null)) > 1:
+            other_columns_varied = True
+            break
+    if not other_columns_varied:
+        return values
+
+    cleaned: dict[str, list[Any]] = {}
+    for label, field in list_fields:
+        col = values.get(label, [])
+        non_null = [v for v in col if v not in (None, "")]
+        if len(non_null) >= 2 and len(set(non_null)) == 1:
+            sel = field.get("selector", "")
+            try:
+                flat_n = len(tree.cssselect(sel))
+            except Exception:
+                flat_n = 0
+            if flat_n < rows_count:
+                cleaned[label] = [None] * len(col)
+                continue
+        cleaned[label] = col
+    return cleaned
 
 
 _STEP_SEP_RE = re.compile(r"\s*>\s*")
