@@ -922,6 +922,24 @@ def _read(node, kind: str, attr: str) -> Any:
             climbed = _maybe_join_split_price(node, visible)
             if climbed is not None:
                 return climbed
+            # Media-element fallback. <img> / <area> have no text
+            # content; the meaningful textual proxy is their `alt`
+            # attribute. Same for <input type="button|submit"> whose
+            # caption lives in the `value` attribute. When the picker
+            # clicks an image and the user keeps kind=text, returning
+            # the alt text matches user intent better than returning "".
+            if not visible:
+                tag = getattr(node, "tag", None)
+                if tag == "img" or tag == "area":
+                    alt = (node.get("alt") or "").strip()
+                    if alt:
+                        return alt
+                elif tag == "input":
+                    itype = (node.get("type") or "").lower()
+                    if itype in ("button", "submit", "reset"):
+                        cap = (node.get("value") or "").strip()
+                        if cap:
+                            return cap
             return visible
         return str(node).strip()
     except Exception:

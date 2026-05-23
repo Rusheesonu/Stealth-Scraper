@@ -312,6 +312,42 @@ def test_two_data_testid_siblings_extract_distinctly():
     assert values["current"] == ["$30", "$60", "$75"]
 
 
+
+# ── 7. Image alt-text fallback when kind=text on an <img> ───────────────
+
+
+def test_img_alt_text_fallback_when_kind_text():
+    """`<img>` has no text content. When the picker clicks an image
+    and selects kind=text, _read should fall back to the `alt`
+    attribute rather than returning an empty string."""
+    html = (
+        '<html><body><img class="hero" '
+        'src="https://cdn.example.com/x.jpg" '
+        'alt="Vintage leather jacket"/></body></html>'
+    )
+    tree = lxml_html.fromstring(html)
+    field = {"label": "alt", "kind": "text", "selector": "img.hero"}
+    result = _pull(tree, field)
+    assert result["value"] == "Vintage leather jacket", result
+
+
+def test_img_alt_text_fallback_in_list():
+    """List kind on imgs should also yield alts."""
+    html = """
+    <html><body>
+      <div class="grid">
+        <img class="card" alt="Alpha" src="/a.jpg"/>
+        <img class="card" alt="Beta" src="/b.jpg"/>
+        <img class="card" alt="Gamma" src="/g.jpg"/>
+      </div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "alts", "kind": "list", "selector": "img.card"}
+    result = _pull(tree, field)
+    assert result["value"] == ["Alpha", "Beta", "Gamma"], result
+
+
 if __name__ == "__main__":
     import sys
     tests = [
