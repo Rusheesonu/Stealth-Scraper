@@ -931,6 +931,43 @@ def test_unknown_transform_op_is_no_op():
     assert _pull(tree, field)["value"] == "hello"
 
 
+
+# ── 25. <script> / <style> content excluded from visible text ────────────
+
+
+def test_script_content_not_in_visible_text():
+    """`<div>Title<script>var x=1;</script></div>` — visible text
+    should be 'Title', NOT 'Titlevar x=1;'."""
+    html = """
+    <html><body>
+      <div class='c'>Title<script>var x = 1; alert('hi');</script></div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "c", "kind": "text", "selector": "div.c"}
+    result = _pull(tree, field)
+    val = result["value"] or ""
+    assert "Title" in val, result
+    assert "var x" not in val, val
+    assert "alert" not in val, val
+
+
+def test_style_content_not_in_visible_text():
+    """`<div>Heading<style>.x { color: red; }</style></div>` —
+    visible text should not include the CSS rules."""
+    html = """
+    <html><body>
+      <div class='c'>Heading<style>.x { color: red; }</style></div>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html)
+    field = {"label": "c", "kind": "text", "selector": "div.c"}
+    val = _pull(tree, field)["value"] or ""
+    assert "Heading" in val, val
+    assert "color: red" not in val, val
+    assert ".x" not in val, val
+
+
 if __name__ == "__main__":
     import sys
     tests = [

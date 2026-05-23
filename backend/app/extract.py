@@ -1212,6 +1212,13 @@ _VISIBILITY_HIDDEN_RE = re.compile(r"visibility\s*:\s*hidden", re.IGNORECASE)
 _WS_COLLAPSE_RE = re.compile(r"\s+")
 
 
+# Tags whose textual content is NEVER visible to the user — code
+# blocks, hidden DOM, browser-only fallbacks. Filtering these out of
+# _visible_text avoids "Title var x = 1;" pollution when an ancestor
+# container is picked.
+_NEVER_VISIBLE_TAGS = frozenset(("script", "style", "noscript", "template"))
+
+
 def _is_hidden(node, pass_num: int = 1) -> bool:
     """Whether to skip this node during visible-text extraction.
 
@@ -1219,11 +1226,23 @@ def _is_hidden(node, pass_num: int = 1) -> bool:
     three-pass fallback that lets us recover screen-reader-only text
     when it's the ONLY copy present (e.g. some Amazon variants).
 
-      pass 1 (strict):  skip aria-hidden, sr-only classes, display:none
-      pass 2 (medium):  skip aria-hidden only — preserves the sr text
-                        copy when no visible-marked sibling exists
+      pass 1 (strict):  skip aria-hidden, sr-only classes, display:none,
+                        plus script/style/noscript/template tags
+      pass 2 (medium):  skip aria-hidden + script/style/noscript/template —
+                        preserves the sr text copy when no visible-marked
+                        sibling exists
       pass 3 (loose):   nothing skipped, mirrors lxml's text_content
+
+    Even on pass 3 we DO continue to skip <script>/<style>/<noscript>/
+    <template> via the visit loop's tag check rather than here — these
+    are NEVER user-visible text and pass 3 is meant to be a "show the
+    sr-only fallback" not "include source code".
     """
+    tag = getattr(node, "tag", None)
+    if isinstance(tag, str) and tag.lower() in _NEVER_VISIBLE_TAGS:
+        # Script / style / noscript / template are skipped at every
+        # pass — they carry code/markup not visible text.
+        return True
     if pass_num >= 3:
         return False
     try:
