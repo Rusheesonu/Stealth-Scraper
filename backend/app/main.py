@@ -557,6 +557,7 @@ async def snapshot_endpoint(
             title=snap.title or "",
             html=" ".join((el.get("text") or "")[:200] for el in (snap.elements or [])[:40]),
             url=snap.url,
+            element_count=len(snap.elements or []),
         )
         await refunds.auto_refund_if_failed(
             user_id=user_id, url=str(req.url),
@@ -769,6 +770,7 @@ async def public_snapshot_and_suggest(
         html=snap.html_excerpt or "",
         cookies=snap.cookies or {},
         url=snap.url,
+        element_count=len(snap.elements or []),
     )
     if block.blocked:
         # Soft-block (Cloudflare interstitial, DataDome JS challenge) —

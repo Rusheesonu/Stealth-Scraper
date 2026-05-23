@@ -301,30 +301,17 @@ function UrlMode() {
     return /^https?:\/\//i.test(t) ? t : "https://" + t;
   })();
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canSubmit) return;
-
-    // Logged-in users: skip the modal entirely. They already get the
-    // wow moment every day — give them the fast path. Direct push to
-    // the picker, where they have the full toolset + plan-aware UX.
-    if (isSignedIn) {
-      setBusy(true);
-      router.push(`/pick?url=${encodeURIComponent(normalizedUrl)}`);
-      return;
-    }
-
-    // Logged-out: open the modal IMMEDIATELY — visitor sees the loading
-    // animation start, not a frozen button. The snapshot request fires
-    // in parallel; modal swaps loader → result when it resolves.
+  async function runSnapshot(targetUrl: string) {
+    // Reset modal state so a retry doesn't show stale errors/previews
+    // alongside the new loading animation.
     setBusy(true);
     setError("");
     setAntiBotBlock(null);
     setPreview(null);
-    setSubmittedUrl(normalizedUrl);
+    setSubmittedUrl(targetUrl);
     setModalOpen(true);
     try {
-      const res = await api.publicSnapshotAndSuggest(normalizedUrl);
+      const res = await api.publicSnapshotAndSuggest(targetUrl);
       setPreview(res);
     } catch (e) {
       // Anti-bot soft block (status 422 with structured detail). This is
@@ -354,6 +341,36 @@ function UrlMode() {
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit) return;
+
+    // Logged-in users: skip the modal entirely. They already get the
+    // wow moment every day — give them the fast path. Direct push to
+    // the picker, where they have the full toolset + plan-aware UX.
+    if (isSignedIn) {
+      setBusy(true);
+      router.push(`/pick?url=${encodeURIComponent(normalizedUrl)}`);
+      return;
+    }
+
+    // Logged-out: open the modal IMMEDIATELY — visitor sees the loading
+    // animation start, not a frozen button.
+    await runSnapshot(normalizedUrl);
+  }
+
+  // Recrawl handler — used by the anti-bot card's "Retry" button.
+  // Re-runs the same URL on a fresh browser session (each /public/
+  // snapshot-and-suggest call acquires a new tab from the pool, so
+  // there's no state carrying over from the previous attempt). Soft
+  // blocks often clear on the second try because the first request
+  // tripped a transient signal that's now stale.
+  function retrySnapshot() {
+    if (submittedUrl) {
+      void runSnapshot(submittedUrl);
     }
   }
 
@@ -456,6 +473,7 @@ function UrlMode() {
         error={error}
         antiBotBlock={antiBotBlock}
         onTryDifferentUrl={tryDifferentUrl}
+        onRetry={retrySnapshot}
         onClose={closeModal}
       />
     </div>

@@ -73,14 +73,17 @@ def detect_block(
     url: str = "",
     cookies: Optional[dict[str, str]] = None,
     headers: Optional[dict[str, str]] = None,
+    element_count: Optional[int] = None,
 ) -> BlockDetection:
     """Inspect a snapshot's metadata + a chunk of HTML for known anti-bot
     signatures. Returns the first matching detection or `ok()`.
 
     All inputs are optional but the more you pass, the more accurate.
     For best results pass `title`, `html` (first 4KB is plenty),
-    and `cookies` (vendors leave fingerprint cookies that survive even
-    when the HTML is obfuscated).
+    `cookies` (vendors leave fingerprint cookies that survive even
+    when the HTML is obfuscated), AND `element_count` (the snapshot's
+    interactive-element count — low counts combined with interstitial
+    language are the strongest soft-block signal).
 
     Cheap to call — runs in <1ms even on large HTML strings because
     each signature is checked with a single contains() or regex.
@@ -229,7 +232,69 @@ def detect_block(
             is_behavioral=False,
         )
 
+    # ── Generic low-content soft block ─────────────────────────────────
+    # When the snapshot returned a near-empty page (<=20 interactive
+    # elements) AND the visible HTML contains a known anti-bot
+    # interstitial phrase, the site served a bot-check stub instead of
+    # the real content. This catches:
+    #   - Amazon's "Continue shopping" wall
+    #   - Walmart's "Press & Hold" interstitial
+    #   - The long tail of smaller sites that don't fingerprint as a
+    #     known vendor but still serve a soft block
+    #
+    # Structural rules only — these phrases are universal across the
+    # web (the same wording is reused by hundreds of bot-check
+    # implementations). No site-specific branching here.
+    if element_count is not None and element_count <= 20:
+        for phrase in _INTERSTITIAL_PHRASES:
+            if phrase in html_lc:
+                return BlockDetection(
+                    blocked=True,
+                    vendor="soft-interstitial",
+                    severity="soft",
+                    title="Soft anti-bot block",
+                    message=(
+                        f"The site returned a bot-check stub instead of the page content "
+                        f"(only {element_count} interactive elements; expected hundreds). "
+                        f"Detected phrase: {phrase!r}"
+                    ),
+                    suggestion=(
+                        "Retry — soft blocks often clear on a second attempt with a "
+                        "fresh browser session. Persistent blocks need residential "
+                        "proxies or a CAPTCHA-solver integration."
+                    ),
+                    is_behavioral=False,
+                )
+
     return BlockDetection.ok()
+
+
+# Generic anti-bot interstitial phrases. NOT site-specific — these are
+# the universal-across-the-web phrases used by hundreds of bot-check
+# implementations, copied between sites because they all work off the
+# same playbook. Add new ones here as you encounter them.
+_INTERSTITIAL_PHRASES: tuple[str, ...] = (
+    "continue shopping",                       # Amazon's bot-check landing
+    "click the button below to continue",      # Amazon variant
+    "press and hold",                          # Walmart, PerimeterX
+    "press &amp; hold",                        # PerimeterX HTML-encoded
+    "press & hold",                            # PerimeterX rendered
+    "verify you are human",                    # Cloudflare, others
+    "verify you are a human",
+    "verify that you are not a bot",
+    "are you a human",                         # PerimeterX
+    "please confirm you are human",
+    "please confirm you are a human",
+    "complete the security check",
+    "robot check",                             # Amazon /errors/validateCaptcha
+    "bot check",
+    "just a moment",                           # Cloudflare interstitial
+    "one more step",                           # Cloudflare
+    "checking your browser",                   # Cloudflare
+    "enable javascript and cookies to continue",
+    "i'm not a robot",                         # reCAPTCHA visible at root
+    "verifying you are a human",
+)
 
 
 def detect_from_snapshot(snap) -> BlockDetection:

@@ -53,6 +53,10 @@ type Props = {
    *  button. When provided, the button clears the form + closes the
    *  modal; otherwise it just closes. */
   onTryDifferentUrl?: () => void;
+  /** Optional handler for the anti-bot card's "Retry" button. Re-runs
+   *  the same URL on a fresh browser session. When omitted, the Retry
+   *  button is hidden. */
+  onRetry?: () => void;
   onClose: () => void;
 };
 
@@ -70,6 +74,7 @@ export function LandingPreviewModal({
   preview,
   error,
   antiBotBlock,
+  onRetry,
   onTryDifferentUrl,
   onClose,
 }: Props) {
@@ -140,6 +145,7 @@ export function LandingPreviewModal({
                   key="anti-bot"
                   block={antiBotBlock}
                   onTryDifferentUrl={onTryDifferentUrl ?? onClose}
+                  onRetry={onRetry}
                 />
               ) : error ? (
                 <ErrorPhase key="error" error={error} onClose={onClose} />
@@ -995,9 +1001,11 @@ function formatVendor(vendor: string): string {
 function AntiBotBlockPhase({
   block,
   onTryDifferentUrl,
+  onRetry,
 }: {
   block: AntiBotBlockDetail;
   onTryDifferentUrl: () => void;
+  onRetry?: () => void;
 }) {
   const vendorLabel = formatVendor(block.vendor);
 
@@ -1069,10 +1077,21 @@ function AntiBotBlockPhase({
           </div>
         )}
 
-        {/* Action row — primary "Try a different URL" (clears form +
-            closes), secondary "Upgrade to Pro" (residential proxies are
-            paywalled). Both buttons feel like product, not alert. */}
+        {/* Action row — primary "Retry" (re-runs same URL on a fresh
+            browser session; useful when the block was transient — soft
+            blocks frequently clear on a second attempt with different
+            cookies), secondary "Try a different URL", tertiary
+            "Upgrade to Pro" (residential proxies are paywalled). */}
         <div className="mt-6 flex w-full flex-col gap-2 sm:flex-row">
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-4 text-[14px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Retry
+            </button>
+          )}
           <button
             onClick={onTryDifferentUrl}
             className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[14px] font-medium text-[var(--color-fg)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
@@ -1082,7 +1101,7 @@ function AntiBotBlockPhase({
           </button>
           <Link
             href="/pricing?reason=anti-bot"
-            className="group inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md bg-[var(--color-fg-strong)] px-4 text-[14px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-fg-display)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            className="group inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[14px] font-medium text-[var(--color-fg)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           >
             <Sparkles className="h-3.5 w-3.5" />
             Upgrade to Pro
