@@ -737,7 +737,12 @@ async def _wait_until_page_stable(
         if now >= deadline:
             return now - start
         try:
-            state = await tab.evaluate(r"""
+            # Return a delimited string rather than an array — nodriver's
+            # `tab.evaluate()` wraps each array element as a CDP
+            # RemoteObject dict, which would force a per-element
+            # round-trip to unwrap. A single string is one round-trip
+            # and parses cleanly.
+            raw = await tab.evaluate(r"""
                 (() => {
                     const last = window.__stealthLastMutation || 0;
                     const ago = (performance.now() - last) / 1000;
@@ -752,26 +757,24 @@ async def _wait_until_page_stable(
                         if (img.src && img.src.startsWith('data:')) continue;
                         if (img.naturalWidth === 0) pending++;
                     }
-                    return [
-                        document.readyState === 'complete' ? 1 : 0,
-                        ago,
-                        pending,
-                    ];
+                    const ready = document.readyState === 'complete' ? 1 : 0;
+                    return ready + '|' + ago.toFixed(3) + '|' + pending;
                 })()
             """)
-            if isinstance(state, tuple):
-                state = state[0]
+            if isinstance(raw, tuple):
+                raw = raw[0]
         except Exception:
             await asyncio.sleep(0.1)
             continue
 
-        if not isinstance(state, list) or len(state) < 3:
+        try:
+            parts = str(raw).split("|")
+            ready = int(parts[0]) == 1
+            mutation_ago = float(parts[1])
+            pending_images = int(parts[2])
+        except (ValueError, IndexError):
             await asyncio.sleep(0.1)
             continue
-
-        ready = int(state[0] or 0) == 1
-        mutation_ago = float(state[1] or 0)
-        pending_images = int(state[2] or 0)
 
         all_quiet = (
             ready
