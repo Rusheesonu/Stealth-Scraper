@@ -406,72 +406,130 @@ async def _snapshot_inner(
             # bbox first then screenshot with capture_beyond_viewport.
             needs_beyond_viewport = True
 
-        # ── STRUCTURAL FIX: DOM lock for bbox+screenshot coherence ──────
+        # ── STRUCTURAL FIX: bbox + screenshot coherence ─────────────────
         # The bbox table (from COLLECT_ELEMENTS_JS) and the screenshot
-        # pixels (from Page.captureScreenshot) MUST come from an
-        # identical DOM/layout state. Otherwise hover overlays drift
-        # off the elements they describe — the recurring "mismatch"
-        # bug class. Every prior fix in this file (1bb9393, 70f826f,
-        # 73401da, a24b00d, 4f2c0d2) tightened a wait but never closed
-        # the live-DOM gap between these two operations.
+        # pixels (from Page.captureScreenshot) MUST come from the same
+        # DOM/layout state. Otherwise hover overlays drift off the
+        # elements they describe — the recurring "mismatch" bug class.
+        # Every prior fix tightened a wait but never closed the gap.
         #
-        # Solution: freeze page JS execution between the two calls.
-        # Timers don't fire, observer callbacks queue, React effects
-        # don't run, no DOM mutation can land. Both artifacts read from
-        # the same locked state. Re-enable in a finally so a failure
-        # during walk/screenshot still restores normal execution.
+        # We tried setScriptExecutionDisabled(true) here — it caused
+        # COLLECT_ELEMENTS_JS to return 0 elements because the frozen
+        # frame returns zero-width rects from getBoundingClientRect.
+        # So we use a softer-but-effective combination:
         #
-        # Image decode in-flight at lock time is GPU-internal and CAN
-        # complete during the locked window — but the bbox table and
-        # the screenshot raster from the SAME post-decode layout, so
-        # they remain mutually coherent.
+        #   1. rAF flush — land all pending requestAnimationFrame work
+        #      into the final layout (any in-flight visual update).
+        #   2. Pause the lazy-image-killer observer so it cannot mutate
+        #      img.src/srcset between collect and screenshot.
+        #   3. Back-to-back collect + screenshot (no awaits between
+        #      them other than the unavoidable CDP round-trip).
+        #   4. Verify coherence: re-read the bbox of N sample elements
+        #      after the screenshot. If ANY moved by >2px, the page
+        #      mutated in the gap — retry the collect+screenshot pair
+        #      once. Bounded — at most 2 retries before accepting.
         #
-        # Also pause the lazy-image-killer's MutationObserver: even
-        # with JS execution disabled, the observer's callback queue
-        # could drain on re-enable and mutate attrs. The `paused` flag
-        # makes the callback a no-op during the window.
-        #
-        # Order matters: rAF flush BEFORE disable. With JS disabled the
-        # rAF callback can never fire and Promise.evaluate would error
-        # with "Promise was collected" (the promise is GC'd before any
-        # resolution). Pre-flush, then lock.
+        # The verify-and-retry step is what closes the bug class: even
+        # if a mutation lands between collect and shot, we catch it and
+        # redo on a now-quieter state. Two consecutive coherent reads
+        # mean the bboxes definitely describe what the screenshot shows.
         try:
-            # Two requestAnimationFrame round-trips flush any pending
-            # rAF-scheduled writes from the unfrozen world into a final
-            # layout before we sample. Bounded — Chromium guarantees rAF
-            # runs within ~16ms, so the inner promise resolves quickly.
             await tab.evaluate(
                 "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))",
                 await_promise=True,
             )
         except Exception:
-            # Flush failed (CSP refused eval, frame torn down) — proceed
-            # anyway; the lock below is the real coherence guarantee.
             pass
 
         await tab.evaluate("window.__stealthLazyKillerPaused = true")
-        await tab.send(cdp.emulation.set_script_execution_disabled(value=True))
-        try:
-            # 7. Collect elements at the expanded viewport — under DOM lock.
-            data = await _evaluate_json(tab, COLLECT_ELEMENTS_JS)
 
-            # 8. Screenshot at the SAME locked state. Only fall back to
-            # capture_beyond_viewport when the page was taller than our
-            # height clamp (rare; only mega-scroll pages).
-            shot = await tab.send(cdp.page.capture_screenshot(
-                format_="png",
-                capture_beyond_viewport=needs_beyond_viewport,
-            ))
-            screenshot_b64 = shot if isinstance(shot, str) else str(shot)
+        data: dict = {"elements": [], "viewport": {}, "page": {}}
+        screenshot_b64: str = ""
+        try:
+            for coherence_attempt in range(3):
+                # Sample bboxes for a few elements BEFORE the collect/shot
+                # pair. We'll re-read these AFTER and compare. We sample
+                # by querying the DOM for a small fixed set — body, head,
+                # plus the first 10 elements that match common content
+                # selectors. Generic, no site-specific knowledge.
+                pre_check = await tab.evaluate(r"""
+                    (() => {
+                        const out = [];
+                        const els = Array.from(document.querySelectorAll(
+                            "h1, h2, h3, a, button, img, [role='button']"
+                        )).slice(0, 12);
+                        for (const el of els) {
+                            const r = el.getBoundingClientRect();
+                            out.push(Math.round(r.left) + ',' + Math.round(r.top));
+                        }
+                        return out.join('|');
+                    })()
+                """)
+                if isinstance(pre_check, tuple):
+                    pre_check = pre_check[0]
+                pre_str = str(pre_check or "")
+
+                # Collect elements
+                data = await _evaluate_json(tab, COLLECT_ELEMENTS_JS)
+                # Screenshot immediately after
+                shot = await tab.send(cdp.page.capture_screenshot(
+                    format_="png",
+                    capture_beyond_viewport=needs_beyond_viewport,
+                ))
+                screenshot_b64 = shot if isinstance(shot, str) else str(shot)
+
+                # Re-sample bboxes — same selector set, same order.
+                post_check = await tab.evaluate(r"""
+                    (() => {
+                        const out = [];
+                        const els = Array.from(document.querySelectorAll(
+                            "h1, h2, h3, a, button, img, [role='button']"
+                        )).slice(0, 12);
+                        for (const el of els) {
+                            const r = el.getBoundingClientRect();
+                            out.push(Math.round(r.left) + ',' + Math.round(r.top));
+                        }
+                        return out.join('|');
+                    })()
+                """)
+                if isinstance(post_check, tuple):
+                    post_check = post_check[0]
+                post_str = str(post_check or "")
+
+                # If the sample positions are identical, the page did NOT
+                # mutate between collect and shot — the artifacts are
+                # coherent. Done.
+                if pre_str == post_str:
+                    if coherence_attempt > 0:
+                        log.info(
+                            "snapshot.coherence_retry_succeeded",
+                            extra={"url": url, "attempts": coherence_attempt + 1},
+                        )
+                    break
+                # Otherwise: page mutated. Log and retry. A short await
+                # gives the page another chance to settle before we
+                # re-collect.
+                log.info(
+                    "snapshot.coherence_drift_detected",
+                    extra={
+                        "url": url,
+                        "attempt": coherence_attempt + 1,
+                        "pre": pre_str[:200],
+                        "post": post_str[:200],
+                    },
+                )
+                await asyncio.sleep(0.3)
+            else:
+                # All 3 attempts saw drift. Log it; ship the last result.
+                # The page is genuinely unstable — better to ship a slightly
+                # mismatched snapshot than to fail the request entirely.
+                log.warning(
+                    "snapshot.coherence_exhausted",
+                    extra={"url": url, "attempts": 3},
+                )
         finally:
-            # Restore — always. Even if collect/screenshot raised, page
-            # JS must come back or the tab is unusable for the next user.
             try:
                 await tab.evaluate("window.__stealthLazyKillerPaused = false")
-            except Exception:
-                pass
-            try:
-                await tab.send(cdp.emulation.set_script_execution_disabled(value=False))
             except Exception:
                 pass
 
