@@ -42,7 +42,10 @@ export default async function StatusPage() {
 
   const allOk =
     data?.components.every(
-      (c) => c.status === "operational" || c.status === "idle",
+      (c) =>
+        c.status === "operational" ||
+        c.status === "idle" ||
+        c.status === "not configured",
     ) ?? false;
   const downCount =
     data?.components.filter(

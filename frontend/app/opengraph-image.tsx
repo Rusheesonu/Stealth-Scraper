@@ -35,7 +35,7 @@ export default async function OG() {
             flexDirection: "column",
             justifyContent: "space-between",
             backgroundColor: bg,
-            padding: "72px",
+            padding: "56px",
             color: strong,
             fontFamily: "system-ui, sans-serif",
           }}

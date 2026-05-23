@@ -11,7 +11,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/settings/', '/auth/', '/pick'],
+        disallow: ['/api/', '/settings/', '/auth/'],
       },
     ],
     sitemap: 'https://stealthscraper.dev/sitemap.xml',

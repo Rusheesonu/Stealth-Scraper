@@ -33,6 +33,13 @@ const nextConfig: NextConfig = {
         source: "/api/backend/:path*",
         destination: `${process.env.BACKEND_URL ?? "http://localhost:8000"}/:path*`,
       },
+      // /favicon.ico fallback — Next auto-serves /app/icon.png + /app/apple-icon.png,
+      // but legacy clients (Slack unfurls, RSS readers, some browsers) still hit
+      // /favicon.ico literally. Route to the same icon to avoid a 404.
+      {
+        source: "/favicon.ico",
+        destination: "/icon.png",
+      },
     ];
   },
   async headers() {
