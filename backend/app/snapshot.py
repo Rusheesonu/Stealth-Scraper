@@ -117,6 +117,7 @@ async def take_snapshot(
     viewport_height: int = 900,
     actions: list[BrowserAction] | None = None,
     warmup: bool = False,
+    expand_truncated: bool = True,
 ) -> SnapshotResult:
     """One-shot snapshot with a restart+retry on transient nodriver flakes.
 
@@ -143,7 +144,7 @@ async def take_snapshot(
         async with SafetyCheck(url):
             if warmup:
                 await _warmup_session(url)
-            return await _snapshot_inner(url, viewport_width, viewport_height, actions)
+            return await _snapshot_inner(url, viewport_width, viewport_height, actions, expand_truncated)
 
     result = await with_transient_retry(_once, label="snapshot")
 
@@ -236,6 +237,7 @@ async def _snapshot_inner(
     viewport_width: int,
     viewport_height: int,
     actions: list[BrowserAction] | None,
+    expand_truncated: bool = True,
 ) -> SnapshotResult:
     """Order matters more than anything in this function.
 
@@ -307,6 +309,26 @@ async def _snapshot_inner(
         # SPAs (Amazon, Target, LinkedIn) that fetch data after the
         # initial HTML.
         await _wait_until_page_stable(tab, min_wait=0.2, max_wait=8.0, quiet_window=0.4)
+
+        # Truncation override + expand-button click. Together these reveal
+        # the "Continue Reading" / "Show more" / "...show more" content
+        # that's universally hidden on content sites (Quora, Reddit,
+        # LinkedIn, Medium, news comment threads). CSS override is free
+        # (no click risk). Expand-button click has a strict safelist —
+        # text must MATCH `continue reading | show more | see more | ...`
+        # AND NOT MATCH `subscribe | sign up | sign in | premium`, AND
+        # NOT be inside a <form>. Opt out per request via
+        # `expand_truncated=False` if the site behaves badly.
+        if expand_truncated:
+            try:
+                await _inject_truncation_override(tab)
+                clicks = await _click_expand_buttons(tab)
+                if clicks > 0:
+                    # Page just grew — give it time to render the
+                    # newly-revealed content before we collect elements.
+                    await _wait_until_page_stable(tab, min_wait=0.3, max_wait=4.0, quiet_window=0.4)
+            except Exception as e:
+                log.warning("snapshot.expand_failed", extra={"url": url, "error": repr(e)})
 
         # Run pre-snapshot actions (dismiss cookie banners, log in, etc).
         # Failures are logged but don't abort — best-effort.
@@ -753,6 +775,140 @@ async def _install_lazy_image_killer(tab) -> None:
                 attributes: true,
                 attributeFilter: ['loading', 'data-src', 'data-srcset'],
             });
+        })()
+    """)
+
+
+async def _inject_truncation_override(tab) -> None:
+    """Inject a stylesheet that disables common CSS-based text truncation.
+
+    Sites use these patterns to visually hide long-form text behind a
+    "Show more" / "Continue Reading" button:
+      - `display: -webkit-box; -webkit-line-clamp: N; overflow: hidden`
+      - `max-height: <px>; overflow: hidden` on prose containers
+      - Class names containing `truncate`, `line-clamp`, `clamp`, `ellipsis`
+    These are visual-only — the FULL TEXT is already in the DOM, just
+    visually clipped. Overriding the CSS reveals it to the snapshot's
+    text extraction.
+
+    Pure CSS injection, no DOM mutation, no event dispatch — zero risk
+    of triggering paywalls, login walls, or analytics tracking. Universal
+    across sites (Quora, Reddit, LinkedIn, Medium, Twitter previews).
+    """
+    await tab.evaluate("""
+        (() => {
+            // One-time inject — idempotent via id check.
+            if (document.getElementById('__ss_truncation_override__')) return;
+            const css = `
+                /* Universal line-clamp kill */
+                *, *::before, *::after {
+                    -webkit-line-clamp: unset !important;
+                    line-clamp: unset !important;
+                }
+                /* Class-based truncation patterns — common across the web.
+                   We override max-height + overflow but only on elements
+                   that clearly opt-in to truncation via class name, so we
+                   don't break legitimate fixed-height containers. */
+                [class*="truncate" i],
+                [class*="line-clamp" i],
+                [class*="lineClamp" i],
+                [class*="clamp-" i],
+                [class*="-clamp" i],
+                [class*="ellipsis" i],
+                [class*="-fold" i],
+                [class*="readmore" i],
+                [class*="read-more" i] {
+                    max-height: none !important;
+                    overflow: visible !important;
+                    -webkit-line-clamp: unset !important;
+                    text-overflow: clip !important;
+                }
+                /* Some sites use a wrapper `<div>` with inline style.
+                   Inline `display: -webkit-box` is the classic truncation
+                   recipe — kill it so the inner text reflows naturally. */
+                [style*="line-clamp"],
+                [style*="-webkit-box"] {
+                    -webkit-line-clamp: unset !important;
+                    display: block !important;
+                    max-height: none !important;
+                    overflow: visible !important;
+                }
+            `;
+            const style = document.createElement('style');
+            style.id = '__ss_truncation_override__';
+            style.textContent = css;
+            (document.head || document.documentElement).appendChild(style);
+        })()
+    """)
+
+
+async def _click_expand_buttons(tab) -> int:
+    """Click visible "Continue Reading" / "Show more" buttons that reveal
+    in-page content. Returns the number of buttons clicked.
+
+    Strict safelist — only click elements whose text MATCHES the
+    expansion regex AND does NOT match the auth/subscribe blacklist
+    AND is not inside a <form> (to avoid signup gates disguised as
+    expand buttons).
+
+    Cap: 30 clicks per page — enough for a Quora thread with 20 answers
+    each truncated, well below the threshold where we'd trigger
+    expensive page reflows.
+
+    Returns the click count so the caller can decide whether to wait
+    for additional stability (no clicks → no need to wait).
+    """
+    return await tab.evaluate("""
+        (() => {
+            const EXPAND_RE = /^\\s*(continue reading|read more|see more|show more|view more|view full|expand|more$|…\\s*more|show all|view all|read full)\\s*$/i;
+            const BLOCK_RE = /(subscribe|sign\\s*up|sign\\s*in|log\\s*in|paywall|premium|membership|join\\s*now|get\\s*started|free\\s*trial)/i;
+            const SELECTORS = [
+                'button', 'a', '[role="button"]',
+                'span[onclick]', 'div[onclick]',
+                '[aria-label*="continue reading" i]',
+                '[aria-label*="show more" i]',
+                '[aria-label*="read more" i]',
+            ];
+            const candidates = new Set();
+            for (const sel of SELECTORS) {
+                try {
+                    for (const el of document.querySelectorAll(sel)) {
+                        candidates.add(el);
+                    }
+                } catch (e) {}
+            }
+            let clicked = 0;
+            for (const el of candidates) {
+                if (clicked >= 30) break;
+                // Visible & in-DOM?
+                if (!el.isConnected) continue;
+                const rect = el.getBoundingClientRect();
+                if (rect.width < 1 || rect.height < 1) continue;
+                // Text match (also check aria-label as a fallback)
+                const text = (el.innerText || el.textContent || '').trim();
+                const aria = (el.getAttribute && el.getAttribute('aria-label')) || '';
+                const probe = text || aria;
+                if (!probe || probe.length > 50) continue;
+                if (!EXPAND_RE.test(probe)) continue;
+                if (BLOCK_RE.test(probe)) continue;
+                // Skip elements inside forms (login/subscribe gates)
+                if (el.closest('form')) continue;
+                // Skip if already expanded (some buttons toggle)
+                if (el.getAttribute('aria-expanded') === 'true') continue;
+                // Skip if href looks like external nav (full URL, not '#')
+                if (el.tagName === 'A') {
+                    const href = el.getAttribute('href') || '';
+                    if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                        // External link masquerading as 'read more' — skip
+                        if (/^https?:\\/\\//.test(href) || href.startsWith('/')) continue;
+                    }
+                }
+                try {
+                    el.click();
+                    clicked++;
+                } catch (e) {}
+            }
+            return clicked;
         })()
     """)
 
