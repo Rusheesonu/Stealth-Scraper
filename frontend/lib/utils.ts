@@ -222,6 +222,15 @@ export function computeListSelector(
   return joined
     .replace(/\s*>\s*>\s*/g, " > ")
     .replace(/\s+>\s+/g, " > ")
+    // Strip leading orphan combinator. Without this, stripping a leading
+    // anchor like `#product-card-price-90581936` leaves the selector as
+    // `> div[data-test="..."] > span` which is INVALID CSS and matches
+    // zero elements. The Target bug: picker says "Found 7 similar" at
+    // click time (using `normalizeListSelector` which DOES strip the
+    // leading `>`), then extraction returns 0 because `computeListSelector`
+    // emits the broken version. Symptom: `list · 0` in the result panel
+    // after the user clicks a price.
+    .replace(/^\s*>\s*/, "")
     .trim();
 }
 

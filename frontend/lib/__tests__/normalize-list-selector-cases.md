@@ -134,6 +134,25 @@ INPUT:  #section-2024 > div
 OUTPUT: #section-2024 > div
 WHY:    Year tag (≤5 digits). Kept — not stripped because the digit
         suffix is too short to be confidently a per-row instance ID.
+```
+
+## The leading-orphan-combinator invariant (computeListSelector)
+
+After ANY anchor strip, the output MUST NOT start with `>`. Leading
+combinators are invalid CSS and match zero elements. Both
+`normalizeListSelector` and `computeListSelector` must strip
+leading `>` after their replacements.
+
+Symptom when this breaks: picker says "Found N similar" at click time
+(using `normalizeListSelector` for sibling detection — that function
+has the cleanup) but extraction returns `list · 0` (using the stored
+selector from `computeListSelector` — used to be missing the cleanup
+until 2026-05-24).
+
+```
+INPUT (after INSTANCE_ID strip): > div[data-test="X"] > span
+OUTPUT:                          div[data-test="X"] > span
+WHY:    Leading orphan combinator removed.
 
 INPUT:  div.product-card > div.product-card > h3
 OUTPUT: div.product-card > div.product-card > h3
