@@ -2029,6 +2029,89 @@ def test_extract_relaxes_single_match_list_to_find_siblings():
     )
 
 
+def test_extract_auto_promotes_text_to_list_on_clear_list_selector():
+    """The quotes.toscrape Tags bug — picker fired `kind=text` (either by
+    accident or default-fallback), but the selector matched 10 distinct
+    `.tags` elements. Without auto-promotion, backend returns the first
+    quote's tags as a scalar and the user sees the broadcast warning
+    instead of 10 rows. With auto-promotion: backend recognizes
+    "3+ matches with ≥2 distinct values" as a clear list shape and
+    returns all 10 values."""
+    from app.extract import extract_from_html
+
+    # Mimics quotes.toscrape.com — 10 quotes, each with a `.tags` div
+    html = "<html><body>" + "".join(
+        f'<div class="quote"><div class="tags">tag-set-{i}</div></div>'
+        for i in range(10)
+    ) + "</body></html>"
+    template = [
+        # User picked text (either by accident or because findSiblings
+        # undercounted at click time)
+        {"label": "tags", "kind": "text", "selector": "div.quote > div.tags"},
+    ]
+    result = extract_from_html("https://example.com/quotes", html, template)
+    fields = result["fields"]
+
+    val = fields["tags"]["value"]
+    # MUST come back as a list, not a scalar.
+    assert isinstance(val, list), (
+        f"auto-promotion didn't fire — got scalar {val!r} for a 10-match selector"
+    )
+    assert len(val) == 10, f"expected 10 promoted values, got {len(val)}: {val!r}"
+    # And the values must be the distinct per-row tags, not 10 copies of one.
+    assert len(set(val)) == 10, f"promoted but all values identical: {val!r}"
+
+
+def test_extract_does_not_promote_scalar_text_selector():
+    """Negative: a `kind=text` selector that matches a single page-title
+    element must NOT be auto-promoted. The promotion gate requires ≥3
+    matches AND ≥2 distinct values; pages with 1 h1 don't satisfy it."""
+    from app.extract import extract_from_html
+
+    html = """
+    <html><body>
+      <h1 id="page-title">Page Title Here</h1>
+      <div class="quote">Quote A</div>
+      <div class="quote">Quote B</div>
+      <div class="quote">Quote C</div>
+    </body></html>
+    """
+    template = [
+        {"label": "page_title", "kind": "text", "selector": "h1#page-title"},
+        {"label": "quote",      "kind": "list", "selector": "div.quote"},
+    ]
+    result = extract_from_html("https://example.com/single", html, template)
+    title_val = result["fields"]["page_title"]["value"]
+    assert title_val == "Page Title Here", (
+        f"single-match text selector was wrongly promoted: {title_val!r}"
+    )
+
+
+def test_extract_does_not_promote_text_when_all_matches_identical():
+    """Negative: if a text selector matches 3+ elements but they all have
+    the SAME value (e.g. flat-rate price label, repeated 'Add to cart'
+    button text), don't auto-promote. The 2-distinct-value gate keeps
+    this case as the user intended (text scalar)."""
+    from app.extract import extract_from_html
+
+    html = """
+    <html><body>
+      <div class="card"><button class="cta">Add to cart</button></div>
+      <div class="card"><button class="cta">Add to cart</button></div>
+      <div class="card"><button class="cta">Add to cart</button></div>
+      <div class="card"><button class="cta">Add to cart</button></div>
+    </body></html>
+    """
+    template = [
+        {"label": "cta_text", "kind": "text", "selector": "button.cta"},
+    ]
+    result = extract_from_html("https://example.com/cta", html, template)
+    val = result["fields"]["cta_text"]["value"]
+    assert val == "Add to cart", (
+        f"identical-value text selector was wrongly promoted: {val!r}"
+    )
+
+
 def test_extract_does_not_relax_legit_single_match_list():
     """Safety: when kind=list returns 1 match and relaxed variants give
     <3 matches, the relaxer should NOT adopt them. Guards against

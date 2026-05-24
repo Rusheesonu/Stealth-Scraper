@@ -779,6 +779,31 @@ def _pull(tree, field: Field) -> FieldResult:
         )
 
     # Selector matched — pull values per kind.
+    #
+    # Auto-promote text → list when the selector clearly hit a list shape
+    # (≥3 matched nodes AND ≥2 distinct non-empty values among them). The
+    # picker's label-modal defaults kind=list when siblingCount>1, but the
+    # default can fail to fire if findSiblings undercounts at click time
+    # (snapshot still hydrating, bbox not yet computed, etc.) — and once
+    # the user clicks "Add field" the text default sticks. Without this
+    # auto-promotion the user gets a single scalar from a clearly-list
+    # selector and an unhelpful "didn't generalize" warning. With it:
+    # quotes.toscrape Tags returns all 10 rows even if the picker stored
+    # kind=text. Stays narrow on purpose — len(nodes)>=3 + variety is a
+    # high-confidence "this was meant to be a list" signal that won't
+    # false-positive on page-title / single-button kind=text selectors.
+    if (
+        kind == "text"
+        and not attr
+        and len(nodes) >= 3
+    ):
+        list_values = [_read(n, "text", "") for n in nodes]
+        non_null = [v for v in list_values if v not in (None, "")]
+        if len(set(non_null)) >= 2:
+            # Promote. Mirror the kind=list path below for filtering.
+            kind = "list"  # local promotion; envelope confidence reduced
+            raw = non_null
+
     if kind == "list":
         if attr:
             raw_values = [_read(n, "attr", attr) for n in nodes]
