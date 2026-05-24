@@ -70,6 +70,17 @@ export function truncate(s: string, n = 40) {
  */
 const UUID_ANCHOR_RE = /#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const LONG_HEX_ANCHOR_RE = /#[0-9a-f-]{16,}(?=\s|>|\.|:|$)/gi;
+// Per-instance numeric-suffix IDs — e-commerce + CMS pattern where each
+// row's anchor element gets a `<semantic-prefix>-<numeric-id>` id:
+//   - Target product cards: `#product-card-price-90581936`
+//   - Steam store rows:     `#app_123456789` (underscore variant, see below)
+//   - WordPress posts:      `#post-1234567`
+//   - eBay listings:        `#item-285234567890`
+//   - Shopify sections:     `#shopify-section-template--16524623880-product`
+// REQUIRES ≥6 digit suffix — guards against year tags (`#section-2024`),
+// version anchors (`#part-v2`), and grid indices (`#col-1`). The text
+// prefix must START with a letter to avoid stripping pure `#123456` ids.
+const INSTANCE_ID_ANCHOR_RE = /#[a-zA-Z][a-zA-Z0-9_-]*[-_]\d{6,}(?=[\s>.:[]|$)/g;
 
 // CSS-in-JS hashed classes — STRICTLY library-deterministic patterns only.
 // Earlier versions matched broader CSS-Module patterns (single-underscore,
@@ -116,6 +127,7 @@ export function normalizeListSelector(css: string): string {
     .replace(/:nth-last-of-type\(\d+\)/g, "")
     .replace(UUID_ANCHOR_RE, "")
     .replace(LONG_HEX_ANCHOR_RE, "")
+    .replace(INSTANCE_ID_ANCHOR_RE, "")
     .replace(HASHED_ATTR_RE, "");
   for (const re of HASHED_CLASS_REGEXES) {
     out = out.replace(re, "");
@@ -199,6 +211,7 @@ export function computeListSelector(
     .join(" > ")
     .replace(UUID_ANCHOR_RE, "")
     .replace(LONG_HEX_ANCHOR_RE, "")
+    .replace(INSTANCE_ID_ANCHOR_RE, "")
     .replace(HASHED_ATTR_RE, "");
   // Apply the same hashed-class strips here so the STORED selector
   // also generalizes across sibling cards (not just the structural

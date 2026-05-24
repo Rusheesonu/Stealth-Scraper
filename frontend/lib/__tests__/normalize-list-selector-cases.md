@@ -32,6 +32,7 @@ documented emit patterns of named CSS-in-JS libraries are stripped.
 | `:nth-last-of-type(N)` | Spec | `tr:nth-last-of-type(1)` → `tr` |
 | `#uuid` | RFC 4122 UUID format | `#a1b2c3d4-1234-5678-90ab-cdef12345678 > div` → `> div` |
 | `#long-hex` | 16+ contiguous hex | `#0123456789abcdef > div` → `> div` |
+| `#word-digits` | Per-instance numeric-suffix ID (≥6 digits) | `#product-card-price-90581936 > div` → `> div` |
 | `.css-XXXX` | emotion | `div.css-1abc23d > h3` → `div > h3` |
 | `.sc-XXXX` | styled-components base | `div.sc-bcXkLm > h3` → `div > h3` |
 | `.jsx-NNNN` | Next.js styled-jsx | `div.jsx-1234567890 > h3` → `div > h3` |
@@ -115,6 +116,24 @@ WHY:    Tailwind responsive visibility. We don't strip — could be
 INPUT:  #fc2efb3a-7e8c-4d5d-9a6b-1234567890ab > article > h3
 OUTPUT: > article > h3
 WHY:    UUID anchor stripped (per-instance random).
+
+INPUT:  #product-card-price-90581936 > div[data-test="current-price"]
+OUTPUT: > div[data-test="current-price"]
+WHY:    Per-instance numeric-suffix ID stripped. Target's product cards
+        use this exact pattern (each card gets `#product-card-price-NNNNN`
+        anchored to the product ID). Without this strip the picker's
+        list selector matches only the clicked card, leading to the
+        broadcast-or-null shape across the rest of the products.
+
+INPUT:  #post-1234567 > .title
+OUTPUT: > .title
+WHY:    Same family — WordPress posts, eBay listings, Steam app IDs,
+        Shopify section IDs all follow `<word>-<digits>` per-instance.
+
+INPUT:  #section-2024 > div
+OUTPUT: #section-2024 > div
+WHY:    Year tag (≤5 digits). Kept — not stripped because the digit
+        suffix is too short to be confidently a per-row instance ID.
 
 INPUT:  div.product-card > div.product-card > h3
 OUTPUT: div.product-card > div.product-card > h3

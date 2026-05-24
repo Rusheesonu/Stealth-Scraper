@@ -1950,6 +1950,123 @@ def test_extract_from_html_nulls_undermatching_list_field():
     )
 
 
+def test_extract_relaxes_single_match_list_to_find_siblings():
+    """Target-shape selector: picker anchors to a per-card numeric ID
+    (`#product-card-price-90581936`), so the selector matches only the
+    clicked card's price. Backend should detect this (kind=list, 1 match,
+    siblings have ≥3) and try relaxed variants — stripping the per-card
+    ID anchor reveals the structural selector that matches all cards.
+
+    This is the layer below the broadcast nuller: the relaxer FINDS the
+    actual prices instead of nulling the column.
+    """
+    from app.extract import extract_from_html
+
+    # 5 product cards, each with a per-card numeric ID anchor on the
+    # price element — mimics Target's exact pattern.
+    html = """
+    <html><body>
+      <div class="card">
+        <h3 class="t">Phone A</h3>
+        <div id="product-card-price-1004849320">
+          <span data-test="current-price">$199.99</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="t">Phone B</h3>
+        <div id="product-card-price-90581936">
+          <span data-test="current-price">$89.99</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="t">Phone C</h3>
+        <div id="product-card-price-92382739">
+          <span data-test="current-price">$39.99</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="t">Phone D</h3>
+        <div id="product-card-price-94779678">
+          <span data-test="current-price">$34.99</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="t">Phone E</h3>
+        <div id="product-card-price-99999999">
+          <span data-test="current-price">$59.99</span>
+        </div>
+      </div>
+    </body></html>
+    """
+    # Picker's emitted selector — anchored to ONE card's specific ID.
+    # This is what the picker actually generates today (we verified via
+    # an inspection probe against live target.com).
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "div.card > h3.t"},
+        {"label": "price", "kind": "list",
+         "selector": "#product-card-price-90581936 > span[data-test='current-price']"},
+    ]
+    result = extract_from_html("https://example.com/phones", html, template)
+    fields = result["fields"]
+
+    # Titles all there.
+    assert fields["title"]["value"] == ["Phone A", "Phone B", "Phone C", "Phone D", "Phone E"]
+
+    # Prices: the relaxer should have stripped `#product-card-price-90581936`
+    # and matched all 5 prices via the relaxed variant.
+    price_vals = fields["price"]["value"]
+    assert isinstance(price_vals, list), f"expected list, got {type(price_vals).__name__}: {price_vals!r}"
+    non_null = [v for v in price_vals if v not in (None, "")]
+    assert len(non_null) >= 3, (
+        f"relaxer should have found ≥3 prices via the structural variant, "
+        f"got {non_null!r}. Selector: {fields['price'].get('selector_used')!r}"
+    )
+    # The selector_used should reflect the RELAXED variant, not the original
+    used = fields["price"].get("selector_used") or ""
+    assert "90581936" not in used, (
+        f"adopted selector still contains the per-card ID: {used!r}"
+    )
+
+
+def test_extract_does_not_relax_legit_single_match_list():
+    """Safety: when kind=list returns 1 match and relaxed variants give
+    <3 matches, the relaxer should NOT adopt them. Guards against
+    over-relaxation on legitimately-single elements that the user
+    mislabeled as list (e.g. page header marked as list)."""
+    from app.extract import extract_from_html
+
+    html = """
+    <html><body>
+      <h1 id="page-title-12345678">Only One Title On The Page</h1>
+      <div class="card"><span class="t">Card A</span></div>
+      <div class="card"><span class="t">Card B</span></div>
+      <div class="card"><span class="t">Card C</span></div>
+    </body></html>
+    """
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "#page-title-12345678"},
+        {"label": "card", "kind": "list",
+         "selector": "div.card > span.t"},
+    ]
+    result = extract_from_html("https://example.com/safety", html, template)
+    fields = result["fields"]
+
+    # Title kept as single-match — relaxed variants would over-strip
+    # because there's no second h1 on the page.
+    title_vals = fields["title"]["value"]
+    non_null_titles = [v for v in title_vals if v not in (None, "")]
+    # Either the broadcast nuller catches this (nulls to [None]*3) OR
+    # the original selector is preserved (1 entry). Both are acceptable —
+    # the contract is "no over-relaxation matching unrelated elements".
+    # We just check the title wasn't expanded to match wrong things.
+    assert len(non_null_titles) <= 1, (
+        f"over-relaxed: title now matches {non_null_titles!r} — "
+        "should be 0 (broadcast nulled) or 1 (original kept)"
+    )
+
+
 def test_extract_from_html_keeps_legit_short_list():
     """Negative case: a legit narrow list (2 entries) should NOT be
     nulled, since the broadcast guard requires sibling lists to have

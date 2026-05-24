@@ -694,21 +694,51 @@ def _pull(tree, field: Field) -> FieldResult:
     # SPECIFIC identifiers in those ids: Steam's
     # `#game_area_purchase_section_2483190` (the trailing number is
     # the app id), Shopify's `#shopify-section-1234567890`,
-    # WordPress's `#post-NNNN`, Reddit's `#thing_t3_xxxxx`, etc. Those
-    # anchors break re-use of a saved template across sibling pages.
-    # When the original selector matched zero nodes (NOT a parse
-    # error), try progressively relaxed variants. First match wins.
-    if not nodes and selector and not parse_error:
+    # WordPress's `#post-NNNN`, Reddit's `#thing_t3_xxxxx`,
+    # Target's `#product-card-price-90581936`, etc. Those anchors
+    # break list-mode extraction (selector matches only the clicked
+    # card) AND break re-use of a saved template across sibling pages.
+    #
+    # Two trigger conditions:
+    #   (1) original matched ZERO nodes (template-reuse case)
+    #   (2) kind="list" and original matched exactly 1 node (the
+    #       Target-shape bug: picker anchored to a per-card id, picked
+    #       up one product's price out of 22). For list-kind fields,
+    #       we expect multiple matches; 1 is a strong signal that
+    #       the selector is over-anchored.
+    # In case (2) we only ADOPT the relaxed variant if it matches
+    # significantly more (≥3) — guards against legitimately-single
+    # elements that the user mislabeled as list (e.g. page header).
+    needs_relax = selector and not parse_error and (
+        not nodes  # case (1) — zero matches
+        or (kind == "list" and len(nodes) == 1)  # case (2) — single match
+    )
+    if needs_relax:
+        original_count = len(nodes)
+        best_variant_nodes: list = []
+        best_variant_sel: str | None = None
         for variant in _relax_selector_variants(selector):
             try:
                 relaxed = tree.cssselect(variant)
             except Exception:
                 continue
-            if relaxed:
-                nodes = relaxed
-                source = "selector"
-                used = variant
-                break
+            if len(relaxed) > len(best_variant_nodes):
+                best_variant_nodes = relaxed
+                best_variant_sel = variant
+        # Adoption policy:
+        #   (1) zero-match case: any non-empty variant wins.
+        #   (2) single-match list case: only adopt if variant >= 3 matches
+        #       AND > original. Keeps semantic single-match selectors safe.
+        adopt = False
+        if best_variant_nodes:
+            if original_count == 0:
+                adopt = True
+            elif kind == "list" and len(best_variant_nodes) >= 3 and len(best_variant_nodes) > original_count:
+                adopt = True
+        if adopt and best_variant_sel:
+            nodes = best_variant_nodes
+            source = "selector"
+            used = best_variant_sel
 
     if not nodes and xpath:
         try:
