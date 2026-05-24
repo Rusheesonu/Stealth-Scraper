@@ -825,11 +825,16 @@ async def _inject_truncation_override(tab) -> None:
                 }
                 /* Some sites use a wrapper `<div>` with inline style.
                    Inline `display: -webkit-box` is the classic truncation
-                   recipe — kill it so the inner text reflows naturally. */
+                   recipe. We kill ONLY the truncation properties — we
+                   intentionally LEAVE `display` alone. Earlier versions
+                   overrode display:block which collapsed sibling-card
+                   structure on Quora/Reddit (multiple answer cards
+                   flowed into one text blob, confusing per-row
+                   extraction). The line-clamp removal alone is enough
+                   to reveal the hidden text. */
                 [style*="line-clamp"],
                 [style*="-webkit-box"] {
                     -webkit-line-clamp: unset !important;
-                    display: block !important;
                     max-height: none !important;
                     overflow: visible !important;
                 }
@@ -860,7 +865,7 @@ async def _click_expand_buttons(tab) -> int:
     """
     return await tab.evaluate("""
         (() => {
-            const EXPAND_RE = /^\\s*(continue reading|read more|see more|show more|view more|view full|expand|more$|…\\s*more|show all|view all|read full)\\s*$/i;
+            const EXPAND_RE = /^\\s*(continue reading|read more|see more|show more|view more|view full|expand text|expand answer|…\\s*more|show full|read full)\\s*$/i;
             const BLOCK_RE = /(subscribe|sign\\s*up|sign\\s*in|log\\s*in|paywall|premium|membership|join\\s*now|get\\s*started|free\\s*trial)/i;
             const SELECTORS = [
                 'button', 'a', '[role="button"]',
