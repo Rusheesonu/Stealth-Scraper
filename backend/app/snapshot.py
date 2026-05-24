@@ -310,28 +310,14 @@ async def _snapshot_inner(
         # initial HTML.
         await _wait_until_page_stable(tab, min_wait=0.2, max_wait=8.0, quiet_window=0.4)
 
-        # Truncation override + expand-button click. Together these reveal
-        # the "Continue Reading" / "Show more" / "...show more" content
-        # that's universally hidden on content sites (Quora, Reddit,
-        # LinkedIn, Medium, news comment threads). CSS override is free
-        # (no click risk). Expand-button click has a strict safelist —
-        # text must MATCH `continue reading | show more | see more | ...`
-        # AND NOT MATCH `subscribe | sign up | sign in | premium`, AND
-        # NOT be inside a <form>. Opt out per request via
-        # `expand_truncated=False` if the site behaves badly.
+        # Truncation override — pure CSS, safe to inject IMMEDIATELY after
+        # initial settle. Reveals text hidden via `-webkit-line-clamp` or
+        # class-based truncation patterns. No click risk.
         if expand_truncated:
             try:
                 await _inject_truncation_override(tab)
-                clicks = await _click_expand_buttons(tab)
-                log.info("snapshot.expand_clicks", extra={"url": url, "clicks": clicks})
-                if clicks > 0:
-                    # Page just grew — give it time to render the
-                    # newly-revealed content. Modern SPAs (Quora, LinkedIn)
-                    # batch their re-render across many clicks, so we
-                    # need a longer max_wait than the initial settle.
-                    await _wait_until_page_stable(tab, min_wait=0.5, max_wait=6.0, quiet_window=0.6)
             except Exception as e:
-                log.warning("snapshot.expand_failed", extra={"url": url, "error": repr(e)})
+                log.warning("snapshot.css_override_failed", extra={"url": url, "error": repr(e)})
 
         # Run pre-snapshot actions (dismiss cookie banners, log in, etc).
         # Failures are logged but don't abort — best-effort.
@@ -353,6 +339,22 @@ async def _snapshot_inner(
         # 4. Scroll through the full page to hit any observer-based
         # loaders that skip force-eager. Bounded — no infinite scroll.
         await _scroll_full_height(tab)
+
+        # 4b. NOW click expand buttons. Scrolling above forced virtualized
+        # content sections (Quora answer cards, LinkedIn post replies,
+        # Reddit nested comments) to render — their "Continue Reading"
+        # buttons now exist in the DOM. Before scroll, only the first
+        # 1-2 buttons were present and our click pass hit just those.
+        if expand_truncated:
+            try:
+                clicks = await _click_expand_buttons(tab)
+                log.info("snapshot.expand_clicks", extra={"url": url, "clicks": clicks})
+                if clicks > 0:
+                    # Page just grew — modern SPAs batch re-render across
+                    # 20+ clicks; needs longer settle than initial wait.
+                    await _wait_until_page_stable(tab, min_wait=0.5, max_wait=6.0, quiet_window=0.6)
+            except Exception as e:
+                log.warning("snapshot.expand_failed", extra={"url": url, "error": repr(e)})
 
         # 5. Scroll back to origin. The adaptive wait below subsumes
         # what used to be: _wait_for_images + _wait_for_stable_height +
