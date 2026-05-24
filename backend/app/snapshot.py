@@ -117,7 +117,7 @@ async def take_snapshot(
     viewport_height: int = 900,
     actions: list[BrowserAction] | None = None,
     warmup: bool = False,
-    expand_truncated: bool = True,
+    expand_truncated: bool = False,  # opt-in — see snapshot.py comments
 ) -> SnapshotResult:
     """One-shot snapshot with a restart+retry on transient nodriver flakes.
 
@@ -237,7 +237,7 @@ async def _snapshot_inner(
     viewport_width: int,
     viewport_height: int,
     actions: list[BrowserAction] | None,
-    expand_truncated: bool = True,
+    expand_truncated: bool = False,
 ) -> SnapshotResult:
     """Order matters more than anything in this function.
 
