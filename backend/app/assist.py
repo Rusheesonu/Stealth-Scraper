@@ -632,8 +632,21 @@ CRITICAL RULES — violations cause silent extraction failures:
 4. PREFER LIST FIELDS WHEN THE USER MENTIONS PLURAL ITEMS.
    Words like "products", "items", "stories", "results", "rows",
    "every", "all", "each" → use `list`. The selector should be the
-   shape that matches the repeating pattern (strip nth-of-type from
-   the catalog selectors to make it cover all matches).
+   shape that matches the repeating pattern.
+
+   For kind=list selectors, the backend AUTOMATICALLY strips:
+     - `:nth-of-type(N)` / `:nth-child(N)` / `:nth-last-of-type(N)`
+     - per-instance numeric-suffix ids (`#post-1234567`, `#item-90581936`)
+     - UUID and long-hex id anchors
+   so you can copy the catalog selector verbatim — Rule 1 is honored,
+   and the normalization makes it generalize. Example:
+     catalog `c`:  `#mainContent > div:nth-of-type(4) > div.card:nth-of-type(1) > h3`
+     emit as:      same selector verbatim with kind=list
+     after norm:   `#mainContent > div > div.card > h3` (matches all cards)
+
+   For ESPECIALLY-fragile sites (Quora, LinkedIn, modern SPAs), prefer
+   the SHORTEST stable structural selector you can find in the catalog —
+   `[data-test=...] > h3` beats `#mainContent > div:nth-of-type(4) > ...`.
 
 5. WHAT THE USER ASKED FOR IS A HINT, NOT A CONTRACT.
    If the user says "get everything a user might check while buying"
@@ -1095,7 +1108,8 @@ async def generate_template(
             _DEAD_MODELS.discard(model)
             log.info("LLM ok model=%s status=%d", model, res.status_code)
             template = _parse_response(res, model=model)
-            return _validate_selectors(template, catalog=trimmed, all_elements=elements, model=model)
+            validated = _validate_selectors(template, catalog=trimmed, all_elements=elements, model=model)
+            return _normalize_list_selectors_in_template(validated)
 
         # 413 — payload too large. Trim and retry on the SAME model
         # (not a model problem, don't waste a fallback hop).
@@ -1109,7 +1123,8 @@ async def generate_template(
             if res is not None and res.status_code < 400:
                 _DEAD_MODELS.discard(model)
                 template = _parse_response(res, model=model)
-                return _validate_selectors(template, catalog=trimmed, all_elements=elements, model=model)
+                validated = _validate_selectors(template, catalog=trimmed, all_elements=elements, model=model)
+            return _normalize_list_selectors_in_template(validated)
             # If retry still failed, fall through to non-model-error handling.
 
         body_text = res.text if res is not None else ""
@@ -1143,10 +1158,11 @@ async def generate_template(
                     LLM_BASE_URL_FALLBACK, LLM_MODEL_FALLBACK, model,
                 )
                 template = _parse_response(fb_res, model=f"fallback:{LLM_MODEL_FALLBACK}")
-                return _validate_selectors(
+                validated = _validate_selectors(
                     template, catalog=trimmed, all_elements=elements,
                     model=f"fallback:{LLM_MODEL_FALLBACK}",
                 )
+                return _normalize_list_selectors_in_template(validated)
             # Fallback also failed — extract its error so we can surface
             # the right reason (e.g. BOTH 429 → keep rate_limit kind).
             fb_body = fb_res.text
@@ -1379,6 +1395,73 @@ def _validate_selectors(
 # ── Catalog trim helpers ─────────────────────────────────────────────────
 
 _NTH_OF_TYPE_RE = re.compile(r":nth-of-type\(\d+\)")
+_NTH_CHILD_RE = re.compile(r":nth-child\(\d+\)")
+_NTH_LAST_OF_TYPE_RE = re.compile(r":nth-last-of-type\(\d+\)")
+# Per-instance numeric-suffix anchors (Target, WP, eBay, Steam, Shopify)
+# — must mirror frontend INSTANCE_ID_ANCHOR_RE so AI-generated and
+# picker-generated selectors normalize identically.
+_INSTANCE_ID_ANCHOR_RE = re.compile(r"#[a-zA-Z][a-zA-Z0-9_-]*[-_]\d{6,}(?=[\s>.:\[]|$)")
+# Long-hex IDs (16+ chars) — Reddit, Medium, Vercel-style framework anchors
+_LONG_HEX_ANCHOR_RE = re.compile(r"#[0-9a-f-]{16,}(?=\s|>|\.|:|$)", re.I)
+# UUID anchors
+_UUID_ANCHOR_RE = re.compile(
+    r"#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I
+)
+
+
+def _normalize_list_selector(css: str) -> str:
+    """Strip per-instance + positional anchors from a list selector.
+
+    Mirrors the frontend's `normalizeListSelector` in
+    `frontend/lib/utils.ts` — the LLM (like the picker) emits selectors
+    verbatim from the element catalog, but verbatim selectors anchor to
+    ONE specific row (`#product-card-price-90581936 > ...:nth-of-type(3)`).
+    Without normalization those selectors return exactly one element at
+    extraction time and the user sees a list of 1.
+
+    Stripped (must match frontend):
+      - `:nth-of-type(N)` / `:nth-child(N)` / `:nth-last-of-type(N)`
+      - UUID id anchors
+      - Long (16+ char) hex id anchors
+      - `<prefix>-<6+digits>` per-instance id anchors
+
+    Cleans up orphan combinators after the strip (`>  >` → `>`, leading
+    `>` removed) so the result is valid CSS.
+    """
+    if not css:
+        return css
+    out = css
+    out = _NTH_OF_TYPE_RE.sub("", out)
+    out = _NTH_CHILD_RE.sub("", out)
+    out = _NTH_LAST_OF_TYPE_RE.sub("", out)
+    out = _UUID_ANCHOR_RE.sub("", out)
+    out = _LONG_HEX_ANCHOR_RE.sub("", out)
+    out = _INSTANCE_ID_ANCHOR_RE.sub("", out)
+    # Cleanup: collapsed double-combinators and leading combinator
+    out = re.sub(r"\s*>\s*>\s*", " > ", out)
+    out = re.sub(r"\s+>\s+", " > ", out)
+    out = re.sub(r"^\s*>\s*", "", out)
+    return out.strip()
+
+
+def _normalize_list_selectors_in_template(
+    template: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """For each `kind: list` field, normalize the selector so it matches
+    siblings, not just the one row the LLM happened to copy from the
+    catalog. No-op for non-list fields (text/attr/markdown selectors are
+    SUPPOSED to anchor to a specific element).
+    """
+    if not template:
+        return template
+    for f in template:
+        if f.get("kind") == "list":
+            sel = f.get("selector", "")
+            normalized = _normalize_list_selector(sel)
+            if normalized and normalized != sel:
+                f["selector"] = normalized
+    return template
+
 _INTERESTING_TAGS = {
     "a", "button", "input", "h1", "h2", "h3", "h4", "h5", "h6",
     "p", "li", "span", "td", "th", "img", "label", "article",
