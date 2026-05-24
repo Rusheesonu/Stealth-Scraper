@@ -33,7 +33,7 @@ export function TemplatePicker({
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor="prog-template"
-          className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]"
+          className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]"
         >
           Template
         </label>
@@ -64,7 +64,7 @@ export function TemplatePicker({
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor="prog-url"
-          className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]"
+          className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]"
         >
           Target URL
         </label>

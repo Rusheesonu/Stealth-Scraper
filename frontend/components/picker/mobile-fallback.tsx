@@ -209,8 +209,8 @@ function FallbackCta({
         </span>
         <span
           className={[
-            "mt-1 block text-[11px] leading-tight",
-            primary ? "text-white/70" : "text-[var(--color-fg-muted)]",
+            "mt-1 block text-[13px] leading-[1.45]",
+            primary ? "text-white/80" : "text-[var(--color-fg-muted)]",
           ].join(" ")}
         >
           {sub}
@@ -333,9 +333,9 @@ function NotifyForm() {
         </button>
       </div>
       {error ? (
-        <p className="text-[11px] text-[var(--color-danger)]">{error}</p>
+        <p className="text-[13px] text-[var(--color-danger)]">{error}</p>
       ) : (
-        <p className="text-[11px] leading-[1.5] text-[var(--color-fg-subdued)]">
+        <p className="text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
           One email when mobile lands. No marketing — promise.
         </p>
       )}

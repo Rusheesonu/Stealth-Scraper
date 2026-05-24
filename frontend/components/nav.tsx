@@ -273,7 +273,7 @@ export function Footer() {
           {/* Brand + tagline — first column on desktop, spans both on mobile. */}
           <div className="col-span-2 md:col-span-1">
             <Brand />
-            <p className="mt-3 max-w-[28ch] text-[14px] leading-[1.6] text-[var(--color-fg-muted)]">
+            <p className="mt-3 max-w-[28ch] text-[14px] leading-[1.6] text-[var(--color-fg)]">
               The visual scraper for AI agents. Point, click, save, ship.
             </p>
             <p className="mt-4 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
@@ -316,7 +316,7 @@ export function Footer() {
         {/* Bottom row — copyright. The /design route is an internal dev
             tool; we don't link to it from the public footer. */}
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center">
-          <p className="font-mono text-[12px] text-[var(--color-fg-muted)]">
+          <p className="font-mono text-[13px] text-[var(--color-fg-muted)]">
             © 2026 Stealth-Scraper · All rights reserved
           </p>
         </div>

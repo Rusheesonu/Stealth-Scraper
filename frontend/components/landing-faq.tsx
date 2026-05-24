@@ -181,7 +181,7 @@ export function LandingFaq() {
                 aria-expanded={isOpen}
               >
                 <span className={cn(
-                  "text-[16px] font-medium leading-[1.4]",
+                  "text-[16px] font-medium leading-[1.5]",
                   isOpen ? "text-[var(--color-fg-strong)]" : "text-[var(--color-fg)]",
                 )}>
                   {item.q}

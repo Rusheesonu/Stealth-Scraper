@@ -148,7 +148,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
             )}
             <span className="text-[var(--color-fg-subdued)]">&rdquo;</span>
           </div>
-          <div className="mt-2 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
+          <div className="mt-2 truncate font-mono text-[12px] text-[var(--color-fg-muted)]">
             {truncate(currentEl.css, 96)}
           </div>
         </div>
@@ -266,7 +266,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
                     Found {siblingCount} similar items
                   </span>
                 </div>
-                <ul className="space-y-0.5 font-mono text-[11px] leading-[1.55] text-[var(--color-fg)]">
+                <ul className="space-y-0.5 font-mono text-[13px] leading-[1.55] text-[var(--color-fg)]">
                   {siblings.slice(0, 4).map((s, i) => (
                     <li key={i} className="truncate">
                       <span className="text-[var(--color-fg-subdued)]">{i + 1}.</span>{" "}
@@ -274,7 +274,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
                     </li>
                   ))}
                   {siblingCount > 4 && (
-                    <li className="text-[var(--color-fg-subdued)]">… and {siblingCount - 4} more</li>
+                    <li className="text-[13px] text-[var(--color-fg-muted)]">… and {siblingCount - 4} more</li>
                   )}
                 </ul>
               </div>
@@ -283,7 +283,7 @@ export function LabelModal({ element, allElements, existingLabels, onCancel, onC
                 <div className="mb-1 text-[13px] font-semibold text-[var(--color-fg-strong)]">
                   No similar items detected
                 </div>
-                <p className="text-[11px] leading-[1.55] text-[var(--color-fg-muted)]">
+                <p className="text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
                   List mode will still return this in an array, but you may want to pick
                   a different element — something inside a repeating card.
                 </p>

@@ -194,7 +194,7 @@ export function SdkPreview() {
         </pre>
 
         {/* Footer caption */}
-        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-ink-1)] px-5 py-2.5 font-mono text-[13px] text-[var(--color-fg-muted)]">
           tpl_hn_top_stories — example recipe. Yours come from the visual picker.
         </div>
       </motion.div>

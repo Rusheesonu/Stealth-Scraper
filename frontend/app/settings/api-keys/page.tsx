@@ -107,7 +107,7 @@ export default function ApiKeysPage() {
             </div>
             <button
               onClick={() => setJustCreated(null)}
-              className="mt-4 text-[11px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline"
+              className="mt-4 text-[13px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:underline"
             >
               I&apos;ve saved it — dismiss
             </button>
@@ -166,16 +166,16 @@ export default function ApiKeysPage() {
                   return (
                     <tr key={k.id} className={cn("border-t border-[var(--color-border)]", revoked && "opacity-50")}>
                       <td className="px-4 py-3">
-                        <div className="text-[13px] font-medium text-[var(--color-fg)]">{k.name}</div>
+                        <div className="text-[14px] font-medium text-[var(--color-fg-strong)]">{k.name}</div>
                         {revoked && (
-                          <div className="mt-0.5 font-mono text-[11px] text-[color:var(--color-danger)]">
+                          <div className="mt-0.5 font-mono text-[12px] text-[color:var(--color-danger)]">
                             revoked {timeAgo(k.revoked_at!)}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-[var(--color-fg-muted)]">{k.prefix}…</td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-[var(--color-fg-muted)]">{timeAgo(k.created_at)}</td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-[var(--color-fg-muted)]">
+                      <td className="px-4 py-3 font-mono text-[13px] text-[var(--color-fg-muted)]">{k.prefix}…</td>
+                      <td className="px-4 py-3 font-mono text-[13px] text-[var(--color-fg-muted)]">{timeAgo(k.created_at)}</td>
+                      <td className="px-4 py-3 font-mono text-[13px] text-[var(--color-fg-muted)]">
                         {k.last_used_at ? timeAgo(k.last_used_at) : "never"}
                       </td>
                       <td className="px-4 py-3 text-right">

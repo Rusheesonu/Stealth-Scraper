@@ -64,7 +64,7 @@ export function LangTabs({
           >
             <span
               className={cn(
-                "inline-flex h-4 min-w-[1rem] items-center justify-center rounded-sm px-1 font-mono text-[10.5px]",
+                "inline-flex h-[18px] min-w-[1.125rem] items-center justify-center rounded-sm px-1 font-mono text-[11px]",
                 active
                   ? "bg-[var(--color-accent-faint)] text-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent-line)]"
                   : "bg-[var(--color-ink-2)] text-[var(--color-fg-muted)]",

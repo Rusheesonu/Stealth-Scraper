@@ -198,7 +198,7 @@ export function FieldDetailDrawer({
                     onChange={(e) => setDraft({ ...draft, xpath: e.target.value })}
                     placeholder="//div[@class='price']"
                   />
-                  <p className="mt-1 text-[11px] text-[var(--color-fg-subdued)]">
+                  <p className="mt-1 text-[13px] text-[var(--color-fg-muted)]">
                     Used only if CSS selector returns nothing.
                   </p>
                 </div>
@@ -281,7 +281,7 @@ function Section({
         {title}
       </div>
       {hint && (
-        <p className="mb-2.5 text-[11px] leading-[1.5] text-[var(--color-fg-muted)]">{hint}</p>
+        <p className="mb-2.5 text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">{hint}</p>
       )}
       {children}
     </section>
@@ -297,7 +297,7 @@ function ValuePreview({ value, empty }: { value: unknown; empty: string | null }
 
   if (empty) {
     return (
-      <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[11px] text-[var(--color-fg-muted)]">
+      <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[13px] text-[var(--color-fg-muted)]">
         {empty}
       </div>
     );
@@ -309,7 +309,7 @@ function ValuePreview({ value, empty }: { value: unknown; empty: string | null }
         <div className="font-mono text-[13px] text-[var(--color-fg)]">
           <span className="text-[var(--color-fg-subdued)]">null</span>
         </div>
-        <p className="mt-1 text-[11px] text-[var(--color-fg-muted)]">
+        <p className="mt-1 text-[13px] text-[var(--color-fg-muted)]">
           Selector didn&apos;t match anything. Try editing it above.
         </p>
       </div>
@@ -333,7 +333,7 @@ function ValuePreview({ value, empty }: { value: unknown; empty: string | null }
         </div>
         <ul className="space-y-0.5">
           {shown.map((v, i) => (
-            <li key={i} className="truncate font-mono text-[11px] text-[var(--color-fg)]">
+            <li key={i} className="truncate font-mono text-[13px] leading-[1.5] text-[var(--color-fg)]">
               <span className="text-[var(--color-fg-subdued)]">{i}.</span> {String(v)}
             </li>
           ))}
@@ -394,7 +394,7 @@ function TransformsEditor({
     <div className="space-y-2">
       {transforms.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-3 text-center">
-          <p className="text-[11px] text-[var(--color-fg-muted)]">
+          <p className="text-[13px] text-[var(--color-fg-muted)]">
             No cleanup steps. Raw extracted value goes through unchanged.
           </p>
         </div>
@@ -498,7 +498,7 @@ function OpParams({
     case "upper":
     case "collapse_whitespace":
       return (
-        <p className="text-[11px] text-[var(--color-fg-muted)]">No parameters.</p>
+        <p className="text-[13px] text-[var(--color-fg-muted)]">No parameters.</p>
       );
     case "strip_prefix":
       return (
@@ -545,7 +545,7 @@ function OpParams({
     case "to_int":
     case "to_float":
       return (
-        <p className="text-[11px] text-[var(--color-fg-muted)]">
+        <p className="text-[13px] text-[var(--color-fg-muted)]">
           Auto-strips $, commas, currency symbols.
         </p>
       );
@@ -581,10 +581,10 @@ function AddOpButton({ onAdd }: { onAdd: (op: TransformOp) => void }) {
                     onClick={() => { onAdd(op); setOpen(false); }}
                     className="block w-full rounded-md px-2.5 py-1.5 text-left transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-ink-2)]"
                   >
-                    <div className="font-mono text-[11px] font-semibold text-[var(--color-fg-strong)]">
+                    <div className="font-mono text-[12px] font-semibold text-[var(--color-fg-strong)]">
                       {meta.label}
                     </div>
-                    <div className="text-[11px] text-[var(--color-fg-muted)]">{meta.sub}</div>
+                    <div className="text-[12px] leading-[1.5] text-[var(--color-fg-muted)]">{meta.sub}</div>
                   </button>
                 ))}
               </div>

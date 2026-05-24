@@ -448,14 +448,14 @@ function UrlMode() {
       {/* Loading + error states now live INSIDE the modal — see
           LandingPreviewModal. The form stays clean. */}
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-[13px] text-[var(--color-fg-muted)]">
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-[14px] text-[var(--color-fg-muted)]">
         <span>Try</span>
         {TRY_LINKS.map((t) => (
           <button
             key={t.url}
             onClick={() => { setUrl(t.url); }}
             disabled={busy}
-            className="rounded-md border border-transparent px-1.5 py-0.5 font-mono text-[var(--color-fg-muted)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            className="rounded-md border border-transparent px-1.5 py-0.5 font-mono text-[13px] text-[var(--color-fg-muted)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           >
             {t.label}
           </button>
@@ -571,15 +571,15 @@ function DescribeMode() {
 
       {/* Example chips — one-click prefill */}
       <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-left">
-        <span className="mr-1 text-[11px] text-[var(--color-fg-subdued)]">Try</span>
+        <span className="mr-1 text-[13px] text-[var(--color-fg-muted)]">Try</span>
         {DESCRIBE_EXAMPLES.map((ex) => (
           <button
             key={ex.url}
             type="button"
             onClick={() => { setUrl(ex.url); setDesc(ex.desc); }}
-            className="group inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] text-[var(--color-fg-muted)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+            className="group inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[13px] text-[var(--color-fg-muted)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-fg)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           >
-            <Sparkles className="h-2.5 w-2.5 text-[var(--color-accent)]" />
+            <Sparkles className="h-3 w-3 text-[var(--color-accent)]" />
             <span className="font-mono">{new URL(ex.url).host.replace(/^www\./, "")}</span>
           </button>
         ))}
@@ -637,12 +637,12 @@ function DemoStrip() {
                 transition={{ duration: 0.4, delay: 0.6 + i * 0.05, ease: APPLE_EASE }}
                 className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5"
               >
-                <div className="text-[14px] leading-[1.45] text-[var(--color-fg)]">
+                <div className="text-[14px] leading-[1.5] text-[var(--color-fg)]">
                   <span className="rounded-sm bg-[var(--color-accent-soft)] px-0.5 py-px ring-1 ring-[var(--color-accent-line)]">
                     {row.title}
                   </span>
                 </div>
-                <div className="mt-1.5 flex items-center gap-2 font-mono text-[11px] text-[var(--color-fg-muted)]">
+                <div className="mt-1.5 flex items-center gap-2 font-mono text-[12px] text-[var(--color-fg-muted)]">
                   <span>
                     <span className="rounded-sm bg-[var(--color-info-soft)] px-0.5 py-px ring-1 ring-[color:var(--color-info)]/20">
                       {row.points}

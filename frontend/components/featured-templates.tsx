@@ -219,7 +219,7 @@ function TemplateCard({ card, index }: { card: Card; index: number }) {
           <h3 className="truncate text-[15px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)]">
             {card.name}
           </h3>
-          <div className="mt-1 inline-flex items-center gap-1 truncate font-mono text-[12px] text-[var(--color-fg-muted)]">
+          <div className="mt-1 inline-flex items-center gap-1 truncate font-mono text-[13px] text-[var(--color-fg-muted)]">
             {host}
             <ExternalLink className="h-3 w-3 opacity-50" />
           </div>

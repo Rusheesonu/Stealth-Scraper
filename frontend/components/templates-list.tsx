@@ -69,8 +69,8 @@ export function TemplatesList() {
     return (
       <div className="rounded-lg border border-[color:var(--color-danger)]/30 bg-[var(--color-danger-soft)] p-4 text-[13px]">
         <div className="font-semibold text-[var(--color-fg-strong)]">Couldn&apos;t load templates</div>
-        <div className="mt-1 font-mono text-[11px] text-[var(--color-fg-muted)]">{error}</div>
-        <div className="mt-2 text-[11px] text-[var(--color-fg-muted)]">
+        <div className="mt-1 font-mono text-[13px] text-[var(--color-fg)]">{error}</div>
+        <div className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
           Is the backend reachable?
         </div>
       </div>
@@ -129,7 +129,7 @@ export function TemplatesList() {
                   href={t.source_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-1 inline-flex items-center gap-1 truncate font-mono text-[11px] text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:text-[var(--color-accent)]"
+                  className="mt-1 inline-flex items-center gap-1 truncate font-mono text-[13px] text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:text-[var(--color-accent)]"
                 >
                   {t.source_url}
                   <ExternalLink className="h-3 w-3" />

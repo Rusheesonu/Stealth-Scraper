@@ -118,7 +118,7 @@ function FirstTimeWelcome({
         <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.02em] text-[var(--color-fg-strong)]">
           Hi! Let&apos;s run your first scrape.
         </h1>
-        <p className="mt-2 max-w-lg text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
+        <p className="mt-2 max-w-lg text-[15px] leading-[1.6] text-[var(--color-fg)]">
           Paste any URL — or use the Hacker News demo below — to open the visual picker.
           Click any field on the page to extract it.
         </p>
@@ -143,14 +143,14 @@ function FirstTimeWelcome({
             Run scrape
           </Button>
         </form>
-        <p className="mt-3 text-[11px] text-[var(--color-fg-subdued)]">
+        <p className="mt-3 text-[13px] text-[var(--color-fg-muted)]">
           The HN demo always works — we use it as our known-good test page.
         </p>
       </Card>
 
       <Card density="comfortable" className="mt-4">
-        <div className="text-[14px] font-semibold tracking-tight">Or browse templates other people built</div>
-        <p className="mt-1 text-[13px] text-[var(--color-fg-muted)]">
+        <div className="text-[15px] font-semibold tracking-tight">Or browse templates other people built</div>
+        <p className="mt-1 text-[14px] text-[var(--color-fg)]">
           Community-shared recipes for common sites. Fork one with a click and customize.
         </p>
         <Link href="/marketplace">
@@ -190,7 +190,7 @@ function ReturningDashboard({
       </div>
 
       <Card density="comfortable" className="mb-6">
-        <div className="mb-3 text-[13px] font-semibold tracking-tight text-[var(--color-fg)]">
+        <div className="mb-3 text-[15px] font-semibold tracking-tight text-[var(--color-fg-strong)]">
           Run a new scrape
         </div>
         <form
@@ -241,8 +241,8 @@ function ReturningDashboard({
                 className="group flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold text-[var(--color-fg)]">{t.name}</div>
-                  <div className="mt-0.5 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
+                  <div className="text-[14px] font-semibold text-[var(--color-fg-strong)]">{t.name}</div>
+                  <div className="mt-0.5 truncate font-mono text-[13px] text-[var(--color-fg-muted)]">
                     {t.source_url}
                   </div>
                 </div>

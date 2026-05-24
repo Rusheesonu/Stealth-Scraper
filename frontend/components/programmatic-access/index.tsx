@@ -119,7 +119,7 @@ export function ProgrammaticAccessPanel({
           <h2 className="text-[22px] font-semibold tracking-[-0.005em] text-[var(--color-fg-strong)]">
             Drop into your stack
           </h2>
-          <p className="mt-1.5 max-w-xl text-[13.5px] leading-[1.55] text-[var(--color-fg-muted)]">
+          <p className="mt-1.5 max-w-xl text-[15px] leading-[1.6] text-[var(--color-fg)]">
             Pick a saved template and a URL — get ready-to-paste snippets
             for curl, the SDKs, MCP, cron, and GitHub Actions. The shown
             key is masked; the clipboard receives the full secret.
@@ -130,7 +130,7 @@ export function ProgrammaticAccessPanel({
             when we actually have a key in hand (just-created or prefix). */}
         {hasKey && (
           <div className="hidden shrink-0 sm:block">
-            <div className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+            <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
               Key in snippets
             </div>
             <div className="mt-1 inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[12px] text-[var(--color-fg)]">

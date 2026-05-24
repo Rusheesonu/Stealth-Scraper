@@ -696,11 +696,11 @@ export function PickerClient() {
       {/* Warning strip when the URL input differs from the snapshot. Enter
           re-snapshots; Run extract uses whatever's in the box. */}
       {targetUrl && targetUrl !== url && (
-        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-b border-[color:var(--color-warning)]/25 bg-[var(--color-warning-soft)] px-4 py-1.5">
-          <span className="font-mono text-[11px] text-[var(--color-fg)]">
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-b border-[color:var(--color-warning)]/25 bg-[var(--color-warning-soft)] px-4 py-2">
+          <span className="font-mono text-[13px] text-[var(--color-fg)]">
             ⚠ URL differs from the current snapshot.
           </span>
-          <span className="text-[11px] text-[var(--color-fg-muted)]">
+          <span className="text-[13px] text-[var(--color-fg-muted)]">
             Press <Kbd>↵</Kbd> to re-snapshot, or Run extract to test selectors here.
           </span>
         </div>
@@ -749,7 +749,7 @@ export function PickerClient() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span className="text-[14px]">Loading snapshot</span>
               </div>
-              <div className="font-mono text-[11px] text-[var(--color-fg-subdued)]">
+              <div className="font-mono text-[13px] text-[var(--color-fg-muted)]">
                 first load can take 10–20s (warming the browser)
               </div>
             </div>
@@ -980,7 +980,7 @@ function CrossHostPrompt({
           <span className="font-mono text-[var(--color-fg)]">{nextHost}</span> —
           different sites use different HTML.
         </p>
-        <div className="mt-3 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
+        <div className="mt-3 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] px-2.5 py-1.5 font-mono text-[13px] text-[var(--color-fg)]">
           {nextUrl}
         </div>
       </div>
@@ -997,7 +997,7 @@ function CrossHostPrompt({
             Cancel
           </Button>
         </div>
-        <p className="mt-3 text-[11px] leading-[1.5] text-[var(--color-fg-muted)]">
+        <p className="mt-3 text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
           New tab keeps your current picks safe. Start fresh clears them and snapshots the new URL.
         </p>
       </div>
@@ -1139,7 +1139,7 @@ function BatchResultsPanel({
                     className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <div className="truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
+                      <div className="truncate font-mono text-[13px] text-[var(--color-fg-muted)]">
                         {url}
                       </div>
                       <Badge tone={errCount ? "danger" : "success"} size="xs">
@@ -1149,10 +1149,10 @@ function BatchResultsPanel({
                     <div className="space-y-1">
                       {Object.entries(unwrapBatchFields(data.fields as Record<string, unknown>)).map(([k, v]) => (
                         <div key={k} className="flex gap-2 text-[13px]">
-                          <span className="shrink-0 font-mono text-[11px] font-semibold text-[var(--color-accent)]">
+                          <span className="shrink-0 font-mono text-[13px] font-semibold text-[var(--color-accent)]">
                             {k}
                           </span>
-                          <span className="truncate font-mono text-[11px] text-[var(--color-fg)]">
+                          <span className="truncate font-mono text-[13px] text-[var(--color-fg)]">
                             {Array.isArray(v)
                               ? `[${(v as unknown[]).length}] ${(v as unknown[]).slice(0, 3).map(String).join(" · ")}${
                                   (v as unknown[]).length > 3 ? " …" : ""

@@ -126,7 +126,7 @@ export function ClickFlowDemo() {
                 const pointsHighlighted = step >= 1;
                 return (
                   <li key={i} className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-                    <div className="text-[14px] leading-[1.45] text-[var(--color-fg)]">
+                    <div className="text-[14px] leading-[1.55] text-[var(--color-fg)]">
                       <motion.span
                         initial={{
                           backgroundColor: "transparent",
@@ -145,7 +145,7 @@ export function ClickFlowDemo() {
                         {row.title}
                       </motion.span>
                     </div>
-                    <div className="mt-1.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
+                    <div className="mt-1.5 font-mono text-[13px] text-[var(--color-fg-muted)]">
                       <motion.span
                         initial={{
                           backgroundColor: "transparent",
@@ -265,7 +265,7 @@ export function ClickFlowDemo() {
                   <div className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-ink-2)]">
                     <MousePointer2 className="h-3.5 w-3.5 text-[var(--color-fg-subdued)]" />
                   </div>
-                  <p className="text-[13px] text-[var(--color-fg-muted)]">
+                  <p className="text-[14px] text-[var(--color-fg)]">
                     No fields yet — click an element on the page.
                   </p>
                 </motion.div>
@@ -312,7 +312,7 @@ export function ClickFlowDemo() {
                           recipe saved
                         </div>
                       </div>
-                      <pre className="overflow-hidden font-mono text-[11px] leading-[1.55] text-[var(--color-fg)]">
+                      <pre className="overflow-hidden font-mono text-[13px] leading-[1.6] text-[var(--color-fg)]">
 {`from stealth_scraper import Client
 c = Client(api_key="ssk_...")
 c.run_template("tpl_hn", url)`}

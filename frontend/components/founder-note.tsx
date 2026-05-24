@@ -67,7 +67,7 @@ export function FounderNote() {
             <div className="mb-3 font-mono text-[11px] text-[var(--color-fg-muted)]">
               {FOUNDER.role}
             </div>
-            <div className="space-y-3 text-[13px] leading-[1.7] text-[var(--color-fg)]">
+            <div className="space-y-3 text-[15px] leading-[1.65] text-[var(--color-fg)]">
               {FOUNDER.bio.map((p, i) => (
                 <p key={i}>{p}</p>
               ))}

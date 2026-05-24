@@ -230,7 +230,7 @@ function AiExtractForm() {
                   onClick={() => loadExample(ex)}
                   className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition-[border-color,background] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-elevated)]"
                 >
-                  <div className="mb-1.5 truncate font-mono text-[12px] text-[var(--color-fg-muted)]">
+                  <div className="mb-1.5 truncate font-mono text-[13px] text-[var(--color-fg-muted)]">
                     {ex.url.replace(/^https?:\/\//, "")}
                   </div>
                   <div className="text-[14px] leading-[1.55] text-[var(--color-fg)]">{ex.desc}</div>
@@ -316,7 +316,7 @@ function AiExtractForm() {
                 >
                   <Badge tone="accent" size="xs">{f.label}</Badge>
                   <Badge tone="muted" size="xs">{f.kind || "text"}</Badge>
-                  <code className="flex-1 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">{f.selector}</code>
+                  <code className="flex-1 truncate font-mono text-[12px] text-[var(--color-fg-muted)]">{f.selector}</code>
                 </motion.div>
               ))}
             </div>
@@ -346,7 +346,7 @@ function AiExtractForm() {
               <summary className="cursor-pointer text-[13px] font-mono text-[var(--color-fg-muted)]">
                 Show extraction details (confidence, reason_if_null)
               </summary>
-              <pre className="mt-2 max-h-[300px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] p-3 font-mono text-[12px] leading-[1.55] text-[var(--color-fg-muted)]">
+              <pre className="mt-2 max-h-[300px] overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-ink-1)] p-3 font-mono text-[13px] leading-[1.6] text-[var(--color-fg)]">
                 {JSON.stringify(results.fields, null, 2)}
               </pre>
             </details>
@@ -355,7 +355,7 @@ function AiExtractForm() {
                 <summary className="cursor-pointer text-[13px] text-[var(--color-warning)]">
                   {Object.keys(results.errors).length} field error(s)
                 </summary>
-                <pre className="mt-2 rounded-md border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-3 font-mono text-[12px] leading-[1.55] text-[var(--color-warning)]">
+                <pre className="mt-2 rounded-md border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-3 font-mono text-[13px] leading-[1.6] text-[var(--color-warning)]">
                   {JSON.stringify(results.errors, null, 2)}
                 </pre>
               </details>

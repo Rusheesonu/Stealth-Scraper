@@ -95,7 +95,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
               transition={{ duration: 0.22, ease: APPLE_EASE }}
               className="overflow-hidden"
             >
-              <div className="flex items-center gap-1.5 text-[11px] leading-[1.4] text-[var(--color-fg-muted)]">
+              <div className="flex items-center gap-1.5 text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
                 <Kbd>⇧</Kbd>
                 <span className="text-[var(--color-fg)]">+ click</span>
                 <span>a missing item to extend the latest list.</span>
@@ -112,10 +112,10 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
             <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-ink-2)]">
               <MousePointerClick className="h-4 w-4 text-[var(--color-fg-subdued)]" />
             </div>
-            <div className="text-[13px] font-medium text-[var(--color-fg)]">
+            <div className="text-[14px] font-medium text-[var(--color-fg-strong)]">
               No fields yet
             </div>
-            <p className="mt-1 max-w-[200px] text-[11px] leading-[1.5] text-[var(--color-fg-muted)]">
+            <p className="mt-1 max-w-[220px] text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
               Hover the snapshot and click something to add a field.
             </p>
           </div>
@@ -170,7 +170,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
                         </span>
                       )}
                     </div>
-                    <div className="ml-[18px] mt-1 truncate font-mono text-[11px] text-[var(--color-fg-muted)]">
+                    <div className="ml-[18px] mt-1 truncate font-mono text-[12px] text-[var(--color-fg-muted)]">
                       {truncate(f.selector, 48)}
                     </div>
                   </button>
@@ -198,7 +198,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
           <button
             type="button"
             onClick={onAddManual}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[var(--color-border)] px-3 py-1.5 text-[12px] text-[var(--color-fg-muted)] transition-[border-color,background,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[var(--color-border)] px-3 py-1.5 text-[13px] text-[var(--color-fg-muted)] transition-[border-color,background,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-ink-1)] hover:text-[var(--color-fg)]"
           >
             <Plus className="h-3 w-3" />
             Add field manually
@@ -235,7 +235,7 @@ export function FieldSidebar({ fields, onRemove, onSave, saving, savedId, colorF
             </IconButton>
             <Link
               href="/templates"
-              className="ml-auto text-[11px] font-medium text-[var(--color-accent)] hover:underline"
+              className="ml-auto text-[13px] font-medium text-[var(--color-accent)] hover:underline"
             >
               View →
             </Link>

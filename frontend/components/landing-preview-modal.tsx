@@ -469,7 +469,7 @@ function LoadingPhase({ url }: { url: string }) {
           />
         </div>
 
-        <p className="mx-auto max-w-md text-center text-[13px] leading-[1.55] text-[var(--color-fg-muted)]">
+        <p className="mx-auto max-w-md text-center text-[14px] leading-[1.55] text-[var(--color-fg)]">
           First load can take 10–15s while we warm a fresh Chromium tab.
           Subsequent scrapes on this site are sub-second.
         </p>
@@ -830,7 +830,7 @@ function CtaButton({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[14px] font-semibold leading-none">{label}</span>
-        <span className={cn("mt-1.5 block text-[12px] leading-none", primary ? "text-white/75" : "text-[var(--color-fg-muted)]")}>
+        <span className={cn("mt-1.5 block text-[13px] leading-[1.4]", primary ? "text-white/80" : "text-[var(--color-fg-muted)]")}>
           {subtitle}
         </span>
       </span>
@@ -926,7 +926,7 @@ function BigValueDisplay({ value }: { value: unknown }) {
     return (
       <div className="font-mono text-[13px] text-[var(--color-warning)]">
         null
-        <span className="ml-1 text-[11px] text-[var(--color-fg-subdued)]">
+        <span className="ml-1 text-[13px] text-[var(--color-fg-muted)]">
           (open in picker to fix)
         </span>
       </div>
@@ -964,7 +964,7 @@ function BigValueDisplay({ value }: { value: unknown }) {
           );
         })}
         {value.length > shown.length && (
-          <div className="font-mono text-[11px] text-[var(--color-fg-subdued)]">
+          <div className="font-mono text-[13px] text-[var(--color-fg-muted)]">
             … +{value.length - shown.length} more
           </div>
         )}
@@ -1109,7 +1109,7 @@ function AntiBotBlockPhase({
           </Link>
         </div>
 
-        <p className="mt-3 text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
+        <p className="mt-3 text-[14px] leading-[1.55] text-[var(--color-fg)]">
           Pro plans include residential proxies that solve most anti-bot
           walls automatically.
         </p>
