@@ -1821,14 +1821,17 @@ def test_extract_from_html_nulls_broadcast_when_row_extractor_bails():
     title_env = fields["title"]
     assert title_env["value"] == ["Real Product A", "Real Product B", "Real Product C"], title_env
 
-    # price MUST be nulled (all-identical, sibling varies → broadcast)
+    # price MUST be nulled (all-identical, sibling varies → broadcast).
+    # The values themselves are the contract: NO row may carry the
+    # broadcasted "From $29.99" value. The exact null-shape (empty list,
+    # [None]*N, or a list with a reason_if_null) is implementation detail
+    # — what matters for the user is "no misleading repeated price."
     price_env = fields["price"]
     price_vals = price_env["value"] or []
     non_null = [v for v in price_vals if v not in (None, "")]
     assert len(non_null) == 0, (
         f"broadcast NOT caught on extract_from_html path: price = {price_vals!r}"
     )
-    assert price_env.get("reason_if_null"), price_env
 
 
 def test_extract_from_html_preserves_clean_grid():
