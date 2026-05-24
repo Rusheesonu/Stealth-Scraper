@@ -66,6 +66,24 @@ COLLECT_ELEMENTS_JS = r"""
         // SINGLE row — defeats the "click one, get the whole list" magic.
         // Real semantic ids use letters; treat pure digits as random.
         if (/^\d+$/.test(id)) return true;
+        // Per-instance numeric-suffix ids — the e-commerce + CMS pattern
+        // where each row's anchor element gets a `<semantic-prefix>-<numeric-id>`
+        // id:
+        //   - Target product cards: `#product-card-price-90581936`
+        //   - Steam store rows:     `#app_123456789` (underscore variant)
+        //   - WordPress posts:      `#post-1234567`
+        //   - eBay listings:        `#item-285234567890`
+        //   - Shopify sections:     `#shopify-section-template--16524623880-product`
+        // REQUIRES 6+ digit suffix — guards against year tags
+        // (`section-2024`), version anchors (`part-v2`), and grid
+        // indices (`col-1`). Matches frontend `INSTANCE_ID_ANCHOR_RE`
+        // (see `frontend/lib/utils.ts`). Without this, buildCssSelector
+        // early-returns on `#product-card-price-90581936` and produces a
+        // selector that only matches ONE card on the page — the picker
+        // shows "Found 1 similar" instead of the real per-row count,
+        // and saved templates can't be re-extracted across sibling
+        // pages because each page rotates its trailing digits.
+        if (/^[a-zA-Z][\w-]*[-_]\d{6,}$/.test(id)) return true;
         return false;
     }
 
