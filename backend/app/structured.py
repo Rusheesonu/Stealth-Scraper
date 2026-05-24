@@ -237,7 +237,7 @@ def template_from_structured(
     pipeline. Each field carries:
       • `label`     — canonical snake_case name
       • `selector`  — live CSS selector (microdata only) OR ""
-      • `kind`      — "text" / "attr"
+      • `kind`      — "text" / "attr" / "list"
       • `value`     — sidecar value (for meta tags where no live
                        selector applies — JSON-LD / OG / Twitter)
       • `source`    — provenance tag for downstream telemetry
@@ -279,10 +279,31 @@ def template_from_structured(
                 return fields
 
     # ── Tier 2: Microdata (live selector — picker can re-extract) ────
-    microdata = structured_data.get("microdata") or []
-    for entry in microdata:
-        if not isinstance(entry, dict):
-            continue
+    #
+    # When the SAME itemprop appears N>=2 times on the page (e.g.
+    # quotes.toscrape ships 10 quotes, each with itemprop="text" /
+    # "author" / "keywords"; product list pages repeat itemprop="name"
+    # and "price" once per card), the field MUST be emitted as
+    # kind="list" so the extractor walks every match. The previous
+    # default of kind="text" silently dropped N-1 rows: the picker
+    # correctly identified "N similar" but the auto-suggester quietly
+    # degraded the field to "first match only", and the public
+    # /snapshot-and-suggest preview lied that the page had a single
+    # canonical value when the user could see ten.
+    #
+    # Detection is purely structural — we count occurrences of `prop`
+    # across the page's microdata. No site-specific branching.
+    microdata_entries = [
+        e for e in (structured_data.get("microdata") or [])
+        if isinstance(e, dict)
+    ]
+    prop_counts: dict[str, int] = {}
+    for entry in microdata_entries:
+        prop = (entry.get("prop") or "").strip()
+        if prop:
+            prop_counts[prop] = prop_counts.get(prop, 0) + 1
+
+    for entry in microdata_entries:
         prop = (entry.get("prop") or "").strip()
         val = entry.get("value")
         css = entry.get("css") or ""
@@ -292,11 +313,19 @@ def template_from_structured(
         label = prop.lower().replace("/", "_")
         if label in seen_labels:
             continue
+        tag = (entry.get("tag") or "")
+        is_list = prop_counts.get(prop, 1) >= 2
+        if is_list:
+            # Multiple same-prop entries = list page (product grid,
+            # quote index, article list). kind="list" walks all matches.
+            kind = "list"
+        else:
+            kind = "attr" if tag in {"meta", "img", "a", "time"} else "text"
         fields.append({
             "label": label,
             "selector": css,
-            "kind": "attr" if (entry.get("tag") or "") in {"meta", "img", "a", "time"} else "text",
-            "attr": _attr_for_tag(entry.get("tag") or ""),
+            "kind": kind,
+            "attr": _attr_for_tag(tag),
             "value": str(val)[:1000],
             "source": "structured_microdata",
             "confidence": 1.0,

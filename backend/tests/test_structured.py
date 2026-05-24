@@ -279,3 +279,93 @@ def test_no_field_has_null_value():
     assert "product_name" in labels
     assert "product_description" not in labels
     assert "product_price" not in labels
+
+
+# ── Multi-row microdata → list kind ─────────────────────────────────────
+
+
+def test_microdata_multi_row_promotes_to_list_kind():
+    """When the SAME itemprop appears N>=2 times on the page (the
+    canonical "list page" shape: quotes.toscrape ships 10 quotes,
+    each with itemprop="text" / "author" / "keywords"; product
+    listings repeat itemprop="name" + "price" once per card), the
+    field MUST be kind="list" so the extractor walks every match.
+
+    The old behavior emitted kind="text" and silently dropped the
+    remaining N-1 rows — the picker correctly identified "N similar"
+    but the auto-suggester quietly degraded the field to "first match
+    only", and /snapshot-and-suggest showed one canonical value
+    when the user could see ten. See app/structured.py Tier-2.
+    """
+    structured = {
+        "microdata": [
+            # 10 quotes, each shipping the same triple of itemprops.
+            *[
+                {"prop": "text", "value": f"Quote {i}", "tag": "span",
+                 "css": "div.quote > span.text"}
+                for i in range(10)
+            ],
+            *[
+                {"prop": "author", "value": f"Author {i}", "tag": "small",
+                 "css": "div.quote > span > small.author"}
+                for i in range(10)
+            ],
+            *[
+                {"prop": "keywords", "value": f"k{i},l{i}", "tag": "meta",
+                 "css": "div.quote > div.tags > meta.keywords"}
+                for i in range(10)
+            ],
+        ],
+    }
+    fields = template_from_structured(structured, max_fields=5)
+    labels = {f["label"]: f for f in fields}
+    # All three multi-occurrence itemprops are present and kind="list"
+    for lbl in ("text", "author", "keywords"):
+        assert lbl in labels, f"missing {lbl}; got {list(labels)}"
+        assert labels[lbl]["kind"] == "list", (
+            f"{lbl} should be kind=list when itemprop repeats; got "
+            f"kind={labels[lbl]['kind']!r}"
+        )
+
+
+def test_microdata_single_occurrence_stays_scalar():
+    """Negative case: when each itemprop appears once, kind stays
+    text / attr — single-value pages (a Product detail page, an
+    Article) shouldn't be promoted to lists."""
+    structured = {
+        "microdata": [
+            {"prop": "name", "value": "iPhone 15", "tag": "h1",
+             "css": "h1.title"},
+            {"prop": "price", "value": "999.00", "tag": "span",
+             "css": "span.price"},
+            {"prop": "image", "value": "/i.jpg", "tag": "img",
+             "css": "img.hero"},
+        ],
+    }
+    fields = template_from_structured(structured)
+    by_label = {f["label"]: f for f in fields}
+    assert by_label["name"]["kind"] == "text"
+    assert by_label["price"]["kind"] == "text"
+    assert by_label["image"]["kind"] == "attr"  # img tag → attr=src
+
+
+def test_microdata_mixed_occurrence_per_prop():
+    """The page may have N repeats of one prop and a single global
+    of another (e.g. a list page with a per-card `name` but a
+    single page-level `breadcrumb`). Each prop is judged
+    independently by its own count, not the global max."""
+    structured = {
+        "microdata": [
+            {"prop": "breadcrumb", "value": "Home > Books", "tag": "nav",
+             "css": "nav.breadcrumb"},
+            *[
+                {"prop": "name", "value": f"Book {i}", "tag": "h3",
+                 "css": "article.product > h3"}
+                for i in range(4)
+            ],
+        ],
+    }
+    fields = template_from_structured(structured)
+    by_label = {f["label"]: f for f in fields}
+    assert by_label["breadcrumb"]["kind"] == "text"
+    assert by_label["name"]["kind"] == "list"
