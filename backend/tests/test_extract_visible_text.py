@@ -243,3 +243,49 @@ def test_visible_text_inline_emphasis_no_extra_space():
         assert got == expected, (
             f"html={html!r} expected={expected!r} got={got!r}"
         )
+
+
+# ── aria-label fallback for empty-text nodes ────────────────────────────
+
+
+def test_read_falls_back_to_aria_label_when_text_empty():
+    """Icon-only buttons (Add to cart, Wishlist, Share, Like) carry
+    their textual meaning in aria-label, not as visible text.
+    `_read` text path should return the aria-label when the visible
+    text is empty — matches user intent (the picker UI shows the
+    aria-label as the preview; extract should match)."""
+    from lxml import html as lxml_html
+    from app.extract import _read
+
+    cases = [
+        ('<button aria-label="Add to cart"></button>', "Add to cart"),
+        ('<button aria-label="Wishlist">  </button>', "Wishlist"),  # whitespace-only text
+        ('<a aria-label="Share on Twitter"></a>', "Share on Twitter"),
+        ('<div aria-label="Star rating: 4.5"></div>', "Star rating: 4.5"),
+        # Visible text wins when present
+        ('<button aria-label="Buy now">CLICK ME</button>', "CLICK ME"),
+    ]
+    for html, expected in cases:
+        tree = lxml_html.fromstring(html)
+        got = _read(tree, "text", "")
+        assert got == expected, f"html={html!r} got={got!r} expected={expected!r}"
+
+
+def test_read_falls_back_to_title_when_text_and_aria_empty():
+    """Last-resort title-attribute fallback. Some sites only set
+    `title` (tooltip) and nothing else for icon buttons. Title is
+    less standard than aria-label but the picker UI shows it as
+    the element's preview, so the user expects extraction to match."""
+    from lxml import html as lxml_html
+    from app.extract import _read
+
+    cases = [
+        ('<button title="Settings"></button>', "Settings"),
+        ('<a title="External link"></a>', "External link"),
+        # aria-label wins over title.
+        ('<button title="t-only" aria-label="a-only"></button>', "a-only"),
+    ]
+    for html, expected in cases:
+        tree = lxml_html.fromstring(html)
+        got = _read(tree, "text", "")
+        assert got == expected, f"html={html!r} got={got!r} expected={expected!r}"

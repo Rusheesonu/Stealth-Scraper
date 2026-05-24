@@ -1589,6 +1589,31 @@ def _read(node, kind: str, attr: str) -> Any:
                                 return mv
                 except Exception:
                     pass
+            # Accessible-name fallback. Icon-only buttons (Add to cart,
+            # Wishlist, Share), nav links with sprite icons, and many
+            # interactive controls carry their textual meaning in
+            # `aria-label` rather than as visible text. WAI-ARIA spec
+            # treats aria-label as the authoritative accessible name
+            # when the element has no inner text. Returning it matches
+            # user intent: the picker clicks the visible button, the
+            # user expects "Add to cart" not an empty string.
+            #
+            # Ordering note: this runs AFTER the tag-specific img/area/
+            # input/picture/meta paths and AFTER microdata so the more
+            # specific signals win when present. A <button aria-label=
+            # "X"> with text "X" returns "X" via the normal visible
+            # path; a button with NO text falls through to here.
+            if not visible:
+                aria = (node.get("aria-label") or "").strip()
+                if aria:
+                    return aria
+                # `title` attribute as a last resort. Less standard than
+                # aria-label but the picker UI already shows it as the
+                # element's tooltip preview, so the user expects it as
+                # the extracted value when nothing else is set.
+                title = (node.get("title") or "").strip()
+                if title:
+                    return title
             return visible
         return str(node).strip()
     except Exception:
