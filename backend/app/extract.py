@@ -1507,6 +1507,22 @@ _WS_COLLAPSE_RE = re.compile(r"\s+")
 _NEVER_VISIBLE_TAGS = frozenset(("script", "style", "noscript", "template"))
 
 
+# Tags that render as visual block boundaries — when text segments
+# meet across one of these (e.g. `<h1>A<br>B</h1>`), the user sees
+# them on separate lines, so we insert a space marker during text
+# walking to prevent "AB" concatenation. Keeps to tags that are
+# UNAMBIGUOUSLY block-level per the HTML living standard; phrasing
+# tags (<span>, <em>, <strong>, <a>) are left alone since they flow
+# inline and concatenating their text is the user-correct behavior.
+_BLOCK_BOUNDARY_TAGS = frozenset((
+    "br", "p", "div", "li", "tr", "td", "th",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "section", "article", "header", "footer", "nav",
+    "blockquote", "pre", "address",
+    "ul", "ol", "dl", "dt", "dd",
+))
+
+
 def _is_hidden(node, pass_num: int = 1) -> bool:
     """Whether to skip this node during visible-text extraction.
 
@@ -1598,12 +1614,27 @@ def _visible_text(node) -> str:
                 return
             if _is_hidden(n, pass_num):
                 return
+            # Block-level / line-break boundary. Without a space marker
+            # here, `<h1>Line one<br>Line two</h1>` walks as text="Line
+            # one" + child.tail="Line two" with no separator → returns
+            # "Line oneLine two". Insert a single space at the boundary;
+            # the trailing _WS_COLLAPSE_RE pass folds multiples to one.
+            # Same applies to <p>, <div>, <li>, <tr> — block elements
+            # render as visual line breaks but carry no inherent space
+            # in source. <br> is the most common case (multi-line
+            # titles, addresses, descriptions).
+            tag_lower = tag.lower() if isinstance(tag, str) else ""
+            is_block = tag_lower in _BLOCK_BOUNDARY_TAGS
+            if is_block and parts and not parts[-1].endswith((" ", "\n", "\t")):
+                parts.append(" ")
             if n.text:
                 parts.append(n.text)
             for child in n:
                 visit(child)
                 if child.tail:
                     parts.append(child.tail)
+            if is_block and parts and not parts[-1].endswith((" ", "\n", "\t")):
+                parts.append(" ")
 
         visit(node)
         raw = "".join(parts)

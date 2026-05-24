@@ -179,3 +179,67 @@ def test_a_offscreen_screen_reader_text_extracted():
 if __name__ == "__main__":
     # Allow `python -m pytest backend/tests/test_extract_visible_text.py -v`
     pytest.main([__file__, "-v"])
+
+
+# ── Block boundaries insert space markers ────────────────────────────────
+
+
+def test_visible_text_br_inserts_space_between_lines():
+    """Multi-line titles with `<br>` separators must come back as a
+    single space-joined string, not concatenated without separator.
+
+    The original `_visible_text` walker collected `n.text` then
+    `child.tail` for each child with no boundary marker. On
+    `<h1>Line one<br>Line two</h1>` that produced 'Line oneLine
+    two'. Block elements (br, p, div, li, h*, etc.) now insert a
+    space marker before and after their content; the trailing
+    _WS_COLLAPSE_RE pass folds doubles to single spaces."""
+    from app.extract import _visible_text
+    import lxml.html as lxml_html
+
+    cases = [
+        ('<h1>Line one<br>Line two</h1>', 'Line one Line two'),
+        ('<h1>Line one<br/>Line two</h1>', 'Line one Line two'),
+        ('<h1>Line one<br><span>Line two</span></h1>', 'Line one Line two'),
+        ('<h1>A<br>B<br>C</h1>', 'A B C'),
+        # Inline elements still concatenate without extra space.
+        ('<h1><span>X</span><span>Y</span></h1>', 'XY'),
+        # Existing space preserved (no duplicate).
+        ('<h1>X <span>Y</span></h1>', 'X Y'),
+        # <p>, <div> get block treatment too.
+        ('<div><p>Para A</p><p>Para B</p></div>', 'Para A Para B'),
+        ('<div><div>Outer</div><div>Inner</div></div>', 'Outer Inner'),
+        # Lists.
+        ('<ul><li>Item 1</li><li>Item 2</li></ul>', 'Item 1 Item 2'),
+    ]
+    for html, expected in cases:
+        tree = lxml_html.fromstring(html)
+        # The root element after fromstring may be wrapped if it's not
+        # an <html>; pick the first element.
+        node = tree
+        got = _visible_text(node)
+        assert got == expected, (
+            f"html={html!r} expected={expected!r} got={got!r}"
+        )
+
+
+def test_visible_text_inline_emphasis_no_extra_space():
+    """Inline phrasing tags (span, em, strong, a, b, i) must NOT
+    trigger the block-boundary space — `<h1>Hello <em>world</em></h1>`
+    should still be 'Hello world' (single space from source), not
+    'Hello  world' (double-space from a wrongly-marked boundary)."""
+    from app.extract import _visible_text
+    import lxml.html as lxml_html
+
+    cases = [
+        ('<h1>Hello <em>world</em></h1>', 'Hello world'),
+        ('<h1>Buy <strong>now</strong> only</h1>', 'Buy now only'),
+        ('<h1>Click <a href="x">here</a></h1>', 'Click here'),
+        ('<h1>X<b>bold</b>Y</h1>', 'XboldY'),  # no source space at all
+    ]
+    for html, expected in cases:
+        tree = lxml_html.fromstring(html)
+        got = _visible_text(tree)
+        assert got == expected, (
+            f"html={html!r} expected={expected!r} got={got!r}"
+        )
