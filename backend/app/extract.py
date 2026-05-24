@@ -2078,11 +2078,19 @@ def _try_prefix_lcp(
     for row in rows:
         for (label, field), suffix in zip(list_fields, suffixes):
             attr = field.get("attr", "")
+            # When the field has an attr (img src, link href, time
+            # datetime, meta content), _read must be called with
+            # kind="attr" — otherwise it falls through to the
+            # visible-text path and returns the inner text instead of
+            # the attribute value. The flat-extraction path in _pull
+            # gets this right; the per-row paths were silently
+            # text-extracting attr-field nodes for ages.
+            read_kind = "attr" if attr else "text"
             try:
                 matches = row.cssselect(suffix) if suffix else [row]
             except Exception:
                 matches = []
-            values[label].append(_read(matches[0], "text", attr) if matches else None)
+            values[label].append(_read(matches[0], read_kind, attr) if matches else None)
 
     return values
 
@@ -2152,8 +2160,12 @@ def _try_dom_lca(
         descendants = row_descendant_sets[row_idx]
         for label, field, all_matches in field_matches:
             attr = field.get("attr", "")
+            # See _try_prefix_lcp note — kind must be "attr" when the
+            # field declares one, otherwise _read returns visible
+            # text and the attribute value is lost.
+            read_kind = "attr" if attr else "text"
             scoped = next((m for m in all_matches if id(m) in descendants), None)
-            values[label].append(_read(scoped, "text", attr) if scoped is not None else None)
+            values[label].append(_read(scoped, read_kind, attr) if scoped is not None else None)
 
     return values
 

@@ -296,3 +296,76 @@ if __name__ == "__main__":
     except AssertionError as e:
         print(f"FAIL: {e}")
         sys.exit(1)
+
+
+# ── list + attr: per-row image src / link href arrays ───────────────────
+
+
+def test_pull_lists_per_row_list_attr_image_src():
+    """Per-row extractor must honor field.attr for list fields.
+
+    The bug: `_try_prefix_lcp` and `_try_dom_lca` hard-coded kind=
+    "text" in their `_read` call, so a `kind: list, attr: src` field
+    silently returned the visible-text (alt attribute / inner text)
+    for each row instead of the actual src URL. Symptom: extracted
+    image_src column shows ['Item 1', 'Item 2', ...] (the alts) on
+    a 4-card grid where the user expected ['/img/1.jpg', ...]."""
+    from lxml import html as lxml_html
+    from app.extract import _pull_lists_per_row
+
+    tree = lxml_html.fromstring(
+        "<html><body><div class='grid'>"
+        "<article class='card'><a href='/p/1'><img src='/img/1.jpg' alt='I1'></a><h3>Item 1</h3></article>"
+        "<article class='card'><a href='/p/2'><img src='/img/2.jpg' alt='I2'></a><h3>Item 2</h3></article>"
+        "<article class='card'><a href='/p/3'><img src='/img/3.jpg' alt='I3'></a><h3>Item 3</h3></article>"
+        "</div></body></html>"
+    )
+    template = [
+        {"label": "title",   "selector": "article.card > h3",        "kind": "list"},
+        {"label": "img_src", "selector": "article.card > a > img",   "kind": "list", "attr": "src"},
+        {"label": "link",    "selector": "article.card > a",         "kind": "list", "attr": "href"},
+    ]
+    values, _ = _pull_lists_per_row(tree, template)
+    assert values["title"] == ["Item 1", "Item 2", "Item 3"]
+    # The bug returned `['I1', 'I2', 'I3']` (alt text). Correct = the src URLs.
+    assert values["img_src"] == ["/img/1.jpg", "/img/2.jpg", "/img/3.jpg"], (
+        f"img_src should be the src URLs not alt text. Got: {values['img_src']!r}"
+    )
+    assert values["link"] == ["/p/1", "/p/2", "/p/3"], (
+        f"link should be the href values not link text. Got: {values['link']!r}"
+    )
+
+
+def test_pull_lists_per_row_dom_lca_path_honors_attr():
+    """Same fix as test above, but on the DOM-LCA path (the fallback
+    used when CSS-prefix LCP can't find a clean container). Trigger
+    by giving fields selectors with NO common prefix — each starts
+    from a different ancestor."""
+    from lxml import html as lxml_html
+    from app.extract import _pull_lists_per_row
+
+    # Class names that diverge so prefix-LCP fails and DOM-LCA kicks in.
+    tree = lxml_html.fromstring(
+        "<html><body><div class='grid'>"
+        "<article class='card'>"
+        "  <a class='pdp-link' href='/p/1'><img class='hero' src='/img/1.jpg'></a>"
+        "  <h3 class='product-title'>Item 1</h3>"
+        "</article>"
+        "<article class='card'>"
+        "  <a class='pdp-link' href='/p/2'><img class='hero' src='/img/2.jpg'></a>"
+        "  <h3 class='product-title'>Item 2</h3>"
+        "</article>"
+        "<article class='card'>"
+        "  <a class='pdp-link' href='/p/3'><img class='hero' src='/img/3.jpg'></a>"
+        "  <h3 class='product-title'>Item 3</h3>"
+        "</article>"
+        "</div></body></html>"
+    )
+    template = [
+        {"label": "title",   "selector": "h3.product-title",  "kind": "list"},
+        {"label": "img_src", "selector": "img.hero",           "kind": "list", "attr": "src"},
+        {"label": "link",    "selector": "a.pdp-link",          "kind": "list", "attr": "href"},
+    ]
+    values, _ = _pull_lists_per_row(tree, template)
+    assert values["img_src"] == ["/img/1.jpg", "/img/2.jpg", "/img/3.jpg"]
+    assert values["link"] == ["/p/1", "/p/2", "/p/3"]
