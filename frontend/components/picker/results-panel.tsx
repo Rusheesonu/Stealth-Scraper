@@ -18,7 +18,37 @@ type Props = {
   onClose: () => void;
 };
 
-function zipRecords(fields: Record<string, unknown>): Record<string, unknown>[] | null {
+/**
+ * Build records (per-row tabular view) from extracted fields.
+ *
+ * Returns one row per item in the list-kind fields; list lengths must
+ * match (zip semantics). Returns null when the shape isn't zip-able —
+ * caller falls back to fields view.
+ *
+ * **Scalar policy**: when there are ≥2 rows, scalar fields are NOT
+ * broadcast into each row. Broadcasting a scalar across N list rows
+ * implies "this value belongs to every row" which is dishonest when
+ * the scalar is actually a too-specific list selector that only
+ * matched one element (e.g. Target's price selector matching only the
+ * first product card because later cards lazy-load). The broken-state
+ * UX in records view: scalar columns silently become "$199.99 in
+ * every row" and the user thinks the bug is back.
+ *
+ * Backend's `_null_broadcast_in_page_fields` now nulls list-kind
+ * fields with 0–1 matches when siblings have N≥3, so this case mostly
+ * gets caught earlier — but the frontend guard is the last line of
+ * defense for stale templates, AI-drafted schemas with kind=text
+ * mislabels, or transforms that collapsed a list to a scalar
+ * unintentionally.
+ *
+ * Scalars are still returned alongside the rows so the panel can
+ * surface them as page-level metadata above the table (with a hint
+ * to re-pick or change kind).
+ */
+function zipRecords(fields: Record<string, unknown>): {
+  rows: Record<string, unknown>[];
+  ignoredScalars: { label: string; value: unknown }[];
+} | null {
   const entries = Object.entries(fields);
   if (entries.length === 0) return null;
   const listEntries = entries.filter(([, v]) => Array.isArray(v));
@@ -27,15 +57,27 @@ function zipRecords(fields: Record<string, unknown>): Record<string, unknown>[] 
   const first = lengths[0];
   if (first === 0) return null;
   if (!lengths.every((n) => n === first)) return null;
+
   const scalars = entries.filter(([, v]) => !Array.isArray(v));
+  // Broadcast scalars only when there's exactly 1 row (no broadcast
+  // possible). For ≥2 rows, scalars are surfaced separately above the
+  // table — see "Scalar policy" in JSDoc.
+  const broadcastOK = first < 2;
+
   const rows: Record<string, unknown>[] = [];
   for (let i = 0; i < first; i++) {
     const row: Record<string, unknown> = {};
-    for (const [k, v] of scalars) row[k] = v;
+    if (broadcastOK) {
+      for (const [k, v] of scalars) row[k] = v;
+    }
     for (const [k, v] of listEntries) row[k] = (v as unknown[])[i] ?? null;
     rows.push(row);
   }
-  return rows;
+
+  const ignoredScalars = broadcastOK
+    ? []
+    : scalars.map(([label, value]) => ({ label, value }));
+  return { rows, ignoredScalars };
 }
 
 /**
@@ -79,7 +121,9 @@ export function ResultsPanel({ results, url, onClose }: Props) {
     () => unwrapFields(results.fields as Record<string, unknown>),
     [results.fields],
   );
-  const records = useMemo(() => zipRecords(fieldsFlat), [fieldsFlat]);
+  const zipped = useMemo(() => zipRecords(fieldsFlat), [fieldsFlat]);
+  const records = zipped?.rows ?? null;
+  const ignoredScalars = zipped?.ignoredScalars ?? [];
   const hasMultipleLists =
     records != null &&
     Object.values(fieldsFlat).filter((v) => Array.isArray(v)).length >= 2;
@@ -226,7 +270,41 @@ export function ResultsPanel({ results, url, onClose }: Props) {
                 </div>
               </div>
             ) : view === "records" && records ? (
-              <RecordsView rows={records} />
+              <>
+                {/* Non-generalizing scalars — fields that returned a
+                    single value while sibling list fields had N rows.
+                    Shown above the table instead of broadcast as a
+                    column of repeated values (the old "every row is
+                    $199.99" bug). Hint nudges the user to re-pick or
+                    change kind. */}
+                {ignoredScalars.length > 0 && (
+                  <div className="mb-3 rounded-lg border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-3">
+                    <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-warning)]">
+                      <AlertTriangle className="h-3 w-3" />
+                      {ignoredScalars.length} field{ignoredScalars.length === 1 ? "" : "s"} didn&apos;t generalize across rows
+                    </div>
+                    <ul className="space-y-1">
+                      {ignoredScalars.map(({ label, value }) => (
+                        <li key={label} className="flex items-baseline gap-2 text-[13px]">
+                          <span className="font-mono font-semibold text-[var(--color-accent)]">{label}</span>
+                          <span className="text-[var(--color-fg-subdued)]">=</span>
+                          <span className="truncate font-mono text-[var(--color-fg)]">
+                            {value == null ? "null" : String(value)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
+                      The selector matched only 1 element — likely too
+                      specific (Target/Amazon lazy-load later cards). Open
+                      the field to re-pick from a different row, or change
+                      kind to <span className="font-mono">text</span> if
+                      this is genuinely a single-value field.
+                    </p>
+                  </div>
+                )}
+                <RecordsView rows={records} />
+              </>
             ) : (
               <div className="space-y-2">
                 {Object.entries(fieldsFlat).map(([label, value]) => (

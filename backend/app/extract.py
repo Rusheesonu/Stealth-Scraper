@@ -104,10 +104,24 @@ def _envelope(
     structurally — a null without a reason is a programming error,
     not a runtime state.
     """
-    # Treat empty string + empty list as "no value" for the purposes of
-    # the reason invariant — they're not OBJECTIVELY null, but for the
-    # silent-failure narrative they're the same shape.
-    is_empty = value is None or value == "" or value == []
+    # Treat empty string + empty list + all-null list as "no value" for
+    # the purposes of the reason invariant — they're not OBJECTIVELY null,
+    # but for the silent-failure narrative they're the same shape.
+    #
+    # An all-null list (e.g. `[None] * N`) is the shape the broadcast
+    # nuller emits when it replaces an under-matching list. Without
+    # treating that as empty, the reason gets stripped at the
+    # `if not is_empty` branch below and the user loses the "selector
+    # too specific" explanation.
+    is_empty = (
+        value is None
+        or value == ""
+        or value == []
+        or (
+            isinstance(value, list)
+            and all(v is None or v == "" for v in value)
+        )
+    )
     if is_empty and not reason_if_null:
         # Default reason when caller forgot — keeps the envelope
         # honest even when the call site is sloppy.
@@ -333,15 +347,28 @@ def _null_broadcast_in_page_fields(
     """Top-level broadcast guard — runs across the final extraction
     result regardless of which strategy produced each field.
 
-    A field marked `kind: list` whose value is a list of all-identical
-    non-null entries (>=3 entries) AND has at least one sibling list
-    column with variety is treated as a broadcast (one global element
-    captured N times) and replaced with a list of nulls. Same trade-off
-    as `_null_broadcast_columns`: legit flat-rate stores get nulled
-    too, but honest null > misleading 'this value belongs to row N'.
+    Two failure modes caught here:
 
-    Only operates on FieldResult envelopes whose value is a list. Scalar
-    fields (kind: text / attr) are passed through unchanged.
+    (A) **All-identical broadcast:** A field marked `kind: list` whose
+        value is a list of all-identical non-null entries (>=3 entries)
+        AND has at least one sibling list column with variety is treated
+        as a broadcast (one global element captured N times) and
+        replaced with a list of nulls.
+
+    (B) **Under-matching list:** A field marked `kind: list` whose value
+        is a list of 0–1 non-null entries while sibling list columns
+        have N≥3 entries. This is the "too specific selector" case —
+        e.g. the picker's price selector matched only the first card's
+        price because subsequent prices haven't lazy-loaded yet. Left
+        as-is, the frontend zipRecords would broadcast the lone scalar
+        across all N rows ("every product is $199.99"). Replaced with
+        a list of nulls + reason explaining the selector is too narrow.
+
+    Trade-off same as `_null_broadcast_columns`: legit narrow lists
+    (e.g. "page header has 1 logo while products have 19 entries")
+    get nulled too — but honest null > misleading 'this value belongs
+    to row N'. The user can mark the narrow field as `kind: text`
+    explicitly to keep its scalar nature.
     """
     list_envelopes: list[tuple[str, FieldResult]] = []
     for label, env in fields.items():
@@ -356,24 +383,25 @@ def _null_broadcast_in_page_fields(
         # varies"; with <2 list columns we have no variety signal.
         return fields
 
-    # Does at least one list column show variety?
-    any_varied = False
+    # Compute the max varied-list length — anchor for "what should the
+    # row count be?" We require ≥3 to consider broadcast at all (avoids
+    # nulling legit 2-row pages where columns differ by content).
+    max_varied_len = 0
     for _label, env in list_envelopes:
         col = env.get("value") or []
         non_null = [v for v in col if v not in (None, "")]
-        if len(set(non_null)) > 1:
-            any_varied = True
-            break
-    if not any_varied:
+        if len(set(non_null)) > 1 and len(non_null) > max_varied_len:
+            max_varied_len = len(non_null)
+    if max_varied_len < 3:
         return fields
 
     cleaned = dict(fields)
     for label, env in list_envelopes:
         col = env.get("value") or []
         non_null = [v for v in col if v not in (None, "")]
+
+        # (A) all-identical broadcast — N rows, all same value
         if len(non_null) >= 3 and len(set(non_null)) == 1:
-            # Broadcast detected. Build a new envelope with nulls,
-            # preserve provenance, lower confidence, set reason.
             cleaned[label] = _envelope(
                 [None] * len(col),
                 source=env.get("source", "selector"),
@@ -384,6 +412,26 @@ def _null_broadcast_in_page_fields(
                     "varied — looked like a global element captured per "
                     "row, not a per-row value. Set explicit field as "
                     "scalar if this column truly has one fixed value."
+                ),
+            )
+
+        # (B) under-matching list — 0 or 1 non-null entries while
+        #     sibling list columns have ≥3 varied entries. This is the
+        #     "selector too specific" case (Target prices, lazy-loaded
+        #     fields, etc). Replace with N nulls so frontend can't
+        #     broadcast the lone value across rows.
+        elif len(non_null) <= 1 and max_varied_len >= 3:
+            cleaned[label] = _envelope(
+                [None] * max_varied_len,
+                source=env.get("source", "selector"),
+                confidence=0.2,
+                selector_used=env.get("selector_used"),
+                reason_if_null=(
+                    f"list selector matched {len(non_null)} element(s) "
+                    f"but sibling list columns have {max_varied_len}. "
+                    "Selector is probably too specific — re-pick from "
+                    "a different example row, or mark this field as "
+                    "kind=text if it really is page-level (one value)."
                 ),
             )
     return cleaned

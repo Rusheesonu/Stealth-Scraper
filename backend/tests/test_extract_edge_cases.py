@@ -1887,6 +1887,95 @@ def test_extract_from_html_preserves_legit_flat_rate():
     assert fields["price"]["value"] == ["$5", "$5", "$5"]
 
 
+def test_extract_from_html_nulls_undermatching_list_field():
+    """The Target-shape bug: user clicks a price (e.g. $199.99) thinking
+    it's a per-row list field, but the picker's generated selector only
+    matches ONE element (the first card's price, because subsequent
+    cards lazy-load after the snapshot completes). Without this fix,
+    backend returns price as a 1-element list, frontend zipRecords
+    broadcasts it across all 19 title rows ("every product is $199.99"
+    — the screenshot bug the user keeps seeing).
+
+    Contract: when a list-kind field has 0–1 non-null entries while
+    sibling list columns have N≥3 varied entries, the under-matching
+    column is replaced with [None]*N + a reason explaining the
+    selector is too narrow.
+    """
+    from app.extract import extract_from_html
+
+    # 5 product cards, but the price selector only matches card #1
+    # (the rest have a different inner structure, simulating lazy-load
+    # or a too-specific picker selector).
+    html = """
+    <html><body>
+      <div class="card">
+        <h3 class="title">Phone A</h3>
+        <div class="price-block"><span class="current-price">$199.99</span></div>
+      </div>
+      <div class="card"><h3 class="title">Phone B</h3></div>
+      <div class="card"><h3 class="title">Phone C</h3></div>
+      <div class="card"><h3 class="title">Phone D</h3></div>
+      <div class="card"><h3 class="title">Phone E</h3></div>
+    </body></html>
+    """
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "div.card > h3.title"},
+        # Too-specific — only one card has the .price-block child
+        {"label": "price", "kind": "list",
+         "selector": "div.card > div.price-block > span.current-price"},
+    ]
+    result = extract_from_html("https://example.com/phones", html, template)
+    fields = result["fields"]
+
+    # Title list MUST be 5 varied entries.
+    title_vals = fields["title"]["value"]
+    assert title_vals == ["Phone A", "Phone B", "Phone C", "Phone D", "Phone E"], title_vals
+
+    # Price MUST NOT be a 1-element list that frontend can broadcast.
+    # Either [None]*5 (preferred — even shape for zip) or 5-len list
+    # with all nulls.
+    price_env = fields["price"]
+    price_vals = price_env["value"] or []
+    non_null_prices = [v for v in price_vals if v not in (None, "")]
+    assert len(non_null_prices) == 0, (
+        f"undermatching list NOT nulled — price = {price_vals!r}. "
+        "Frontend will broadcast '$199.99' to all 5 rows."
+    )
+    # reason_if_null should explain the situation so the user knows
+    # what to do (re-pick or change kind)
+    reason = price_env.get("reason_if_null") or ""
+    assert "selector" in reason.lower() or "specific" in reason.lower(), (
+        f"under-matching field needs an explanatory reason_if_null, got: {reason!r}"
+    )
+
+
+def test_extract_from_html_keeps_legit_short_list():
+    """Negative case: a legit narrow list (2 entries) should NOT be
+    nulled, since the broadcast guard requires sibling lists to have
+    ≥3 varied entries before treating short lists as broken."""
+    from app.extract import extract_from_html
+
+    html = """
+    <html><body>
+      <h2 class="hdr">Tag A</h2>
+      <h2 class="hdr">Tag B</h2>
+      <p class="body">Body One</p>
+      <p class="body">Body Two</p>
+    </body></html>
+    """
+    template = [
+        {"label": "hdr",  "kind": "list", "selector": "h2.hdr"},
+        {"label": "body", "kind": "list", "selector": "p.body"},
+    ]
+    result = extract_from_html("https://example.com/pair", html, template)
+    fields = result["fields"]
+    # Both lists kept — no column is below the 3-row threshold AND there's
+    # no big sibling to anchor "we should have N rows" against.
+    assert fields["hdr"]["value"] == ["Tag A", "Tag B"]
+    assert fields["body"]["value"] == ["Body One", "Body Two"]
+
+
 if __name__ == "__main__":
     import sys
     tests = [
