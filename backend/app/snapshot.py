@@ -323,10 +323,13 @@ async def _snapshot_inner(
             try:
                 await _inject_truncation_override(tab)
                 clicks = await _click_expand_buttons(tab)
+                log.info("snapshot.expand_clicks", extra={"url": url, "clicks": clicks})
                 if clicks > 0:
                     # Page just grew — give it time to render the
-                    # newly-revealed content before we collect elements.
-                    await _wait_until_page_stable(tab, min_wait=0.3, max_wait=4.0, quiet_window=0.4)
+                    # newly-revealed content. Modern SPAs (Quora, LinkedIn)
+                    # batch their re-render across many clicks, so we
+                    # need a longer max_wait than the initial settle.
+                    await _wait_until_page_stable(tab, min_wait=0.5, max_wait=6.0, quiet_window=0.6)
             except Exception as e:
                 log.warning("snapshot.expand_failed", extra={"url": url, "error": repr(e)})
 
@@ -867,9 +870,17 @@ async def _click_expand_buttons(tab) -> int:
         (() => {
             const EXPAND_RE = /^\\s*(continue reading|read more|see more|show more|view more|view full|expand text|expand answer|…\\s*more|show full|read full)\\s*$/i;
             const BLOCK_RE = /(subscribe|sign\\s*up|sign\\s*in|log\\s*in|paywall|premium|membership|join\\s*now|get\\s*started|free\\s*trial)/i;
+            // Selector pool. Quora's "Continue Reading" is a styled <div>
+            // with a React onClick handler — NO `onclick` attribute, NO
+            // role="button". We have to look at class-name patterns
+            // (`*click*`, `*clickable*`, `*readmore*`) which most modern
+            // SPAs use for their interactive wrapper convention.
             const SELECTORS = [
                 'button', 'a', '[role="button"]',
                 'span[onclick]', 'div[onclick]',
+                '[class*="click" i]', '[class*="clickable" i]',
+                '[class*="readmore" i]', '[class*="read-more" i]',
+                '[class*="show-more" i]', '[class*="continue" i]',
                 '[aria-label*="continue reading" i]',
                 '[aria-label*="show more" i]',
                 '[aria-label*="read more" i]',
