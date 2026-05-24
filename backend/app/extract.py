@@ -1008,17 +1008,30 @@ def _pull(tree, field: Field) -> FieldResult:
     #
     # Two trigger conditions:
     #   (1) original matched ZERO nodes (template-reuse case)
-    #   (2) kind="list" and original matched exactly 1 node (the
-    #       Target-shape bug: picker anchored to a per-card id, picked
-    #       up one product's price out of 22). For list-kind fields,
-    #       we expect multiple matches; 1 is a strong signal that
-    #       the selector is over-anchored.
+    #   (2) kind="list" and original matched ≤ 2 nodes (the Target-shape
+    #       bug: picker anchored to a per-card id, picked up 1-2 cards
+    #       out of 22). For list-kind fields, we expect multiple
+    #       matches; 1 or 2 is a strong signal that the selector is
+    #       over-anchored to a small subset.
     # In case (2) we only ADOPT the relaxed variant if it matches
-    # significantly more (≥3) — guards against legitimately-single
-    # elements that the user mislabeled as list (e.g. page header).
+    # significantly more (≥3 AND strictly more than original) —
+    # guards against legitimately-single elements that the user
+    # mislabeled as list (e.g. page header) and against pages that
+    # genuinely have only 2 instances of the field.
+    #
+    # Exception: when the selector contains an EXPLICIT positional
+    # pseudo (:nth-child, :nth-of-type, :first-child, :last-child),
+    # the user is intentionally narrowing to a position. "Second item
+    # of each list" is a legitimate 2-match selector, not an
+    # over-anchored bug. Skip the under-matching trigger; the
+    # zero-match trigger still applies (for templates re-used across
+    # pages where the position is missing).
+    has_positional_pseudo = bool(
+        selector and re.search(r":(?:nth-child|nth-of-type|nth-last-child|nth-last-of-type|first-child|last-child|first-of-type|last-of-type|only-child|only-of-type)\b", selector)
+    )
     needs_relax = selector and not parse_error and (
         not nodes  # case (1) — zero matches
-        or (kind == "list" and len(nodes) == 1)  # case (2) — single match
+        or (kind == "list" and len(nodes) <= 2 and not has_positional_pseudo)  # case (2)
     )
     if needs_relax:
         original_count = len(nodes)

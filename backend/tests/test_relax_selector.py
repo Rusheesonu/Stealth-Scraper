@@ -153,3 +153,80 @@ if __name__ == "__main__":
         print(f"\n{failed} failed")
         sys.exit(1)
     print("\nALL PASS")
+
+
+# ── Relaxer trigger threshold: ≤2 matches on kind=list ──────────────────
+
+
+def test_relax_triggers_on_2_match_list_field():
+    """When a list field selector matches only 2 elements but the page
+    clearly has more, the relaxer must trigger. The Target-shape bug
+    happened with 1 match; the same trap exists at 2 matches
+    (selector over-anchored to a small subset of cards).
+
+    Use an id-anchored selector — the relaxer's bread-and-butter case
+    (strip per-instance ids + nth pseudos to get a structural variant)."""
+    from lxml import html as lxml_html
+    from app.extract import _pull
+
+    # 8 product cards, each with a per-instance #product-card-NNNNNNN id.
+    # The picker's selector would, before the relaxer existed, anchor
+    # to the first 2 cards via leftover ids in the path.
+    html_str = "<html><body><div class='grid'>"
+    for i in range(8):
+        pid = 90581900 + i
+        html_str += (
+            f"<article id='product-card-{pid}' class='card'>"
+            f"<h3>P{i}</h3></article>"
+        )
+    html_str += "</div></body></html>"
+    tree = lxml_html.fromstring(html_str)
+
+    # Original selector: only the first card's id (single-match).
+    field = {
+        "label": "title",
+        "kind": "list",
+        "selector": "#product-card-90581900 > h3",
+    }
+    res = _pull(tree, field)
+    val = res["value"]
+    # Without the relaxer: ['P0'] (1 match).
+    # With the relaxer: all 8 cards via the id-stripped variant.
+    assert isinstance(val, list)
+    assert len(val) == 8, f"expected 8 after relax, got {len(val)}: {val!r}"
+
+
+def test_relax_skipped_for_explicit_positional_pseudos():
+    """When the user explicitly anchors with `:nth-child(2)` or
+    similar, the selector returning 2 matches is intentional. Don't
+    relax it — the user wants the 2nd-of-each-parent semantics."""
+    from lxml import html as lxml_html
+    from app.extract import _pull
+
+    html_str = """
+    <html><body>
+      <ul><li>1</li><li>2</li><li>3</li></ul>
+      <ul><li>a</li><li>b</li><li>c</li></ul>
+    </body></html>
+    """
+    tree = lxml_html.fromstring(html_str)
+    field = {"label": "second", "kind": "list", "selector": "li:nth-child(2)"}
+    # Must remain ['2', 'b'], NOT relax to all 6 li's
+    assert _pull(tree, field)["value"] == ["2", "b"]
+
+
+def test_relax_skipped_for_first_child_pseudo():
+    """Same guard for :first-child / :last-child — user intent is
+    positional anchoring, not over-anchoring."""
+    from lxml import html as lxml_html
+    from app.extract import _pull
+
+    html_str = (
+        "<html><body>"
+        "<ul><li>x1</li><li>x2</li></ul>"
+        "<ul><li>y1</li><li>y2</li></ul>"
+        "</body></html>"
+    )
+    tree = lxml_html.fromstring(html_str)
+    field = {"label": "first", "kind": "list", "selector": "li:first-child"}
+    assert _pull(tree, field)["value"] == ["x1", "y1"]
