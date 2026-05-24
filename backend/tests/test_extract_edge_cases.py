@@ -2112,6 +2112,128 @@ def test_extract_does_not_promote_text_when_all_matches_identical():
     )
 
 
+def test_llm_enrich_replaces_underperforming_selector():
+    """Path A — LLM repair: when deterministic pipeline yields <3 matches
+    for a kind=list field, the LLM is asked for a better selector. If the
+    LLM proposes a selector that matches ≥3 distinct elements, adopt it.
+
+    Mocked LLM — the test does NOT make a network call. Verifies the
+    enrichment dispatch + validation + adoption logic.
+    """
+    import asyncio
+    from app.extract import extract_from_html, llm_enrich_underperforming_fields
+
+    html = """
+    <html><body>
+      <div class="card"><span class="price">$10</span><span class="title">Item A</span></div>
+      <div class="card"><span class="price">$20</span><span class="title">Item B</span></div>
+      <div class="card"><span class="price">$30</span><span class="title">Item C</span></div>
+      <div class="card"><span class="price">$40</span><span class="title">Item D</span></div>
+      <div class="card"><span class="price">$50</span><span class="title">Item E</span></div>
+    </body></html>
+    """
+    # Picker hallucinated a class that doesn't exist. Deterministic
+    # relaxer can't help because the class isn't an ID/nth — it's a
+    # garbage class name only the LLM would think to drop. Result: price
+    # returns []. LLM gets to repair.
+    template = [
+        {"label": "title", "kind": "list", "selector": "div.card > span.title"},
+        {"label": "price", "kind": "list",
+         "selector": "div.totally-hallucinated-wrapper > span.price"},
+    ]
+    result = extract_from_html("https://example.com/cards", html, template)
+    # Sanity: title is fine, price is empty (deterministic can't fix this)
+    assert len(result["fields"]["title"]["value"]) == 5
+    price_before = result["fields"]["price"]["value"]
+    assert isinstance(price_before, list)
+    non_null = [v for v in price_before if v not in (None, "")]
+    assert len(non_null) == 0, (
+        f"deterministic relaxer was supposed to leave this unfixed; got {non_null!r}"
+    )
+
+    # Monkey-patch the LLM call to return a known-good selector
+    import app.extract as ex
+    original_propose = ex._llm_propose_selector
+    original_is_configured = None
+
+    async def fake_propose(**kwargs):
+        return "div.card > span.price"
+
+    # Also fake assist.is_configured() since the test env won't have a key
+    from app import assist
+    original_is_configured = assist.is_configured
+    assist.is_configured = lambda: True  # type: ignore
+    ex._llm_propose_selector = fake_propose  # type: ignore
+
+    try:
+        enriched = asyncio.run(llm_enrich_underperforming_fields(result, html, template))
+    finally:
+        ex._llm_propose_selector = original_propose  # type: ignore
+        assist.is_configured = original_is_configured  # type: ignore
+
+    # Price now has 5 distinct values from the LLM's selector
+    price_after = enriched["fields"]["price"]["value"]
+    assert isinstance(price_after, list)
+    non_null_after = [v for v in price_after if v not in (None, "")]
+    assert len(non_null_after) == 5, f"expected 5, got {non_null_after!r}"
+    assert len(set(non_null_after)) == 5, f"values not distinct: {non_null_after!r}"
+    # Adopted selector recorded
+    assert enriched["fields"]["price"]["selector_used"] == "div.card > span.price"
+    # Marked as LLM-derived for audit
+    assert enriched["fields"]["price"]["source"] == "llm-repair"
+
+
+def test_llm_enrich_rejects_bad_llm_response():
+    """LLM might return a selector that matches all-identical or fewer-than-3
+    elements — the validation gate must reject it and leave the original
+    field unchanged. Guards against silent regressions from a bad LLM call."""
+    import asyncio
+    from app.extract import extract_from_html, llm_enrich_underperforming_fields
+
+    html = """
+    <html><body>
+      <h1 class="hero">Hero Title</h1>
+      <div class="card"><span class="title">Card A</span></div>
+      <div class="card"><span class="title">Card B</span></div>
+      <div class="card"><span class="title">Card C</span></div>
+      <h2 class="badge">Same Label</h2>
+      <h2 class="badge">Same Label</h2>
+      <h2 class="badge">Same Label</h2>
+    </body></html>
+    """
+    template = [
+        {"label": "title", "kind": "list", "selector": "div.card > span.title"},
+        {"label": "header", "kind": "list", "selector": "h1.hero"},  # only 1
+    ]
+    result = extract_from_html("https://example.com/safe", html, template)
+
+    import app.extract as ex
+    from app import assist
+    original_propose = ex._llm_propose_selector
+    original_is_configured = assist.is_configured
+
+    async def bad_propose(**kwargs):
+        # Returns a selector that matches 3 nodes but all identical text
+        return "h2.badge"
+
+    assist.is_configured = lambda: True  # type: ignore
+    ex._llm_propose_selector = bad_propose  # type: ignore
+
+    try:
+        enriched = asyncio.run(llm_enrich_underperforming_fields(result, html, template))
+    finally:
+        ex._llm_propose_selector = original_propose  # type: ignore
+        assist.is_configured = original_is_configured  # type: ignore
+
+    # Header should NOT have been replaced with the all-identical badges.
+    # The original h1.hero either stays (1 value) or gets nulled by broadcast
+    # — either way, NOT 3 copies of "Same Label".
+    header_val = enriched["fields"]["header"]["value"] or []
+    assert "Same Label" not in [str(v) for v in header_val if v], (
+        f"LLM gave us 3-identical and we wrongly adopted it: {header_val!r}"
+    )
+
+
 def test_extract_does_not_relax_legit_single_match_list():
     """Safety: when kind=list returns 1 match and relaxed variants give
     <3 matches, the relaxer should NOT adopt them. Guards against

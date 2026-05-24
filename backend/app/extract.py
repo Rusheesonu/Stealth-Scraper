@@ -462,6 +462,313 @@ def _js_str(s: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# LLM selector repair (Path A of the "any-page" extraction roadmap)
+#
+# When deterministic strategies (original selector + relax variants) yield
+# under-3 matches on a kind=list field, ask the LLM to look at the page
+# HTML and the user's clicked example, and propose a CSS selector that
+# matches all the similar elements. This handles the cases the rule-based
+# system can't:
+#   - Per-instance numeric IDs that don't match our INSTANCE_ID regex
+#     (Target's `#product-card-price-NNNN` is caught, but Reddit's
+#     `#thing_t3_<base36>` isn't — LLM gets it from intent + shape)
+#   - Tailwind / utility-class selectors with no semantic anchor
+#   - Hash-based class names from CSS modules not matching our regex
+#   - Selectors that rely on structural anchors that drift across the page
+#
+# Trigger conditions (conservative — LLM call adds ~2s + cost):
+#   - kind=list AND the deterministic result has <3 non-null matches
+#   - LLM provider configured (LLM_API_KEY env var set)
+#
+# Adoption gate:
+#   - LLM's proposed selector must parse as valid CSS
+#   - When applied to the page tree, must match ≥3 nodes
+#   - Match values must have ≥2 distinct non-empty values
+#     (guards against the LLM picking a generic wrapper that hits many
+#      nodes but all empty — the same trap the heuristic relaxer faces)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+_LLM_REPAIR_SYSTEM = (
+    "You are a CSS-selector expert helping users build web-scraping "
+    "templates. Given a page's HTML and the original CSS selector the "
+    "user clicked, your job is to produce a NEW CSS selector that "
+    "matches all the similar elements (siblings in a list pattern) the "
+    "user wanted. Output ONLY the CSS selector — no explanation, no "
+    "backticks, no quotes, no comments. The selector must be valid "
+    "CSS3 (no jQuery/XPath extensions). Prefer semantic class names, "
+    "data-test/data-testid attributes, and structural patterns. AVOID "
+    "per-instance IDs, :nth-of-type anchors, and hashed class names — "
+    "those don't generalize across rows."
+)
+
+
+def _truncate_html_for_llm(html: str, around_selector: str, max_chars: int = 24000) -> str:
+    """Pick the most useful slice of HTML for the LLM. If the page is
+    small enough, return it whole. Otherwise return a head + middle +
+    tail sample — head/tail catch container/grid context, middle is
+    likely where the repeating items live.
+
+    Strips <script>, <style>, <noscript>, <svg> first — those eat tokens
+    without giving the LLM signal about the list pattern.
+    """
+    import re as _re
+    # Cheap script/style strip — lxml would be more correct but slower.
+    cleaned = _re.sub(r"<(script|style|noscript|svg)[^>]*>.*?</\1>", "", html, flags=_re.DOTALL | _re.IGNORECASE)
+    cleaned = _re.sub(r"<!--.*?-->", "", cleaned, flags=_re.DOTALL)
+    if len(cleaned) <= max_chars:
+        return cleaned
+    # Sample head + middle + tail. Middle anchored at the rough position
+    # where elements matching the selector's last segment first appear.
+    head_size = max_chars // 3
+    tail_size = max_chars // 4
+    middle_size = max_chars - head_size - tail_size - 50  # 50 for the markers
+    # Try to find where the selector's leaf class/tag first appears
+    leaf = around_selector.rsplit(">", 1)[-1].strip()
+    # Extract the most identifying token (class > tag > attribute)
+    leaf_token = None
+    if "." in leaf:
+        leaf_token = "." + leaf.split(".")[-1].split(":")[0].split("[")[0]
+        if leaf_token == ".":
+            leaf_token = None
+    if leaf_token is None and leaf and not leaf.startswith("["):
+        leaf_token = leaf.split(":")[0].split(".")[0]  # tag
+    mid_start = len(cleaned) // 2 - middle_size // 2
+    if leaf_token:
+        # Just use indexOf — cheap. Class/tag tokens leak into text/comments
+        # too but that's OK, we just want a rough anchor.
+        idx = cleaned.find(leaf_token, head_size)
+        if idx > 0 and idx < len(cleaned) - tail_size:
+            mid_start = max(head_size, idx - middle_size // 2)
+    return (
+        cleaned[:head_size]
+        + "\n<!-- [...truncated...] -->\n"
+        + cleaned[mid_start : mid_start + middle_size]
+        + "\n<!-- [...truncated...] -->\n"
+        + cleaned[-tail_size:]
+    )
+
+
+def _parse_llm_selector(raw: str) -> str | None:
+    """Pull a single CSS selector out of the LLM response. LLMs sometimes
+    wrap in backticks, markdown code-fences, or add explanation despite
+    instructions. Be forgiving."""
+    if not raw:
+        return None
+    s = raw.strip()
+    # Strip code fences
+    if s.startswith("```"):
+        lines = s.split("\n")
+        # Drop first line (```css or ```) and last line if it's just ```
+        s = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+        s = s.strip()
+    # Strip inline backticks
+    if s.startswith("`") and s.endswith("`"):
+        s = s[1:-1].strip()
+    # If multi-line, take the first non-empty line that looks like a selector
+    for line in s.split("\n"):
+        line = line.strip()
+        if not line or line.startswith("#") and " " not in line and len(line) < 4:
+            # Skip pure markdown comments / empty lines
+            continue
+        # Strip trailing comma / semicolon
+        line = line.rstrip(",;").strip()
+        # Heuristic: a selector likely starts with a letter, dot, hash,
+        # bracket, asterisk, or colon. Reject obvious prose lines.
+        if line and (line[0].isalpha() or line[0] in ".#[:*"):
+            return line
+    return None
+
+
+async def _llm_propose_selector(
+    *,
+    html: str,
+    original_selector: str,
+    example_text: str | None,
+    label: str,
+    timeout_s: float = 8.0,
+) -> str | None:
+    """Single LLM call asking for a better CSS selector. Returns the
+    selector string or None if the call fails / response is unusable.
+    Errors are swallowed — the caller falls back to the deterministic
+    relaxer's output.
+    """
+    try:
+        from app import assist
+    except Exception:
+        return None
+    if not assist.is_configured():
+        return None
+
+    import httpx
+
+    sample_html = _truncate_html_for_llm(html, original_selector)
+    user_msg = (
+        f"The user is building a scraping template and clicked an element to "
+        f"extract as kind=list (a list of similar values across the page).\n\n"
+        f"Field label: {label!r}\n"
+        f"Original CSS selector (matched <3 elements — too specific):\n"
+        f"  {original_selector}\n"
+    )
+    if example_text:
+        user_msg += f"Clicked element's text content (for shape reference): {example_text[:200]!r}\n"
+    user_msg += (
+        f"\nPage HTML:\n```html\n{sample_html}\n```\n\n"
+        f"Produce a CSS selector that matches the clicked element AND all "
+        f"similar elements (at least 3, ideally 10+) on this page. Avoid "
+        f"per-instance IDs, :nth-of-type anchors, and hashed class names. "
+        f"Output ONLY the selector."
+    )
+
+    # Build payload manually so we can override the system prompt
+    # (assist._SYSTEM_PROMPT is geared toward template generation, not
+    # single-selector repair).
+    models = assist._resolve_model_chain()
+    if not models:
+        return None
+    payload = {
+        "model": models[0],
+        "temperature": 0.0,  # deterministic — we want the BEST selector, not creative
+        "max_tokens": 200,
+        "messages": [
+            {"role": "system", "content": _LLM_REPAIR_SYSTEM},
+            {"role": "user", "content": user_msg},
+        ],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=timeout_s) as client:
+            r = await client.post(
+                f"{assist.LLM_BASE_URL}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {assist.LLM_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        raw = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return _parse_llm_selector(raw)
+    except Exception:
+        return None
+
+
+async def llm_enrich_underperforming_fields(
+    result: dict[str, Any],
+    html: str,
+    template: list[Field],
+) -> dict[str, Any]:
+    """Post-extraction LLM repair pass. For each kind=list field where the
+    deterministic pipeline produced <3 non-null values, ask the LLM for a
+    better selector and re-pull. Only adopts the LLM's selector if it
+    matches ≥3 elements with ≥2 distinct non-empty values.
+
+    Safe to call when LLM isn't configured — silently no-ops.
+
+    Async so callers in the FastAPI handlers can `await` without blocking
+    the event loop on the LLM round-trip.
+    """
+    try:
+        from app import assist
+    except Exception:
+        return result
+    if not assist.is_configured():
+        return result
+
+    fields = result.get("fields") or {}
+    if not fields:
+        return result
+
+    # Index template entries by label for lookup
+    by_label = {f.get("label"): f for f in template if isinstance(f, dict)}
+
+    # Identify under-performing list fields
+    candidates: list[tuple[str, dict, Field]] = []
+    for label, env in fields.items():
+        if not isinstance(env, dict):
+            continue
+        val = env.get("value")
+        if not isinstance(val, list):
+            continue
+        non_null = [v for v in val if v not in (None, "")]
+        if len(non_null) >= 3:
+            continue  # already healthy
+        tmpl = by_label.get(label)
+        if not tmpl:
+            continue
+        if tmpl.get("kind") != "list":
+            continue
+        candidates.append((label, env, tmpl))
+
+    if not candidates:
+        return result
+
+    # Parse HTML once for the re-pull pass
+    try:
+        from lxml import html as _lhtml
+        tree = _lhtml.fromstring(html)
+    except Exception:
+        return result
+
+    cleaned_fields = dict(fields)
+    for label, env, tmpl in candidates:
+        original_selector = tmpl.get("selector") or env.get("selector_used") or ""
+        if not original_selector:
+            continue
+
+        # Sample text from one of the matched non-null values (helps LLM
+        # understand shape — "$89.99" tells it we want prices).
+        val_list = env.get("value") or []
+        example = next((v for v in val_list if v not in (None, "")), None)
+        example_str = str(example) if example else None
+
+        new_selector = await _llm_propose_selector(
+            html=html,
+            original_selector=original_selector,
+            example_text=example_str,
+            label=label,
+        )
+        if not new_selector or new_selector == original_selector:
+            continue
+
+        # Validate: does the LLM's selector match ≥3 nodes with ≥2 distinct values?
+        try:
+            new_nodes = tree.cssselect(new_selector)
+        except Exception:
+            continue
+        if len(new_nodes) < 3:
+            continue
+        attr = tmpl.get("attr")
+        if attr:
+            new_values = [_read(n, "attr", attr) for n in new_nodes]
+        else:
+            new_values = [_read(n, "text", "") for n in new_nodes]
+        new_non_null = [v for v in new_values if v not in (None, "")]
+        if len(set(map(str, new_non_null))) < 2:
+            continue
+
+        # Apply the field's transforms (if any) to keep parity with `_pull`
+        transforms = tmpl.get("transforms") or []
+        if transforms:
+            new_non_null = [_apply_transforms(v, transforms) for v in new_non_null]
+            new_non_null = [v for v in new_non_null if v not in (None, "")]
+            if len(new_non_null) < 3:
+                continue
+
+        # Adopt — replace the envelope with the LLM-repaired result
+        cleaned_fields[label] = _envelope(
+            new_non_null,
+            source="llm-repair",
+            confidence=0.75,  # high but not 1.0 — LLM-derived, audit-flagged
+            selector_used=new_selector,
+        )
+
+    result["fields"] = cleaned_fields
+    return result
+
+
 def extract_from_html(
     url: str,
     html: str,

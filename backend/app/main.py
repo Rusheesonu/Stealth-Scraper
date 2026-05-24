@@ -929,13 +929,26 @@ async def extract_endpoint(
     # pagination support in this mode (the HTML is static).
     if req.expected_html and not actions_payload and req.max_pages == 1:
         try:
-            from app.extract import extract_from_html
-            return extract_from_html(
+            from app.extract import extract_from_html, llm_enrich_underperforming_fields
+            result = extract_from_html(
                 str(req.url),
                 req.expected_html,
                 template,
                 output_format=req.output_format,  # type: ignore[arg-type]
             )
+            # Path A — LLM selector repair. When the deterministic
+            # pipeline (original selector + relax variants + auto-promote)
+            # leaves a kind=list field with <3 matches, ask the LLM for
+            # a better selector. No-op when LLM isn't configured.
+            # Adds ~2s on the slow path; zero overhead on the happy path
+            # (no candidates → returns immediately).
+            if req.output_format == "fields":
+                result = await llm_enrich_underperforming_fields(
+                    result,
+                    req.expected_html,
+                    template,
+                )
+            return result
         except ValueError as e:
             raise _unsafe_url_http422(str(e)) from e
         except Exception as e:
