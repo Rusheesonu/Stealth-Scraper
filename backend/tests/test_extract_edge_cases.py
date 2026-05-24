@@ -1765,6 +1765,125 @@ def test_visible_ancestor_not_filtered_when_only_descendant_is_hidden():
     assert "hover hint" not in result["value"]
 
 
+# ── extract_from_html (public-snapshot path) broadcast nulling ─────────
+# Pins the bug discovered after hours of "fixes": the page-level
+# broadcast nuller (_null_broadcast_in_page_fields) was only called
+# inside _extract_inner (live /extract path). It was NOT called inside
+# _run_template_on_pages — which extract_from_html uses, and which
+# /public/snapshot-and-suggest hits. Result: Target-shape pages came
+# back with `price = $29.99 × 23 rows` even though the broadcast guard
+# existed and was supposed to fire. This test specifically exercises
+# extract_from_html so regression on THIS code path is impossible.
+
+
+def test_extract_from_html_nulls_broadcast_when_row_extractor_bails():
+    """The Target-shape failure pattern. A global element OUTSIDE the
+    product grid contains a price (e.g. "from $29.99" filter chip),
+    AND each product card has a *deeply-nested promo or generic
+    "starting at" badge* with the same value. _pull_lists_per_row
+    can't find a clean row container (prefix-LCP and DOM-LCA both
+    fail), so both list fields fall through to flat per-field _pull.
+    Title gets N varying values; price gets N identical values. The
+    page-level broadcast nuller must fire to null the price column."""
+    from app.extract import extract_from_html
+
+    html = """
+    <html><body>
+      <header class="global-promo">
+        <span class="filter-pill">Starting at $29.99</span>
+      </header>
+      <section class="page-grid">
+        <div class="article-card">
+          <h3 class="title-foo">Real Product A</h3>
+          <div class="promo-tag"><span class="starting">From $29.99</span></div>
+        </div>
+        <div class="article-card">
+          <h3 class="title-foo">Real Product B</h3>
+          <div class="promo-tag"><span class="starting">From $29.99</span></div>
+        </div>
+        <div class="article-card">
+          <h3 class="title-foo">Real Product C</h3>
+          <div class="promo-tag"><span class="starting">From $29.99</span></div>
+        </div>
+      </section>
+    </body></html>
+    """
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "section.page-grid > div.article-card > h3.title-foo"},
+        {"label": "price", "kind": "list",
+         "selector": "span.starting"},  # matches in BOTH global promo + each card
+    ]
+    result = extract_from_html("https://example.com/grid", html, template)
+    fields = result["fields"]
+
+    # title MUST have the three varying values
+    title_env = fields["title"]
+    assert title_env["value"] == ["Real Product A", "Real Product B", "Real Product C"], title_env
+
+    # price MUST be nulled (all-identical, sibling varies → broadcast)
+    price_env = fields["price"]
+    price_vals = price_env["value"] or []
+    non_null = [v for v in price_vals if v not in (None, "")]
+    assert len(non_null) == 0, (
+        f"broadcast NOT caught on extract_from_html path: price = {price_vals!r}"
+    )
+    assert price_env.get("reason_if_null"), price_env
+
+
+def test_extract_from_html_preserves_clean_grid():
+    """books.toscrape-shape clean grid where prices legitimately vary.
+    Must NOT null anything — guards against the broadcast nuller being
+    too eager."""
+    from app.extract import extract_from_html
+
+    html = """
+    <html><body>
+      <ol class="row">
+        <li class="col"><article><h3 class="t">Book One</h3><span class="p">£10</span></article></li>
+        <li class="col"><article><h3 class="t">Book Two</h3><span class="p">£20</span></article></li>
+        <li class="col"><article><h3 class="t">Book Three</h3><span class="p">£30</span></article></li>
+      </ol>
+    </body></html>
+    """
+    template = [
+        {"label": "title", "kind": "list",
+         "selector": "ol.row > li.col > article > h3.t"},
+        {"label": "price", "kind": "list",
+         "selector": "ol.row > li.col > article > span.p"},
+    ]
+    result = extract_from_html("https://example.com/books", html, template)
+    fields = result["fields"]
+    assert fields["title"]["value"] == ["Book One", "Book Two", "Book Three"]
+    assert fields["price"]["value"] == ["£10", "£20", "£30"]
+
+
+def test_extract_from_html_preserves_legit_flat_rate():
+    """All-flat content (every product has the same price legitimately
+    — flat-rate shop). The broadcast nuller's `other_columns_varied`
+    precondition must skip nulling when NO column shows variation."""
+    from app.extract import extract_from_html
+
+    html = """
+    <html><body>
+      <ul>
+        <li class="r"><span class="t">Same</span><span class="p">$5</span></li>
+        <li class="r"><span class="t">Same</span><span class="p">$5</span></li>
+        <li class="r"><span class="t">Same</span><span class="p">$5</span></li>
+      </ul>
+    </body></html>
+    """
+    template = [
+        {"label": "title", "kind": "list", "selector": "ul > li.r > span.t"},
+        {"label": "price", "kind": "list", "selector": "ul > li.r > span.p"},
+    ]
+    result = extract_from_html("https://example.com/flat-rate", html, template)
+    fields = result["fields"]
+    # No nulling — every column flat, no variation signal.
+    assert fields["title"]["value"] == ["Same", "Same", "Same"]
+    assert fields["price"]["value"] == ["$5", "$5", "$5"]
+
+
 if __name__ == "__main__":
     import sys
     tests = [

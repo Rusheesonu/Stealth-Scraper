@@ -528,6 +528,17 @@ def _run_template_on_pages(
                         selector_used=prev["selector_used"],
                     )
 
+    # PAGE-LEVEL BROADCAST GUARD — must run on this code path too.
+    # _extract_inner has the same call at its tail (line ~320) but this
+    # function (_run_template_on_pages, used by extract_from_html →
+    # /public/snapshot-and-suggest) was missing it. That's why Target-
+    # shape pages came back with `price = $29.99 × 23 rows` — the
+    # broadcast nuller is the safety net that converts misleading
+    # all-identical lists to honest nulls, and it was bypassed entirely
+    # on the public path. Idempotent: running it again in callers
+    # that compose `_run_template_on_pages` is a no-op.
+    merged_fields = _null_broadcast_in_page_fields(merged_fields)
+
     result["fields"] = merged_fields
     if len(all_pages_html) > 1:
         result["pages_fetched"] = len(all_pages_html)
