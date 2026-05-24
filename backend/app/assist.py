@@ -1124,7 +1124,7 @@ async def generate_template(
                 _DEAD_MODELS.discard(model)
                 template = _parse_response(res, model=model)
                 validated = _validate_selectors(template, catalog=trimmed, all_elements=elements, model=model)
-            return _normalize_list_selectors_in_template(validated)
+                return _normalize_list_selectors_in_template(validated)
             # If retry still failed, fall through to non-model-error handling.
 
         body_text = res.text if res is not None else ""
