@@ -54,29 +54,45 @@ function zipRecords(fields: Record<string, unknown>): {
   const listEntries = entries.filter(([, v]) => Array.isArray(v));
   if (listEntries.length === 0) return null;
   const lengths = listEntries.map(([, v]) => (v as unknown[]).length);
-  const first = lengths[0];
-  if (first === 0) return null;
-  if (!lengths.every((n) => n === first)) return null;
+  const maxLen = Math.max(...lengths);
+  if (maxLen === 0) return null;
+  // Earlier this function bailed (`return null`) when list lengths
+  // disagreed, dropping the user into Fields view — and they'd lose
+  // the records-shape JSON they wanted. Templates-page common case:
+  // saved selectors re-snapshot a slightly-different render state
+  // (e.g. Target controllers: current + was-price both visible →
+  // prices list = 24, title list = 12). Now we pad shorter lists with
+  // null and zip up to the longest. User still gets a records JSON,
+  // and rows past the shorter lists' length carry nulls in those
+  // columns (honest representation of the misalignment).
+  const lengthsEqual = lengths.every((n) => n === maxLen);
 
   const scalars = entries.filter(([, v]) => !Array.isArray(v));
   // Broadcast scalars only when there's exactly 1 row (no broadcast
   // possible). For ≥2 rows, scalars are surfaced separately above the
   // table — see "Scalar policy" in JSDoc.
-  const broadcastOK = first < 2;
+  const broadcastOK = maxLen < 2;
 
   const rows: Record<string, unknown>[] = [];
-  for (let i = 0; i < first; i++) {
+  for (let i = 0; i < maxLen; i++) {
     const row: Record<string, unknown> = {};
     if (broadcastOK) {
       for (const [k, v] of scalars) row[k] = v;
     }
-    for (const [k, v] of listEntries) row[k] = (v as unknown[])[i] ?? null;
+    for (const [k, v] of listEntries) {
+      const arr = v as unknown[];
+      row[k] = i < arr.length ? (arr[i] ?? null) : null;
+    }
     rows.push(row);
   }
 
   const ignoredScalars = broadcastOK
     ? []
     : scalars.map(([label, value]) => ({ label, value }));
+  // Suppress an unused-var warning while keeping the variable for
+  // future "lengths differ — show a hint" UX. Currently the row-pad
+  // behavior is self-evident from the nulls in the trailing rows.
+  void lengthsEqual;
   return { rows, ignoredScalars };
 }
 
