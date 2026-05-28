@@ -54,33 +54,35 @@ function zipRecords(fields: Record<string, unknown>): {
   const listEntries = entries.filter(([, v]) => Array.isArray(v));
   if (listEntries.length === 0) return null;
   const lengths = listEntries.map(([, v]) => (v as unknown[]).length);
-  const maxLen = Math.max(...lengths);
-  if (maxLen === 0) return null;
-  // Earlier this function bailed (`return null`) when list lengths
-  // disagreed, dropping the user into Fields view — and they'd lose
-  // the records-shape JSON they wanted. Templates-page common case:
-  // saved selectors re-snapshot a slightly-different render state
-  // (e.g. Target controllers: current + was-price both visible →
-  // prices list = 24, title list = 12). Now we pad shorter lists with
-  // null and zip up to the longest. User still gets a records JSON,
-  // and rows past the shorter lists' length carry nulls in those
-  // columns (honest representation of the misalignment).
-  const lengthsEqual = lengths.every((n) => n === maxLen);
+
+  // Anchor to the FIRST list field's length (typically the user's
+  // primary field — title / name / etc). Other lists trim to fit or
+  // null-pad to match. Rule: if a value isn't there for a given row,
+  // it's null. No ghost trailing rows, no fields-view fallback.
+  //
+  // Examples on Target /controllers (saved-template re-snapshot):
+  //   title=12, prices=24, disc_prices=11  →  12 rows × 3 cols
+  //     title:       all 12 used
+  //     prices:      first 12 used (the trailing 12 "was-prices" dropped)
+  //     disc_prices: 11 used + 1 null in row 11
+  const rowCount = lengths[0];
+  if (rowCount === 0) return null;
 
   const scalars = entries.filter(([, v]) => !Array.isArray(v));
-  // Broadcast scalars only when there's exactly 1 row (no broadcast
-  // possible). For ≥2 rows, scalars are surfaced separately above the
-  // table — see "Scalar policy" in JSDoc.
-  const broadcastOK = maxLen < 2;
+  // Broadcast scalars only when there's exactly 1 row (no per-row
+  // contradiction). ≥2 rows: scalars rendered separately, not broadcast.
+  const broadcastOK = rowCount < 2;
 
   const rows: Record<string, unknown>[] = [];
-  for (let i = 0; i < maxLen; i++) {
+  for (let i = 0; i < rowCount; i++) {
     const row: Record<string, unknown> = {};
     if (broadcastOK) {
       for (const [k, v] of scalars) row[k] = v;
     }
     for (const [k, v] of listEntries) {
       const arr = v as unknown[];
+      // i < arr.length → take arr[i] (null if undefined)
+      // i >= arr.length → just null (the value isn't there)
       row[k] = i < arr.length ? (arr[i] ?? null) : null;
     }
     rows.push(row);
@@ -89,10 +91,6 @@ function zipRecords(fields: Record<string, unknown>): {
   const ignoredScalars = broadcastOK
     ? []
     : scalars.map(([label, value]) => ({ label, value }));
-  // Suppress an unused-var warning while keeping the variable for
-  // future "lengths differ — show a hint" UX. Currently the row-pad
-  // behavior is self-evident from the nulls in the trailing rows.
-  void lengthsEqual;
   return { rows, ignoredScalars };
 }
 
