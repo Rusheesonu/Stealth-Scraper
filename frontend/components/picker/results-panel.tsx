@@ -271,36 +271,32 @@ export function ResultsPanel({ results, url, onClose }: Props) {
               </div>
             ) : view === "records" && records ? (
               <>
-                {/* Non-generalizing scalars — fields that returned a
-                    single value while sibling list fields had N rows.
-                    Shown above the table instead of broadcast as a
-                    column of repeated values (the old "every row is
-                    $199.99" bug). Hint nudges the user to re-pick or
-                    change kind. */}
+                {/* Sparse-but-legitimate page-level fields — e.g. only
+                    1 product in a 30-product grid has a discount price,
+                    or only 1 has a "Bestseller" badge. Previously rendered
+                    as a big yellow warning card ("didn't generalize") which
+                    alarmed users on legitimately sparse data. Now a
+                    subtle muted note that PRESERVES the value without
+                    pretending it's per-row. Truly broken selectors
+                    (over-anchored to one card) still get caught by the
+                    backend's broadcast nuller — which nulls them with
+                    a reason_if_null, NOT a scalar, so they never reach
+                    this rendering path. What lands here is genuine
+                    page-level metadata the user picked. */}
                 {ignoredScalars.length > 0 && (
-                  <div className="mb-3 rounded-lg border border-[color:var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-3">
-                    <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-warning)]">
-                      <AlertTriangle className="h-3 w-3" />
-                      {ignoredScalars.length} field{ignoredScalars.length === 1 ? "" : "s"} didn&apos;t generalize across rows
-                    </div>
-                    <ul className="space-y-1">
-                      {ignoredScalars.map(({ label, value }) => (
-                        <li key={label} className="flex items-baseline gap-2 text-[13px]">
-                          <span className="font-mono font-semibold text-[var(--color-accent)]">{label}</span>
-                          <span className="text-[var(--color-fg-subdued)]">=</span>
-                          <span className="truncate font-mono text-[var(--color-fg)]">
-                            {value == null ? "null" : String(value)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-2 text-[13px] leading-[1.5] text-[var(--color-fg-muted)]">
-                      The selector matched only 1 element — likely too
-                      specific (Target/Amazon lazy-load later cards). Open
-                      the field to re-pick from a different row, or change
-                      kind to <span className="font-mono">text</span> if
-                      this is genuinely a single-value field.
-                    </p>
+                  <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px]">
+                    <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
+                      Page-level
+                    </span>
+                    {ignoredScalars.map(({ label, value }) => (
+                      <span key={label} className="inline-flex items-baseline gap-1">
+                        <span className="font-mono font-semibold text-[var(--color-accent)]">{label}</span>
+                        <span className="text-[var(--color-fg-subdued)]">=</span>
+                        <span className="truncate font-mono text-[var(--color-fg)] max-w-[280px]">
+                          {value == null ? "null" : String(value)}
+                        </span>
+                      </span>
+                    ))}
                   </div>
                 )}
                 <RecordsView rows={records} />
