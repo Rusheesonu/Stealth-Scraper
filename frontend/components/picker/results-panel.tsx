@@ -56,42 +56,47 @@ function zipRecords(fields: Record<string, unknown>): {
   const lengths = listEntries.map(([, v]) => (v as unknown[]).length);
 
   // Anchor to the FIRST list field's length (typically the user's
-  // primary field — title / name / etc). Other lists trim to fit or
-  // null-pad to match. Rule: if a value isn't there for a given row,
-  // it's null. No ghost trailing rows, no fields-view fallback.
+  // primary field — title / name / etc). All other fields (list OR
+  // scalar) become columns; missing cells = null.
   //
-  // Examples on Target /controllers (saved-template re-snapshot):
-  //   title=12, prices=24, disc_prices=11  →  12 rows × 3 cols
-  //     title:       all 12 used
-  //     prices:      first 12 used (the trailing 12 "was-prices" dropped)
-  //     disc_prices: 11 used + 1 null in row 11
+  // Scalar fields (e.g. disc_prices = "$7.99" because only one product
+  // had a discount) are treated as 1-element lists. The value lands
+  // in row 0, the rest of the column is null. Same shape as a sparse
+  // tags field that returns ["Highly rated", null, "Bestseller", null,
+  // ...] — consistent behavior: if a value isn't there for a row,
+  // it's null.
   const rowCount = lengths[0];
   if (rowCount === 0) return null;
 
+  // Promote scalar fields to single-value lists so they render as
+  // columns in the records table (not a separate page-level note).
   const scalars = entries.filter(([, v]) => !Array.isArray(v));
-  // Broadcast scalars only when there's exactly 1 row (no per-row
-  // contradiction). ≥2 rows: scalars rendered separately, not broadcast.
-  const broadcastOK = rowCount < 2;
+  const promotedScalars: [string, unknown[]][] = scalars
+    .filter(([, v]) => v !== null && v !== undefined)
+    .map(([k, v]) => [k, [v]]);
 
   const rows: Record<string, unknown>[] = [];
   for (let i = 0; i < rowCount; i++) {
     const row: Record<string, unknown> = {};
-    if (broadcastOK) {
-      for (const [k, v] of scalars) row[k] = v;
+    // Genuinely-null scalars: keep null across the column
+    for (const [k, v] of scalars) {
+      if (v === null || v === undefined) row[k] = null;
     }
+    // Promoted scalars: value at row 0, null elsewhere
+    for (const [k, arr] of promotedScalars) {
+      row[k] = i < arr.length ? (arr[i] ?? null) : null;
+    }
+    // List fields: zip up to rowCount, null past their length
     for (const [k, v] of listEntries) {
       const arr = v as unknown[];
-      // i < arr.length → take arr[i] (null if undefined)
-      // i >= arr.length → just null (the value isn't there)
       row[k] = i < arr.length ? (arr[i] ?? null) : null;
     }
     rows.push(row);
   }
 
-  const ignoredScalars = broadcastOK
-    ? []
-    : scalars.map(([label, value]) => ({ label, value }));
-  return { rows, ignoredScalars };
+  // ignoredScalars stays empty — everything is now a column.
+  // The page-level note rendering above the table goes silent.
+  return { rows, ignoredScalars: [] };
 }
 
 /**
