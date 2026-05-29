@@ -1467,6 +1467,18 @@ def _rewrite_has_to_xpath(selector: str):
 
 
 def _read(node, kind: str, attr: str) -> Any:
+    # `attr="text"` normalization. LLMs (and sometimes users) set
+    # attr="text" meaning "give me the text content" — but `attr`
+    # means "read this HTML attribute", and no element has an attribute
+    # literally named `text`. node.get("text") returns None → the field
+    # silently nulls. Treat attr in {text, textContent, innerText,
+    # innerHTML, text()} as "extract text content" instead of an
+    # attribute lookup. Caught live via the MCP scrape_url path on
+    # quotes.toscrape — the LLM emitted attr="text" for the tags field.
+    if attr and attr.strip().lower() in ("text", "textcontent", "innertext", "text()"):
+        attr = ""
+        if kind == "attr":
+            kind = "text"
     if kind == "attr" and attr:
         try:
             val = node.get(attr)
