@@ -18,6 +18,11 @@ const SECURITY_HEADERS = [
       "img-src 'self' data: https:; " +
       "font-src 'self' data:; " +
       "connect-src 'self' https://api.stealthscraper.dev https://*.supabase.co; " +
+      // frame-src — without this, CSP falls back to default-src 'self'
+      // and blocks ALL cross-origin iframes. The landing-hero Arcade
+      // product demo loads from *.arcade.software; allow it explicitly.
+      // ('This content is blocked' = the symptom when this is missing.)
+      "frame-src https://*.arcade.software; " +
       "frame-ancestors 'none'",
   },
   { key: "X-Frame-Options", value: "DENY" },
