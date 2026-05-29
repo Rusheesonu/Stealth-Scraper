@@ -1,6 +1,6 @@
 {
   "name": "@stealth-scraper/mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Model Context Protocol server for Stealth Scraper — gives Claude, Cursor, and other MCP-aware agents direct access to anti-bot-resistant web scraping.",
   "license": "MIT",
   "author": "Stealth Scraper <hello@stealthscraper.dev>",
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "stealth-scraper": "file:../typescript"
+    "stealth-scraper": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
