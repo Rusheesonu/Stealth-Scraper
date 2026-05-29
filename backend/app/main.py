@@ -1101,6 +1101,14 @@ async def assist_schema(
         # tell users when their values changed vs the initial snapshot).
         "sample_envelope": sample_envelope,
         "sample_values": sample_values,
+        # `fields` alias — the published TS SDK (assistExtract →
+        # toAssistExtractResult) and the MCP server's scrape_url tool
+        # read `d.fields`, not `sample_values`. Without this alias they
+        # got `{}` back even though extraction succeeded server-side.
+        # Aliasing here makes the already-shipped SDK + MCP versions
+        # work without an npm republish. Keep sample_values/_envelope
+        # for the frontend which reads those names.
+        "fields": sample_envelope,
     }
 
 
