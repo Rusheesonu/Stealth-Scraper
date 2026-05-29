@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, Loader2, Globe, Check, MousePointerClick } from "lucide-react";
+import { Sparkles, ArrowRight, Loader2, Globe, MousePointerClick } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LandingPreviewModal } from "@/components/landing-preview-modal";
 import { SLABanner } from "@/components/sla-banner";
@@ -168,18 +168,43 @@ export function LandingHero({ authed = false }: { authed?: boolean } = {}) {
         </motion.div>
       </div>
 
-      {/* Static demo strip — proves it works without a click. Tighter gap
-          (mt-8 → was mt-14) so the demo lands inside the first viewport
-          on most laptops instead of being pushed below the fold. */}
+      {/* Interactive Arcade demo — the real product working, not a
+          mockup. Replaced the old static DemoStrip (fake 2-row JSON)
+          on 2026-05-29 once the recorded demo was ready. Lands inside
+          the first viewport on most laptops; visitors can click through
+          the actual click→extract→JSON flow at their own pace. */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.4, ease: APPLE_EASE }}
         className="relative mx-auto mt-14 max-w-5xl md:mt-16"
       >
-        <DemoStrip />
+        <ArcadeDemo />
       </motion.div>
     </section>
+  );
+}
+
+/**
+ * Interactive product demo embedded from Arcade. Responsive 16:9
+ * (56.25% padding trick), lazy-loaded so it never blocks the hero's
+ * first paint. Wrapped in the same window-chrome card the old
+ * DemoStrip used so it sits consistently in the hero.
+ */
+function ArcadeDemo() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-popover)]">
+      <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, width: "100%" }}>
+        <iframe
+          src="https://demo.arcade.software/video/KQTA30LH9I1CqJfk6hID?embed&embed_mobile=inline&embed_desktop=inline&show_copy_link=true"
+          title="Extract Product Data With Stealth-Scraper"
+          loading="lazy"
+          allow="clipboard-write"
+          allowFullScreen
+          style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", colorScheme: "light", border: 0 }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -588,106 +613,3 @@ function DescribeMode() {
   );
 }
 
-/**
- * Static demo strip. Two panes: "what you click" + "what you get back".
- * Window chrome makes it look real. Mock data, real component primitives.
- */
-function DemoStrip() {
-  // Only show 2 rows to keep the static demo compact — the third row
-  // pushed the demo below the fold on most laptop viewports. The
-  // animated ClickFlowDemo lower on the page does the heavy lifting
-  // for "see how it actually works"; this strip just proves "look,
-  // the output is real JSON."
-  const sample = [
-    { title: "Show HN: A tool for AI agents to scrape any website", points: 412, comments: 87, by: "rushi_k" },
-    { title: "Cloudflare's new bot defense is breaking the open web", points: 287, comments: 142, by: "datapunk" },
-  ];
-
-  return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-popover)]">
-      {/* Window chrome — tighter (py-2 vs py-2.5) */}
-      <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-ink-1)] px-3.5 py-2">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-mac-red)]" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-mac-yellow)]" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-mac-green)]" />
-        </div>
-        <div className="flex-1">
-          <div className="mx-auto flex max-w-md items-center gap-1.5 rounded-md bg-[var(--color-surface)] px-3 py-0.5 font-mono text-[11px] text-[var(--color-fg-muted)]">
-            <Globe className="h-3 w-3 text-[var(--color-fg-subdued)]" />
-            news.ycombinator.com
-          </div>
-        </div>
-        <div className="font-mono text-[11px] text-[var(--color-fg-muted)]">3 fields · 30 rows</div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr]">
-        {/* Left: page with highlighted selectors — tighter spacing,
-            only 2 rows shown + cleaner overflow indicator. */}
-        <div className="border-b border-[var(--color-border)] p-4 md:border-b-0 md:border-r">
-          <div className="mb-2.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
-            Page · clicked fields
-          </div>
-          <div className="space-y-1.5">
-            {sample.map((row, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.6 + i * 0.05, ease: APPLE_EASE }}
-                className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5"
-              >
-                <div className="text-[14px] leading-[1.5] text-[var(--color-fg)]">
-                  <span className="rounded-sm bg-[var(--color-accent-soft)] px-0.5 py-px ring-1 ring-[var(--color-accent-line)]">
-                    {row.title}
-                  </span>
-                </div>
-                <div className="mt-1.5 flex items-center gap-2 font-mono text-[12px] text-[var(--color-fg-muted)]">
-                  <span>
-                    <span className="rounded-sm bg-[var(--color-info-soft)] px-0.5 py-px ring-1 ring-[color:var(--color-info)]/20">
-                      {row.points}
-                    </span>{" "}
-                    points
-                  </span>
-                  <span className="text-[var(--color-fg-subdued)]">·</span>
-                  <span>
-                    by{" "}
-                    <span className="rounded-sm bg-[var(--color-warning-soft)] px-0.5 py-px ring-1 ring-[color:var(--color-warning)]/20">
-                      {row.by}
-                    </span>
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-            <div className="pt-0.5 text-center font-mono text-[11px] text-[var(--color-fg-muted)]">
-              … 28 more
-            </div>
-          </div>
-        </div>
-
-        {/* Right: clean JSON */}
-        <div className="bg-[var(--color-ink-1)] p-4">
-          <div className="mb-2.5 flex items-center justify-between">
-            <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subdued)]">
-              Output · clean JSON
-            </div>
-            <div className="inline-flex items-center gap-1 font-mono text-[11px] text-[var(--color-accent)]">
-              <Check className="h-3 w-3" /> 200 OK · 1.2s
-            </div>
-          </div>
-          <pre className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-mono text-[13px] leading-[1.6] text-[var(--color-fg)]">
-{`[
-  {
-    "title": "Show HN: A tool for AI agents...",
-    "points": 412,
-    "comments": 87,
-    "by": "rushi_k"
-  },
-  … 29 more
-]`}
-          </pre>
-        </div>
-      </div>
-    </div>
-  );
-}
