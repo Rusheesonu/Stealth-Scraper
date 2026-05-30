@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 // next/font auto-hosts the fonts at build time (no FOUT, no third-party
@@ -27,6 +28,7 @@ export const metadata: Metadata = {
   description:
     "Point, click, extract — or describe what you want in plain English. A precision instrument for getting structured data from any website.",
   metadataBase: new URL("https://stealthscraper.dev"),
+  alternates: { canonical: "/" },
   openGraph: {
     title: "Stealth-Scraper — structured web data for AI agents",
     description: "Point and click, or describe what you want. Clean JSON from any page.",
@@ -88,6 +90,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         {children}
+        {/* Vercel Analytics — privacy-friendly page-view + visitor
+            counting. Beacon hits same-origin /_vercel/insights so the
+            CSP connect-src 'self' covers it (no CSP change needed).
+            This closes the "flying blind on conversion" gap — now we
+            can see signups vs visitors per source post-launch. */}
+        <Analytics />
       </body>
     </html>
   );
